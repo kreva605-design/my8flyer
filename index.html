@@ -385,23 +385,23 @@
         </g>
       </g>
 
-      <!-- 復路 乗り継ぎ② (下・内側) -->
+      <!-- 復路 乗り継ぎ② (下・外側) ※②③入れ替え済み -->
       <g id="node-ret-1" class="city-node" onclick="openModal('ret-1')">
-        <circle class="node-circle" cx="202" cy="278" r="23" fill="#38a169" stroke="white" stroke-width="2.5" opacity="0.42"/>
-        <text id="txt-ret-1" x="202" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <circle class="node-circle" cx="278" cy="278" r="23" fill="#38a169" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-ret-1" x="278" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
         <g id="badge-ret-1" style="visibility:hidden">
-          <circle cx="221" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
-          <text x="221" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+          <circle cx="260" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="260" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
         </g>
       </g>
 
-      <!-- 復路 乗り継ぎ③ (下・外側) -->
+      <!-- 復路 乗り継ぎ③ (下・内側) ※②③入れ替え済み -->
       <g id="node-ret-2" class="city-node" onclick="openModal('ret-2')">
-        <circle class="node-circle" cx="278" cy="278" r="23" fill="#38a169" stroke="white" stroke-width="2.5" opacity="0.42"/>
-        <text id="txt-ret-2" x="278" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <circle class="node-circle" cx="202" cy="278" r="23" fill="#38a169" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-ret-2" x="202" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
         <g id="badge-ret-2" style="visibility:hidden">
-          <circle cx="260" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
-          <text x="260" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+          <circle cx="221" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="221" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
         </g>
       </g>
 
@@ -542,6 +542,8 @@ const CITIES = [
   { name:"香港",              iata:"HKG", type:"overseas",  zone:3,  miles:1820 },
   { name:"グアム",            iata:"GUM", type:"overseas",  zone:3,  miles:1620 },
   { name:"マニラ",            iata:"MNL", type:"overseas",  zone:3,  miles:1870 },
+  { name:"上海（浦東）",      iata:"PVG", type:"overseas",  zone:3,  miles:1100 },
+  { name:"北京",              iata:"PEK", type:"overseas",  zone:3,  miles:1320 },
   { name:"バンコク",          iata:"BKK", type:"overseas",  zone:4,  miles:2870 },
   { name:"シンガポール",      iata:"SIN", type:"overseas",  zone:4,  miles:3300 },
   { name:"ホーチミン",        iata:"SGN", type:"overseas",  zone:4,  miles:2720 },
