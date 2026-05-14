@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My 8flyer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(180deg, #b8d8f0 0%, #dceef8 40%, #eef5fb 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    header {
+      background: rgba(0,50,110,0.88);
+      color: white;
+      padding: 14px 20px 12px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.4rem; font-weight: bold; letter-spacing: 1px; }
+    header p  { font-size: 0.72rem; opacity: 0.7; margin-top: 3px; }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 18px 14px 40px;
+    }
+
+    /* ===== 飛行機セクション ===== */
+    .plane-section {
+      background: rgba(255,255,255,0.5);
+      border-radius: 20px;
+      padding: 14px 10px 18px;
+      box-shadow: 0 4px 24px rgba(0,70,160,0.1);
+      margin-bottom: 14px;
+      backdrop-filter: blur(4px);
+    }
+    .plane-hint {
+      text-align: center;
+      font-size: 0.72rem;
+      color: #6688aa;
+      margin-bottom: 8px;
+    }
+    #plane-svg {
+      width: 100%;
+      max-width: 380px;
+      display: block;
+      margin: 0 auto;
+      overflow: visible;
+    }
+    .city-node { cursor: pointer; }
+    .city-node:hover .node-circle { filter: brightness(1.15); }
+
+    /* ===== 凡例 ===== */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      font-size: 0.68rem;
+      color: #557;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    /* ===== ボタン ===== */
+    .btn-validate {
+      width: 100%;
+      background: linear-gradient(135deg, #0057a8, #003270);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(0,50,150,0.2);
+    }
+
+    /* ===== カード ===== */
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+    .card-title {
+      font-size: 0.73rem;
+      font-weight: bold;
+      color: #99a;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 14px;
+    }
+    .result-route {
+      background: #f4f8fc;
+      border-radius: 9px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      line-height: 2.1;
+      font-size: 0.87rem;
+    }
+    .check-item {
+      display: flex;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f2f6;
+      font-size: 0.87rem;
+      line-height: 1.5;
+      align-items: flex-start;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-ok   { color: #276749; }
+    .check-ng   { color: #c53030; }
+    .check-warn { color: #975a16; }
+    .mile-info {
+      background: #eef5ff;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .zone-badge {
+      display: inline-block;
+      background: #0057a8;
+      color: white;
+      border-radius: 5px;
+      padding: 2px 9px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .mile-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid #d8e8f8;
+      font-size: 0.86rem;
+    }
+    .mile-row:last-of-type { border-bottom: none; }
+    .mile-row .val { font-weight: bold; }
+
+    .airline-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: #445;
+    }
+
+    .hidden { display: none; }
+
+    /* ===== モーダル ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,20,60,0.5);
+      z-index: 300;
+      display: flex;
+      align-items: flex-end;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: white;
+      border-radius: 22px 22px 0 0;
+      padding: 20px 20px 36px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-handle {
+      width: 40px; height: 4px;
+      background: #ddd;
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+    .modal-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 14px;
+      color: #222;
+    }
+    .modal select {
+      width: 100%;
+      padding: 12px;
+      border: 1.5px solid #dde3ea;
+      border-radius: 10px;
+      font-size: 0.94rem;
+      margin-bottom: 14px;
+      background: #f8f9fb;
+      appearance: none;
+    }
+
+    /* ストップオーバートグル */
+    .type-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .type-label {
+      font-size: 0.82rem;
+      color: #555;
+      white-space: nowrap;
+    }
+    .type-btn {
+      flex: 1;
+      padding: 9px 8px;
+      border: 2px solid #dde3ea;
+      border-radius: 9px;
+      background: white;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      text-align: center;
+      transition: all 0.12s;
+    }
+    .type-btn.active {
+      border-color: #0057a8;
+      background: #e4f0ff;
+      color: #0057a8;
+      font-weight: bold;
+    }
+    /* 出発地・目的地・帰着地ではトグルをグレーアウト */
+    .type-row.disabled {
+      opacity: 0.38;
+      pointer-events: none;
+    }
+    .type-row.disabled .type-label::after {
+      content: '（乗り換え都市のみ設定可）';
+      font-size: 0.7rem;
+      color: #999;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-clear {
+      flex: 1;
+      background: #fee2e2;
+      color: #c53030;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-close {
+      flex: 1;
+      background: #f0f2f5;
+      color: #555;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    footer {
+      text-align: center;
+      color: #aab;
+      font-size: 0.68rem;
+      padding: 6px 0;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<!-- onclick="void(0)" はiOS SafariでSVG要素のタップを有効にする定番修正 -->
+<body onclick="void(0);">
+
+<header>
+  <h1>✈ My 8flyer</h1>
+  <p>ANA国際特典航空券 旅程チェッカー（個人用）</p>
+</header>
+
+<div class="container">
+
+  <div class="plane-section">
+    <p class="plane-hint">各丸をタップして都市を設定 · 🌙マークがストップオーバー</p>
+
+    <!--
+      SVG viewBox: 0 0 320 490
+      【翼】縦に広げてドット位置を分散（被り解消）
+        左翼: (140,188) (5,298) (140,302)
+        右翼: (180,188) (315,298) (180,302)
+      【ドット座標】
+        目的地:  (160, 50)
+        往路①:  (108, 220)  往路②: (42, 278)  往路③: (118, 278)
+        復路①:  (212, 220)  復路②: (202, 278)  復路③: (278, 278)
+        出発地:  (110, 408)  帰着地: (210, 408)
+    -->
+    <svg id="plane-svg" viewBox="0 0 320 490" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="fuseGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="#ccd8ec"/>
+          <stop offset="45%"  stop-color="#e2ecf8"/>
+          <stop offset="100%" stop-color="#c4d4e8"/>
+        </linearGradient>
+        <linearGradient id="wingGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#bccce0"/>
+          <stop offset="100%" stop-color="#a4b8d4"/>
+        </linearGradient>
+        <filter id="sh">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#004" flood-opacity="0.1"/>
+        </filter>
+      </defs>
+
+      <!-- 左翼（縦に広げて3つのドットを分散） -->
+      <polygon points="140,188 5,298 140,302" fill="url(#wingGrad)" filter="url(#sh)"/>
+      <!-- 右翼 -->
+      <polygon points="180,188 315,298 180,302" fill="url(#wingGrad)" filter="url(#sh)"/>
+      <!-- 左尾翼 -->
+      <polygon points="140,378 78,422 140,402" fill="url(#wingGrad)"/>
+      <!-- 右尾翼 -->
+      <polygon points="180,378 242,422 180,402" fill="url(#wingGrad)"/>
+      <!-- 胴体 -->
+      <ellipse cx="160" cy="234" rx="30" ry="192" fill="url(#fuseGrad)" filter="url(#sh)"/>
+      <!-- 胴体ハイライト -->
+      <ellipse cx="153" cy="234" rx="10" ry="182" fill="rgba(255,255,255,0.3)"/>
+      <!-- 窓（装飾） -->
+      <circle cx="160" cy="100" r="6" fill="rgba(180,210,240,0.75)" stroke="rgba(150,185,220,0.5)" stroke-width="1"/>
+      <circle cx="160" cy="120" r="6" fill="rgba(180,210,240,0.75)" stroke="rgba(150,185,220,0.5)" stroke-width="1"/>
+      <circle cx="160" cy="140" r="6" fill="rgba(180,210,240,0.75)" stroke="rgba(150,185,220,0.5)" stroke-width="1"/>
+
+      <!-- 区間ラベル -->
+      <text x="56"  y="175" text-anchor="middle" fill="#0057a8" font-size="13" font-weight="bold" opacity="0.78" font-family="Arial">往路</text>
+      <text x="264" y="175" text-anchor="middle" fill="#0057a8" font-size="13" font-weight="bold" opacity="0.78" font-family="Arial">復路</text>
+
+      <!-- ========== City Nodes ========== -->
+
+      <!-- 目的地（先っぽ・オレンジ） -->
+      <g id="node-destination" class="city-node" onclick="openModal('destination')">
+        <circle class="node-circle" cx="160" cy="50" r="24" fill="#f47c20" stroke="white" stroke-width="3"/>
+        <text id="txt-destination" x="160" y="55" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <text x="160" y="83" text-anchor="middle" fill="#c55a00" font-size="11" font-weight="bold" font-family="Arial">目的地</text>
+      </g>
+
+      <!-- 往路 乗り継ぎ① (上・内側) -->
+      <g id="node-out-0" class="city-node" onclick="openModal('out-0')">
+        <circle class="node-circle" cx="108" cy="220" r="23" fill="#3a80d2" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-out-0" x="108" y="225" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <!-- ストップオーバーバッジ -->
+        <g id="badge-out-0" style="visibility:hidden">
+          <circle cx="127" cy="205" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="127" y="209" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+        </g>
+      </g>
+
+      <!-- 往路 乗り継ぎ② (下・外側) -->
+      <g id="node-out-1" class="city-node" onclick="openModal('out-1')">
+        <circle class="node-circle" cx="42" cy="278" r="23" fill="#3a80d2" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-out-1" x="42" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <g id="badge-out-1" style="visibility:hidden">
+          <circle cx="61" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="61" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+        </g>
+      </g>
+
+      <!-- 往路 乗り継ぎ③ (下・内側) -->
+      <g id="node-out-2" class="city-node" onclick="openModal('out-2')">
+        <circle class="node-circle" cx="118" cy="278" r="23" fill="#3a80d2" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-out-2" x="118" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <g id="badge-out-2" style="visibility:hidden">
+          <circle cx="137" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="137" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+        </g>
+      </g>
+
+      <!-- 復路 乗り継ぎ① (上・内側) -->
+      <g id="node-ret-0" class="city-node" onclick="openModal('ret-0')">
+        <circle class="node-circle" cx="212" cy="220" r="23" fill="#38a169" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-ret-0" x="212" y="225" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <g id="badge-ret-0" style="visibility:hidden">
+          <circle cx="231" cy="205" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="231" y="209" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+        </g>
+      </g>
+
+      <!-- 復路 乗り継ぎ② (下・内側) -->
+      <g id="node-ret-1" class="city-node" onclick="openModal('ret-1')">
+        <circle class="node-circle" cx="202" cy="278" r="23" fill="#38a169" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-ret-1" x="202" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <g id="badge-ret-1" style="visibility:hidden">
+          <circle cx="221" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="221" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+        </g>
+      </g>
+
+      <!-- 復路 乗り継ぎ③ (下・外側) -->
+      <g id="node-ret-2" class="city-node" onclick="openModal('ret-2')">
+        <circle class="node-circle" cx="278" cy="278" r="23" fill="#38a169" stroke="white" stroke-width="2.5" opacity="0.42"/>
+        <text id="txt-ret-2" x="278" y="283" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <g id="badge-ret-2" style="visibility:hidden">
+          <circle cx="260" cy="263" r="9" fill="#d97706" stroke="white" stroke-width="1.5"/>
+          <text x="260" y="267" text-anchor="middle" fill="white" font-size="8" font-weight="bold" font-family="Arial">S</text>
+        </g>
+      </g>
+
+      <!-- 出発地（左尾翼・赤） -->
+      <g id="node-departure" class="city-node" onclick="openModal('departure')">
+        <circle class="node-circle" cx="110" cy="408" r="23" fill="#e53e3e" stroke="white" stroke-width="2.5"/>
+        <text id="txt-departure" x="110" y="413" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
+        <text x="97" y="440" text-anchor="middle" fill="#b03030" font-size="10" font-weight="bold" font-family="Arial">出発地</text>
+      </g>
+
+      <!-- 帰着地（右尾翼・赤薄） -->
+      <g id="node-arrival" class="city-node" onclick="openModal('arrival')">
+        <circle class="node-circle" cx="210" cy="408" r="23" fill="#e53e3e" stroke="white" stroke-width="2.5" opacity="0.5"/>
+        <text id="txt-arrival" x="210" y="413" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">同</text>
+        <text x="223" y="440" text-anchor="middle" fill="#b03030" font-size="10" font-weight="bold" font-family="Arial">帰着地</text>
+      </g>
+    </svg>
+
+    <!-- 凡例 -->
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#f47c20"></span>目的地</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#3a80d2"></span>往路接続</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#38a169"></span>復路接続</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#e53e3e"></span>出発/帰着</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#d97706"></span>ストップオーバー</span>
+    </div>
+  </div>
+
+  <button class="btn-validate" onclick="validate()">ルールを検証する ▶</button>
+
+  <!-- 結果カード -->
+  <div class="card hidden" id="result-card">
+    <div class="card-title">検証結果</div>
+    <div class="result-route" id="result-route"></div>
+    <div id="check-results"></div>
+    <div class="mile-info hidden" id="mile-info"></div>
+  </div>
+
+  <!-- ANA憲法 7条ルール参照 -->
+  <details class="card" style="cursor:pointer">
+    <summary style="font-size:0.73rem;font-weight:bold;color:#99a;text-transform:uppercase;letter-spacing:0.8px;list-style:none;display:flex;justify-content:space-between;align-items:center">
+      <span>ANA特典航空券ルール（全7条）</span><span style="font-size:0.8rem;color:#bbb">▼</span>
+    </summary>
+    <div style="margin-top:14px;font-size:0.82rem;line-height:1.75;color:#445">
+      <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール1</b> 出発地からの必要マイル数が最も高い地点を目的地とする</div>
+      <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール2</b> 往路・復路それぞれの最初または最後の都市を経由できない <span style="color:#38a169">✅ 検証済み</span></div>
+      <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール3</b> 乗り換え地点には制限あり（世界一周を除く）— 各区間最大3都市目安</div>
+      <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール4</b> 目的地より高いゾーンの都市は乗り換え不可 <span style="color:#38a169">✅ 検証済み</span></div>
+      <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール5</b> 出発地と帰着地が異なる場合は同一国 <span style="color:#38a169">✅ 検証済み</span></div>
+      <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール6</b> 出発地≠帰着地 or 往路到着≠復路出発の場合は同一エリア</div>
+      <div style="padding:6px 0"><b>ルール7</b> 往路到着地と復路出発地が異なるゾーンの場合、マイルは各ゾーン必要マイルの1/2合算</div>
+      <div style="margin-top:10px;font-size:0.7rem;color:#aab">※ストップオーバーは旅程全体で1箇所まで <span style="color:#38a169">✅ 検証済み</span><br>参照：ANA公式サイト（2025年6月24日改定）</div>
+    </div>
+  </details>
+
+  <!-- ANA予約実行時の注意 -->
+  <div class="card" style="border-left: 4px solid #e53e3e;">
+    <div class="card-title" style="color:#c53030">予約実行時の注意（ANA公式サイト）</div>
+    <div style="font-size:0.85rem; line-height:1.8; color:#444;">
+      <p style="margin-bottom:10px">
+        旅程が正しくても、ANA公式サイトで以下のエラーが出る場合があります：
+      </p>
+      <div style="background:#fff5f5; border-radius:8px; padding:12px; margin-bottom:10px; font-size:0.82rem; color:#555;">
+        <b>「あいにく手続きを承れません。再度お試しいただくか、当メッセージが繰り返し出る場合は、文末に表示されているエラーコードをお控えのうえ、お電話にてANAへお問い合わせください。」</b><br>
+        エラーコード：<code style="background:#fee;padding:2px 6px;border-radius:4px;color:#c00">E_A04P01_0001</code>
+      </div>
+      <p style="color:#666; font-size:0.82rem;">
+        ➡ <b>旅程内のいずれかの便で特典座席の空席がない</b>ことを意味します。<br>
+        ルール上は正しい旅程でも、空席状況次第で予約できません。<br>
+        WEBでは購入不可なので、ANAへ電話し近い便のご提案を受けてください。
+      </p>
+    </div>
+  </div>
+
+  <!-- スターアライアンス -->
+  <div class="card">
+    <div class="card-title">スターアライアンス 主要加盟航空会社</div>
+    <div class="airline-grid">
+      <div>🇯🇵 NH — ANA</div>
+      <div>🇺🇸 UA — ユナイテッド</div>
+      <div>🇩🇪 LH — ルフトハンザ</div>
+      <div>🇨🇭 LX — スイス</div>
+      <div>🇸🇬 SQ — シンガポール航空</div>
+      <div>🇹🇭 TG — タイ国際</div>
+      <div>🇹🇼 BR — エバー航空</div>
+      <div>🇰🇷 OZ — アシアナ</div>
+      <div>🇮🇳 AI — エア・インディア</div>
+      <div>🇹🇷 TK — トルコ航空</div>
+      <div>🇨🇦 AC — エア・カナダ</div>
+      <div>🇨🇳 CA — 中国国際航空</div>
+    </div>
+  </div>
+
+  <footer>
+    マイルデータ：ANA公式（2025年6月24日改定）基準<br>
+    個人利用専用 · 参考情報のため必ず公式サイトでご確認ください
+  </footer>
+</div>
+
+<!-- 都市選択モーダル（ボトムシート） -->
+<div class="modal-overlay hidden" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">都市を選択</div>
+
+    <!-- 都市ドロップダウン（選択即確定） -->
+    <select id="modal-select"></select>
+
+    <!-- ストップオーバートグル（接続都市のみ表示） -->
+    <div class="type-row hidden" id="type-row">
+      <span class="type-label">タイプ：</span>
+      <button id="btn-transit"   class="type-btn active" onclick="setType('transit')">🔄 乗り換え（トランジット）</button>
+      <button id="btn-stopover"  class="type-btn"        onclick="setType('stopover')">🌙 ストップオーバー</button>
+    </div>
+
+    <div class="modal-buttons">
+      <button class="btn-clear" onclick="clearCity()">クリア</button>
+      <button class="btn-close" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 都市マスタ =====
+const CITIES = [
+  { name:"東京（成田）",      iata:"NRT", type:"domestic",  zone:1,  miles:0    },
+  { name:"東京（羽田）",      iata:"HND", type:"domestic",  zone:1,  miles:0    },
+  { name:"大阪（関西）",      iata:"KIX", type:"domestic",  zone:1,  miles:0    },
+  { name:"名古屋",            iata:"NGO", type:"domestic",  zone:1,  miles:0    },
+  { name:"福岡",              iata:"FUK", type:"domestic",  zone:1,  miles:0    },
+  { name:"広島",              iata:"HIJ", type:"domestic",  zone:1,  miles:0    },
+  { name:"札幌（新千歳）",    iata:"CTS", type:"domestic",  zone:1,  miles:0    },
+  { name:"那覇",              iata:"OKA", type:"domestic",  zone:1,  miles:0    },
+  { name:"ソウル（仁川）",    iata:"ICN", type:"overseas",  zone:2,  miles:760  },
+  { name:"台北",              iata:"TPE", type:"overseas",  zone:3,  miles:1400 },
+  { name:"香港",              iata:"HKG", type:"overseas",  zone:3,  miles:1820 },
+  { name:"グアム",            iata:"GUM", type:"overseas",  zone:3,  miles:1620 },
+  { name:"バンコク",          iata:"BKK", type:"overseas",  zone:4,  miles:2870 },
+  { name:"シンガポール",      iata:"SIN", type:"overseas",  zone:4,  miles:3300 },
+  { name:"ホーチミン",        iata:"SGN", type:"overseas",  zone:4,  miles:2720 },
+  { name:"ハノイ",            iata:"HAN", type:"overseas",  zone:4,  miles:2500 },
+  { name:"ダナン",            iata:"DAD", type:"overseas",  zone:4,  miles:2580 },
+  { name:"クアラルンプール",  iata:"KUL", type:"overseas",  zone:4,  miles:3300 },
+  { name:"ジャカルタ",        iata:"CGK", type:"overseas",  zone:4,  miles:3740 },
+  { name:"デリー",            iata:"DEL", type:"overseas",  zone:4,  miles:3650 },
+  { name:"モルディブ",        iata:"MLE", type:"overseas",  zone:4,  miles:4300 },
+  { name:"ホノルル（ハワイ）",iata:"HNL", type:"overseas",  zone:5,  miles:3830 },
+  { name:"ロサンゼルス",      iata:"LAX", type:"overseas",  zone:6,  miles:5470 },
+  { name:"ニューヨーク",      iata:"JFK", type:"overseas",  zone:6,  miles:6760 },
+  { name:"シカゴ",            iata:"ORD", type:"overseas",  zone:6,  miles:6310 },
+  { name:"バンクーバー",      iata:"YVR", type:"overseas",  zone:6,  miles:4980 },
+  { name:"ロンドン",          iata:"LHR", type:"overseas",  zone:7,  miles:5970 },
+  { name:"パリ",              iata:"CDG", type:"overseas",  zone:7,  miles:6040 },
+  { name:"フランクフルト",    iata:"FRA", type:"overseas",  zone:7,  miles:5820 },
+  { name:"ミュンヘン",        iata:"MUC", type:"overseas",  zone:7,  miles:5840 },
+  { name:"ウィーン",          iata:"VIE", type:"overseas",  zone:7,  miles:5870 },
+  { name:"イスタンブール",    iata:"IST", type:"overseas",  zone:7,  miles:5780 },
+  { name:"シドニー",          iata:"SYD", type:"overseas",  zone:10, miles:4870 },
+];
+
+const MILE_CHART = {
+  2:  { label:"Zone 2（韓国・ロシア）",
+        reg:{eco:15000,biz:50000,first:null},
+        low:{eco:12000,biz:40000}, high:{eco:24000,biz:80000} },
+  3:  { label:"Zone 3（アジア1：台北・香港・グアム等）",
+        reg:{eco:24630,biz:70000,first:null},
+        low:{eco:18500,biz:60000}, high:{eco:37500,biz:95000} },
+  4:  { label:"Zone 4（アジア2：BKK・SIN・ハノイ等）",
+        reg:{eco:35000,biz:90000,first:null},
+        low:{eco:30000,biz:80000}, high:{eco:50000,biz:95000} },
+  5:  { label:"Zone 5（ハワイ）",
+        reg:{eco:40000,biz:100000,first:null},
+        low:{eco:35000,biz:85000}, high:{eco:60000,biz:120000} },
+  6:  { label:"Zone 6（北米：LA・NY・シカゴ等）",
+        reg:{eco:50000,biz:120000,first:300000},
+        low:{eco:40000,biz:100000}, high:{eco:72000,biz:165000} },
+  7:  { label:"Zone 7（ヨーロッパ：ロンドン・パリ・FRA等）",
+        reg:{eco:55000,biz:140000,first:330000},
+        low:{eco:45000,biz:120000}, high:{eco:78000,biz:230000} },
+  10: { label:"Zone 10（オセアニア：シドニー等）",
+        reg:{eco:45000,biz:90000,first:null},
+        low:{eco:40000,biz:null}, high:{eco:60000,biz:null} },
+};
+
+// ===== ゾーン必要マイル順位（Rule4の判定用） =====
+// 低い数字 = 出発地に近い（マイル少）、高い数字 = 遠い（マイル多）
+const ZONE_RANK = { 1:0, 2:1, 3:2, 4:3, 5:4, 10:5, 6:6, 7:7 };
+
+// ===== スロット定義 =====
+const SLOT_META = {
+  'departure':   { label:'出発地',                       nullable:false },
+  'destination': { label:'目的地（先っぽ）',              nullable:false },
+  'arrival':     { label:'帰着地（省略→出発地と同じ）',   nullable:true  },
+  'out-0':       { label:'往路 乗り継ぎ ①',              nullable:true, isConn:true },
+  'out-1':       { label:'往路 乗り継ぎ ②',              nullable:true, isConn:true },
+  'out-2':       { label:'往路 乗り継ぎ ③',              nullable:true, isConn:true },
+  'ret-0':       { label:'復路 乗り継ぎ ①',              nullable:true, isConn:true },
+  'ret-1':       { label:'復路 乗り継ぎ ②',              nullable:true, isConn:true },
+  'ret-2':       { label:'復路 乗り継ぎ ③',              nullable:true, isConn:true },
+};
+
+// ===== アプリ状態 =====
+const STATE = {
+  departure:   null,
+  destination: null,
+  arrival:     null,
+  outbound:    [null, null, null],
+  return:      [null, null, null],
+  outboundSO:  [false, false, false],  // true = ストップオーバー
+  returnSO:    [false, false, false],
+};
+
+// ===== スロット値の読み書き =====
+function getVal(slot) {
+  if (slot === 'departure')    return STATE.departure;
+  if (slot === 'destination')  return STATE.destination;
+  if (slot === 'arrival')      return STATE.arrival;
+  if (slot.startsWith('out-')) return STATE.outbound[+slot[4]];
+  if (slot.startsWith('ret-')) return STATE.return[+slot[4]];
+  return null;
+}
+function setVal(slot, iata) {
+  if (slot === 'departure')        STATE.departure        = iata;
+  else if (slot === 'destination') STATE.destination      = iata;
+  else if (slot === 'arrival')     STATE.arrival          = iata;
+  else if (slot.startsWith('out-')) STATE.outbound[+slot[4]] = iata;
+  else if (slot.startsWith('ret-')) STATE.return[+slot[4]]   = iata;
+}
+
+function isConn(slot) {
+  return slot.startsWith('out-') || slot.startsWith('ret-');
+}
+
+function getStopover(slot) {
+  if (slot.startsWith('out-')) return STATE.outboundSO[+slot[4]];
+  if (slot.startsWith('ret-')) return STATE.returnSO[+slot[4]];
+  return false;
+}
+function setStopover(slot, value) {
+  if (slot.startsWith('out-')) STATE.outboundSO[+slot[4]] = value;
+  if (slot.startsWith('ret-')) STATE.returnSO[+slot[4]]   = value;
+}
+
+// ===== ドット表示更新 =====
+function updateAllDots() {
+  Object.keys(SLOT_META).forEach(slot => {
+    const val   = getVal(slot);
+    const city  = val ? CITIES.find(c => c.iata === val) : null;
+    const txtEl = document.getElementById(`txt-${slot}`);
+    const nodeEl= document.getElementById(`node-${slot}`);
+    if (!txtEl || !nodeEl) return;
+
+    const circle = nodeEl.querySelector('circle.node-circle');
+
+    if (city) {
+      txtEl.textContent = city.iata;
+      txtEl.setAttribute('font-size', '9');
+      circle.setAttribute('opacity', '1');
+    } else {
+      txtEl.setAttribute('font-size', '12');
+      if (slot === 'arrival') {
+        txtEl.textContent = '同';
+        circle.setAttribute('opacity', '0.5');
+      } else {
+        txtEl.textContent = '＋';
+        circle.setAttribute('opacity', SLOT_META[slot].nullable ? '0.38' : '0.85');
+      }
+    }
+
+    // ストップオーバーバッジ
+    const badge = document.getElementById(`badge-${slot}`);
+    if (badge) {
+      const so = getStopover(slot);
+      badge.style.visibility = (so && !!val) ? 'visible' : 'hidden';
+    }
+  });
+}
+
+// ===== モーダル制御 =====
+let currentSlot = null;
+
+function buildModalSelect() {
+  const sel = document.getElementById('modal-select');
+  const meta = SLOT_META[currentSlot];
+  sel.innerHTML = '';
+
+  const emptyOpt = document.createElement('option');
+  emptyOpt.value = '';
+  emptyOpt.textContent = meta.nullable
+    ? (currentSlot === 'arrival' ? '（出発地と同じ）' : '（乗り継ぎなし）')
+    : '選択してください';
+  sel.appendChild(emptyOpt);
+
+  // 国内グループ
+  const domGrp = document.createElement('optgroup');
+  domGrp.label = '🇯🇵 国内（Zone 1）';
+  CITIES.filter(c => c.type === 'domestic').forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.iata;
+    o.textContent = `${c.name}（${c.iata}）`;
+    domGrp.appendChild(o);
+  });
+  sel.appendChild(domGrp);
+
+  // 海外グループ（ゾーン別）
+  const zones = [...new Set(CITIES.filter(c => c.type === 'overseas').map(c => c.zone))].sort((a,b) => a-b);
+  zones.forEach(z => {
+    const grp = document.createElement('optgroup');
+    grp.label = `🌏 ${MILE_CHART[z]?.label ?? 'Zone ' + z}`;
+    CITIES.filter(c => c.type === 'overseas' && c.zone === z).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.iata;
+      o.textContent = `${c.name}（${c.iata}）`;
+      grp.appendChild(o);
+    });
+    sel.appendChild(grp);
+  });
+
+  sel.value = getVal(currentSlot) ?? '';
+}
+
+function openModal(slot) {
+  currentSlot = slot;
+  document.getElementById('modal-title').textContent = SLOT_META[slot].label + ' を選択';
+  buildModalSelect();
+
+  // トグル：接続都市は有効、出発地・目的地・帰着地はグレーアウト
+  const typeRow = document.getElementById('type-row');
+  typeRow.classList.remove('hidden');
+  if (isConn(slot)) {
+    typeRow.classList.remove('disabled');
+    updateTypeButtons();
+  } else {
+    typeRow.classList.add('disabled');
+    document.getElementById('btn-transit').classList.add('active');
+    document.getElementById('btn-stopover').classList.remove('active');
+  }
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function updateTypeButtons() {
+  const so = getStopover(currentSlot);
+  document.getElementById('btn-transit').classList.toggle('active', !so);
+  document.getElementById('btn-stopover').classList.toggle('active', so);
+}
+
+function setType(type) {
+  if (!currentSlot || !isConn(currentSlot)) return;
+  const isSO = type === 'stopover';
+
+  if (isSO) {
+    // 既存のストップオーバーをすべてクリア（旅程全体で1箇所のみ）
+    STATE.outboundSO = [false, false, false];
+    STATE.returnSO   = [false, false, false];
+  }
+  setStopover(currentSlot, isSO);
+  updateTypeButtons();
+  updateAllDots();
+}
+
+function clearCity() {
+  setVal(currentSlot, null);
+  if (isConn(currentSlot)) setStopover(currentSlot, false);
+  updateAllDots();
+  closeModal();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  currentSlot = null;
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+// 選択即確定：onChange で city を即時適用
+document.getElementById('modal-select').addEventListener('change', function() {
+  if (!currentSlot) return;
+  const iata = this.value || null;
+  setVal(currentSlot, iata);
+
+  // 都市をクリアした場合はストップオーバーも解除
+  if (!iata && isConn(currentSlot)) setStopover(currentSlot, false);
+
+  updateAllDots();
+
+  // 接続都市以外（出発地・目的地・帰着地）は即閉じる
+  if (!isConn(currentSlot)) {
+    closeModal();
+  } else {
+    // 接続都市は閉じずにトグル操作を待つ
+    updateTypeButtons();
+  }
+});
+
+// ===== 検証 =====
+function validate() {
+  const depIata  = STATE.departure;
+  const destIata = STATE.destination;
+  const arrIata  = STATE.arrival ?? STATE.departure;
+
+  if (!depIata || !destIata) {
+    alert('出発地（赤）と目的地（オレンジ）を設定してください');
+    return;
+  }
+
+  const depCity  = CITIES.find(c => c.iata === depIata);
+  const destCity = CITIES.find(c => c.iata === destIata);
+  const arrCity  = CITIES.find(c => c.iata === arrIata);
+  const outConns = STATE.outbound.filter(Boolean);
+  const retConns = STATE.return.filter(Boolean);
+
+  const checks = [];
+
+  // R1: 目的地は海外
+  if (destCity.type === 'domestic') {
+    checks.push({ ok:false, msg:`目的地「${destCity.name}」は海外都市にする必要があります` });
+  } else {
+    checks.push({ ok:true, msg:`目的地: ${destCity.name}（${destCity.iata}） — Zone ${destCity.zone}` });
+  }
+
+  // R2: 往路の乗り継ぎ重複
+  const outBanned = new Set([depIata, destIata, arrIata]);
+  const outOvlp = outConns.filter(ic => outBanned.has(ic));
+  if (outOvlp.length > 0) {
+    const ns = outOvlp.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
+    checks.push({ ok:false, msg:`往路乗り継ぎに重複: 「${ns}」は出発地・目的地・帰着地と同じです` });
+  } else {
+    checks.push({ ok:true, msg:'往路の乗り継ぎ: 重複なし ✓' });
+  }
+
+  // R3: 復路の乗り継ぎ重複
+  const retBanned = new Set([destIata, depIata, arrIata]);
+  const retOvlp = retConns.filter(ic => retBanned.has(ic));
+  if (retOvlp.length > 0) {
+    const ns = retOvlp.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
+    checks.push({ ok:false, msg:`復路乗り継ぎに重複: 「${ns}」は目的地・出発地・帰着地と同じです` });
+  } else {
+    checks.push({ ok:true, msg:'復路の乗り継ぎ: 重複なし ✓' });
+  }
+
+  // R4: ストップオーバーは1箇所まで
+  const soSlots = [
+    ...STATE.outbound.map((v,i) => (v && STATE.outboundSO[i]) ? STATE.outbound[i] : null),
+    ...STATE.return.map((v,i)   => (v && STATE.returnSO[i])   ? STATE.return[i]   : null),
+  ].filter(Boolean);
+
+  if (soSlots.length > 1) {
+    checks.push({ ok:false, msg:`ストップオーバーは旅程全体で1箇所まで（現在${soSlots.length}箇所）` });
+  } else if (soSlots.length === 1) {
+    const soCity = CITIES.find(c => c.iata === soSlots[0]);
+    checks.push({ ok:true, msg:`ストップオーバー: ${soCity?.name ?? soSlots[0]} — 1箇所 ✓` });
+  }
+
+  // ルール4: 乗り換え都市のゾーンは目的地ゾーン以下でなければならない
+  // 「出発地からの必要マイル数がより高いゾーンの都市を乗り換え地点にすることはできません」
+  if (destCity.type !== 'domestic') {
+    const destRank = ZONE_RANK[destCity.zone] ?? 0;
+    const zoneViolations = [...outConns, ...retConns]
+      .map(ic => CITIES.find(c => c.iata === ic))
+      .filter(c => c && c.type === 'overseas' && (ZONE_RANK[c.zone] ?? 0) > destRank);
+    if (zoneViolations.length > 0) {
+      const ns = zoneViolations.map(c => `${c.name}（Zone${c.zone}）`).join('、');
+      checks.push({ ok:false, msg:`[ルール4] 乗り換えゾーン違反: 「${ns}」は目的地 Zone${destCity.zone} より高いゾーンのため乗り継ぎ不可` });
+    } else {
+      checks.push({ ok:true, msg:`[ルール4] 乗り換えゾーン: すべて目的地 Zone${destCity.zone} 以下 ✓` });
+    }
+  }
+
+  // ルール5: 出発地と帰着地が異なる場合、同一国であること（どちらも国内＝日本）
+  // 「出発地と最終帰着地が異なる場合、同一国内であることが必要です」
+  if (STATE.arrival && STATE.arrival !== STATE.departure) {
+    if (depCity.type !== arrCity.type) {
+      checks.push({ ok:false, msg:`[ルール5] 出発地（${depCity.name}）と帰着地（${arrCity.name}）は同一国（日本国内）である必要があります` });
+    } else {
+      checks.push({ ok:true, msg:`[ルール5] 出発地・帰着地: 同一国（日本国内）✓` });
+    }
+  }
+
+  // ルール6: 出発地と帰着地が異なる場合は同一エリア（Zone1内）であること
+  // ※ 本アプリでは国内都市はすべてZone1（日本）のため、ルール5で担保済み
+
+  // W: 往路・復路で同じ乗り継ぎ
+  const common = outConns.filter(ic => retConns.includes(ic));
+  if (common.length > 0) {
+    const ns = common.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
+    checks.push({ ok:'warn', msg:`往路と復路で同じ乗り継ぎ: 「${ns}」— ANA公式で要確認` });
+  }
+
+  // 総合判定
+  const hasNg = checks.some(c => c.ok === false);
+  checks.unshift({ ok:!hasNg, msg: hasNg ? 'この旅程にはルール違反があります' : 'この旅程は問題ありません' });
+
+  // 旅程テキスト生成
+  const cityName = iata => CITIES.find(c=>c.iata===iata)?.name ?? iata;
+  const soLabel = (iata, leg, idx) => {
+    const name = cityName(iata);
+    const isSO = leg === 'out' ? STATE.outboundSO[idx] : STATE.returnSO[idx];
+    return isSO ? `<b>${name}</b><sup style="color:#d97706">S</sup>` : `<b>${name}</b>`;
+  };
+
+  const outParts = [
+    `<b>${cityName(depIata)}</b>`,
+    ...STATE.outbound.map((v,i) => v ? soLabel(v, 'out', i) : null).filter(Boolean),
+    `<b>${cityName(destIata)}</b>`,
+  ];
+  const retParts = [
+    `<b>${cityName(destIata)}</b>`,
+    ...STATE.return.map((v,i) => v ? soLabel(v, 'ret', i) : null).filter(Boolean),
+    `<b>${cityName(arrIata)}</b>`,
+  ];
+  document.getElementById('result-route').innerHTML =
+    `往路: ${outParts.join(' → ')}<br>復路: ${retParts.join(' → ')}` +
+    (soSlots.length > 0 ? '<br><small style="color:#d97706">S = ストップオーバー</small>' : '');
+
+  document.getElementById('check-results').innerHTML = checks.map(c => {
+    const cls  = c.ok===true ? 'check-ok' : c.ok===false ? 'check-ng' : 'check-warn';
+    const icon = c.ok===true ? '✅' : c.ok===false ? '❌' : '⚠️';
+    return `<div class="check-item ${cls}">${icon} ${c.msg}</div>`;
+  }).join('');
+
+  // マイル情報
+  const mileDiv = document.getElementById('mile-info');
+  const info = MILE_CHART[destCity.zone];
+  if (info) {
+    const fmtM = v => v != null
+      ? `<span class="val">${v.toLocaleString()} マイル</span>`
+      : `<span style="color:#bbb">—</span>`;
+    mileDiv.innerHTML = `
+      <div><span class="zone-badge">Zone ${destCity.zone}</span></div>
+      <div style="font-size:0.78rem;color:#558;margin-bottom:10px">${info.label}</div>
+      <div class="mile-row"><span>✈ エコノミー（往復 レギュラー）</span>${fmtM(info.reg.eco)}</div>
+      <div class="mile-row"><span>🛋 ビジネス（往復 レギュラー）</span>${fmtM(info.reg.biz)}</div>
+      ${info.reg.first ? `<div class="mile-row"><span>⭐ ファースト（往復）</span>${fmtM(info.reg.first)}</div>` : ''}
+      <div style="font-size:0.7rem;color:#88a;margin-top:10px;line-height:1.8">
+        ローシーズン: エコノミー ${info.low.eco?.toLocaleString()??'—'} / ビジネス ${info.low.biz?.toLocaleString()??'—'} マイル<br>
+        ハイシーズン: エコノミー ${info.high.eco?.toLocaleString()??'—'} / ビジネス ${info.high.biz?.toLocaleString()??'—'} マイル<br>
+        ※シーズン区分はANA公式カレンダーで確認してください
+      </div>`;
+    mileDiv.classList.remove('hidden');
+  } else {
+    mileDiv.classList.add('hidden');
+  }
+
+  const rc = document.getElementById('result-card');
+  rc.classList.remove('hidden');
+  rc.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ===== 初期化 =====
+updateAllDots();
+</script>
+</body>
+</html>
