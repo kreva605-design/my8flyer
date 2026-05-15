@@ -656,10 +656,16 @@
 
   <!-- 結果カード -->
   <div class="card hidden" id="result-card">
-    <div class="card-title">検証結果</div>
-    <div class="result-route" id="result-route"></div>
-    <div id="check-results"></div>
-    <div class="mile-info hidden" id="mile-info"></div>
+    <div class="card-title" onclick="toggleResultCard()"
+         style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <span>ルール検証結果</span>
+      <span id="result-chevron" style="font-size:0.8rem;color:#bbb">▲</span>
+    </div>
+    <div id="result-body">
+      <div class="result-route" id="result-route"></div>
+      <div id="check-results"></div>
+      <div class="mile-info hidden" id="mile-info"></div>
+    </div>
   </div>
 
   <!-- フライト確認カード（APIモード時のみ表示） -->
@@ -1195,6 +1201,9 @@ function validate() {
 
   const rc = document.getElementById('result-card');
   rc.classList.remove('hidden');
+  // 再検証のたびにルール検証結果を展開する
+  document.getElementById('result-body').style.display = '';
+  document.getElementById('result-chevron').textContent = '▲';
   rc.scrollIntoView({ behavior:'smooth', block:'start' });
 
   checkFlights();
@@ -1275,6 +1284,14 @@ function toggleSettings() {
   const chevron = document.getElementById('settings-chevron');
   const hidden  = body.classList.toggle('hidden');
   chevron.textContent = hidden ? '▼' : '▲';
+}
+
+function toggleResultCard() {
+  const body    = document.getElementById('result-body');
+  const chevron = document.getElementById('result-chevron');
+  const closing = body.style.display !== 'none';
+  body.style.display    = closing ? 'none' : '';
+  chevron.textContent   = closing ? '▼' : '▲';
 }
 
 // ===== フライトキャッシュ（sessionStorage） =====
@@ -1430,9 +1447,17 @@ function renderFlightCard(legs, results) {
       </div>`;
 
     const isMock = data.source === 'mock';
-    const rows = data.flights.map(f => `
+    const starFlights = data.flights.filter(f => f.starAlliance);
+
+    if (!starFlights.length) return `
+      <div class="leg-block">
+        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
+        <div class="check-item check-ng">❌ スターアライアンス便がありません（全${data.flights.length}便が他社）</div>
+      </div>`;
+
+    const rows = starFlights.map(f => `
       <div class="flight-row">
-        <div>✅ <b>${f.airline} ${f.flightNo}</b>${f.starAlliance ? '<span class="star-badge">★スターアライアンス</span>' : ''}${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
+        <div>✅ <b>${f.airline} ${f.flightNo}</b><span class="star-badge">★スターアライアンス</span>${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
         <div class="flight-time">${f.dep} → ${f.arr}</div>
       </div>`).join('');
 
