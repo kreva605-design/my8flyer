@@ -490,15 +490,17 @@
           フライト確認あり（アクセストークン必要）
         </label>
       </div>
-      <div id="token-row" class="settings-field hidden">
-        <span class="settings-field-label">アクセストークン</span>
-        <input type="password" id="token-input" class="token-input" placeholder="入力して保存">
-        <button class="btn-token-save" onclick="saveToken()">保存</button>
-      </div>
-      <div id="workers-row" class="settings-field hidden">
-        <span class="settings-field-label">Workers URL</span>
-        <input type="text" id="workers-url-input" class="token-input" placeholder="https://xxx.workers.dev">
-        <button class="btn-token-save" onclick="saveWorkersUrl()">保存</button>
+      <div id="api-fields" style="display:none;flex-direction:column;gap:12px">
+        <div class="settings-field" id="token-row">
+          <span class="settings-field-label">アクセストークン</span>
+          <input type="password" id="token-input" class="token-input" placeholder="入力して保存">
+          <button class="btn-token-save" onclick="saveToken()">保存</button>
+        </div>
+        <div class="settings-field" id="workers-row">
+          <span class="settings-field-label">Workers URL</span>
+          <input type="text" id="workers-url-input" class="token-input" placeholder="https://xxx.workers.dev">
+          <button class="btn-token-save" onclick="saveWorkersUrl()">保存</button>
+        </div>
       </div>
       <div id="settings-status" class="settings-status"></div>
     </div>
@@ -1231,9 +1233,7 @@ function onModeChange() {
 
 function toggleTokenRow() {
   const mode = document.querySelector('input[name="mode"]:checked')?.value ?? 'basic';
-  const isApi = mode === 'api';
-  document.getElementById('token-row').classList.toggle('hidden', !isApi);
-  document.getElementById('workers-row').classList.toggle('hidden', !isApi);
+  document.getElementById('api-fields').style.display = mode === 'api' ? 'flex' : 'none';
 }
 
 function saveToken() {
