@@ -461,6 +461,102 @@
       cursor: pointer;
       flex-shrink: 0;
     }
+    .btn-edit-route {
+      padding: 6px 10px;
+      background: #f0f2f5;
+      color: #555;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.77rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .saved-route-comment {
+      font-size: 0.72rem;
+      color: #778;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ===== 編集モーダル ===== */
+    .edit-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,20,60,0.45);
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .edit-modal-overlay.hidden { display: none; }
+    .edit-modal {
+      background: white;
+      border-radius: 18px;
+      padding: 24px 20px 20px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .edit-modal-title {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #222;
+      margin-bottom: 16px;
+    }
+    .edit-field-label {
+      font-size: 0.78rem;
+      color: #667;
+      margin-bottom: 5px;
+      display: block;
+    }
+    .edit-text-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ea;
+      border-radius: 9px;
+      font-size: 0.9rem;
+      background: #f8f9fb;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+    }
+    .edit-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ea;
+      border-radius: 9px;
+      font-size: 0.87rem;
+      background: #f8f9fb;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+      resize: vertical;
+      min-height: 72px;
+      font-family: inherit;
+    }
+    .edit-modal-buttons { display: flex; gap: 10px; }
+    .btn-edit-save {
+      flex: 1;
+      padding: 12px;
+      background: linear-gradient(135deg, #0057a8, #003270);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-edit-cancel {
+      flex: 1;
+      padding: 12px;
+      background: #f0f2f5;
+      color: #555;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
   </style>
 </head>
 <!-- onclick="void(0)" はiOS SafariでSVG要素のタップを有効にする定番修正 -->
@@ -747,6 +843,21 @@
     マイルデータ：ANA公式（2025年6月24日改定）基準<br>
     個人利用専用 · 参考情報のため必ず公式サイトでご確認ください
   </footer>
+</div>
+
+<!-- ルート編集モーダル -->
+<div class="edit-modal-overlay hidden" id="edit-modal-overlay">
+  <div class="edit-modal">
+    <div class="edit-modal-title">ルートを編集</div>
+    <label class="edit-field-label">ルート名</label>
+    <input type="text" id="edit-name-input" class="edit-text-input" placeholder="例：広島→パリ（ANA直行）">
+    <label class="edit-field-label">コメント</label>
+    <textarea id="edit-comment-input" class="edit-textarea" placeholder="例：2026年夏休み候補。安い時期に実行したい"></textarea>
+    <div class="edit-modal-buttons">
+      <button class="btn-edit-save" onclick="saveEditRoute()">保存</button>
+      <button class="btn-edit-cancel" onclick="closeEditModal()">キャンセル</button>
+    </div>
+  </div>
 </div>
 
 <!-- 都市選択モーダル（ボトムシート） -->
@@ -1563,19 +1674,53 @@ function deleteRoute(id) {
   renderSavedRoutes();
 }
 
+// ===== ルート編集モーダル =====
+let editingRouteId = null;
+
+function editRoute(id) {
+  const route = getSavedRoutes().find(r => r.id === id);
+  if (!route) return;
+  editingRouteId = id;
+  document.getElementById('edit-name-input').value    = route.name    ?? '';
+  document.getElementById('edit-comment-input').value = route.comment ?? '';
+  document.getElementById('edit-modal-overlay').classList.remove('hidden');
+}
+
+function saveEditRoute() {
+  if (!editingRouteId) return;
+  const name    = document.getElementById('edit-name-input').value.trim();
+  const comment = document.getElementById('edit-comment-input').value.trim();
+  const routes  = getSavedRoutes().map(r =>
+    r.id === editingRouteId ? { ...r, name: name || r.name, comment } : r
+  );
+  setSavedRoutes(routes);
+  renderSavedRoutes();
+  closeEditModal();
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal-overlay').classList.add('hidden');
+  editingRouteId = null;
+}
+
 function renderSavedRoutes() {
   const routes = getSavedRoutes();
   document.getElementById('saved-count').textContent = `${routes.length} / ${MAX_SAVED} 件`;
   document.getElementById('saved-list').innerHTML = routes.length === 0
     ? '<div style="font-size:0.82rem;color:#aab;padding:8px 0">保存済みルートはありません</div>'
     : routes.map(r => {
-        const date = new Date(r.savedAt).toLocaleDateString('ja-JP',{month:'short',day:'numeric'});
+        const date    = new Date(r.savedAt).toLocaleDateString('ja-JP',{month:'short',day:'numeric'});
+        const comment = r.comment
+          ? `<div class="saved-route-comment">💬 ${r.comment}</div>`
+          : '';
         return `<div class="saved-route-item">
           <div class="saved-route-info">
             <div class="saved-route-name">${r.name}</div>
             <div class="saved-route-date">${date}保存</div>
+            ${comment}
           </div>
           <button class="btn-load-route" onclick="loadRoute('${r.id}')">読込</button>
+          <button class="btn-edit-route" onclick="editRoute('${r.id}')">編集</button>
           <button class="btn-del-route"  onclick="deleteRoute('${r.id}')">削除</button>
         </div>`;
       }).join('');
