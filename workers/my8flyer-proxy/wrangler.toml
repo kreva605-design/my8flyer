@@ -1,0 +1,16 @@
+name       = "my8flyer-proxy"
+main       = "index.js"
+compatibility_date = "2024-01-01"
+
+# デプロイ後のエンドポイント例:
+# https://my8flyer-proxy.<アカウント名>.workers.dev
+#
+# デプロイ手順:
+#   1. npm install -g wrangler
+#   2. wrangler login
+#   3. wrangler secret put ACCESS_TOKEN       ← 家族共有トークンを入力
+#   4. wrangler secret put FLYSTACK_API_KEY   ← FlyStack の API キーを入力
+#   5. wrangler deploy
+#
+# デプロイ後、index.html の設定パネルの「Workers URL」欄に
+# https://my8flyer-proxy.<アカウント名>.workers.dev を入力して保存

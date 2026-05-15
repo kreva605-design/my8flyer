@@ -272,6 +272,195 @@
       padding: 6px 0;
       line-height: 1.8;
     }
+
+    /* ===== 設定パネル ===== */
+    .settings-panel {
+      background: rgba(255,255,255,0.65);
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(0,50,150,0.07);
+      backdrop-filter: blur(4px);
+    }
+    .settings-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.82rem;
+      font-weight: bold;
+      color: #556;
+    }
+    .settings-body {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .mode-options { display: flex; flex-direction: column; gap: 8px; }
+    .mode-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #445;
+      cursor: pointer;
+    }
+    .mode-option input[type="radio"] { accent-color: #0057a8; width: 16px; height: 16px; }
+    .settings-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .settings-field-label {
+      font-size: 0.76rem;
+      color: #667;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+    .token-input {
+      flex: 1;
+      min-width: 0;
+      padding: 9px 12px;
+      border: 1.5px solid #dde3ea;
+      border-radius: 9px;
+      font-size: 0.83rem;
+      background: #f8f9fb;
+    }
+    .btn-token-save {
+      padding: 9px 14px;
+      background: #0057a8;
+      color: white;
+      border: none;
+      border-radius: 9px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .settings-status { font-size: 0.78rem; color: #38a169; min-height: 1.2em; }
+    .settings-status.warn { color: #d97706; }
+
+    /* ===== フライト確認カード ===== */
+    .leg-block {
+      background: #f4f8fc;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .leg-header {
+      font-size: 0.87rem;
+      font-weight: bold;
+      color: #334;
+      margin-bottom: 8px;
+    }
+    .flight-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.84rem;
+      color: #445;
+      margin-bottom: 4px;
+    }
+    .flight-time { font-weight: bold; color: #0057a8; margin-left: 18px; }
+    .star-badge {
+      display: inline-block;
+      background: #ffd700;
+      color: #664d00;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.68rem;
+      font-weight: bold;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+    .mock-note { font-size: 0.7rem; color: #d97706; margin-left: 5px; }
+    .connection-block {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #d8e8f0;
+    }
+    .connection-row {
+      display: flex;
+      gap: 8px;
+      padding: 5px 0;
+      font-size: 0.83rem;
+      align-items: flex-start;
+    }
+    .flight-actions { display: flex; gap: 10px; margin-top: 14px; }
+    .btn-refresh {
+      flex: 1;
+      padding: 11px;
+      background: #e4f0ff;
+      color: #0057a8;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-save-route {
+      flex: 1;
+      padding: 11px;
+      background: #e6ffed;
+      color: #276749;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .flight-loading {
+      text-align: center;
+      padding: 20px;
+      color: #99a;
+      font-size: 0.87rem;
+    }
+
+    /* ===== 保存ルートカード ===== */
+    .saved-count { font-size: 0.72rem; color: #aab; margin-bottom: 10px; }
+    .saved-route-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f2f6;
+    }
+    .saved-route-item:last-child { border-bottom: none; }
+    .saved-route-info { flex: 1; min-width: 0; }
+    .saved-route-name {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #334;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .saved-route-date { font-size: 0.71rem; color: #aab; margin-top: 2px; }
+    .btn-load-route {
+      padding: 6px 11px;
+      background: #0057a8;
+      color: white;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.77rem;
+      font-weight: bold;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-del-route {
+      padding: 6px 10px;
+      background: #fee2e2;
+      color: #c53030;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.77rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <!-- onclick="void(0)" はiOS SafariでSVG要素のタップを有効にする定番修正 -->
@@ -283,6 +472,37 @@
 </header>
 
 <div class="container">
+
+  <!-- 設定パネル -->
+  <div class="settings-panel">
+    <div class="settings-toggle" onclick="toggleSettings()">
+      <span>⚙ 設定</span>
+      <span id="settings-chevron">▼</span>
+    </div>
+    <div id="settings-body" class="settings-body hidden">
+      <div class="mode-options">
+        <label class="mode-option">
+          <input type="radio" name="mode" value="basic" onchange="onModeChange()">
+          ルールチェックのみ（APIキー不要）
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="mode" value="api" onchange="onModeChange()">
+          フライト確認あり（アクセストークン必要）
+        </label>
+      </div>
+      <div id="token-row" class="settings-field hidden">
+        <span class="settings-field-label">アクセストークン</span>
+        <input type="password" id="token-input" class="token-input" placeholder="入力して保存">
+        <button class="btn-token-save" onclick="saveToken()">保存</button>
+      </div>
+      <div id="workers-row" class="settings-field hidden">
+        <span class="settings-field-label">Workers URL</span>
+        <input type="text" id="workers-url-input" class="token-input" placeholder="https://xxx.workers.dev">
+        <button class="btn-token-save" onclick="saveWorkersUrl()">保存</button>
+      </div>
+      <div id="settings-status" class="settings-status"></div>
+    </div>
+  </div>
 
   <div class="plane-section">
     <p class="plane-hint">各丸をタップして都市を設定 · 🌙マークがストップオーバー</p>
@@ -440,6 +660,17 @@
     <div class="mile-info hidden" id="mile-info"></div>
   </div>
 
+  <!-- フライト確認カード（APIモード時のみ表示） -->
+  <div class="card hidden" id="flight-card">
+    <div class="card-title">フライト確認</div>
+    <div id="flight-legs"></div>
+    <div id="flight-connections"></div>
+    <div class="flight-actions">
+      <button class="btn-refresh" onclick="refreshFlights()">🔄 再取得</button>
+      <button class="btn-save-route" onclick="saveRoute()">💾 このルートを保存</button>
+    </div>
+  </div>
+
   <!-- ANA憲法 7条ルール参照 -->
   <details class="card" style="cursor:pointer">
     <summary style="font-size:0.73rem;font-weight:bold;color:#99a;text-transform:uppercase;letter-spacing:0.8px;list-style:none;display:flex;justify-content:space-between;align-items:center">
@@ -495,6 +726,13 @@
       <div>🇨🇦 AC — エア・カナダ</div>
       <div>🇨🇳 CA — 中国国際航空</div>
     </div>
+  </div>
+
+  <!-- 保存ルートカード -->
+  <div class="card" id="saved-card">
+    <div class="card-title">保存ルート</div>
+    <div id="saved-count" class="saved-count"></div>
+    <div id="saved-list"></div>
   </div>
 
   <footer>
@@ -956,10 +1194,371 @@ function validate() {
   const rc = document.getElementById('result-card');
   rc.classList.remove('hidden');
   rc.scrollIntoView({ behavior:'smooth', block:'start' });
+
+  checkFlights();
+}
+
+// ===== CF Workers URL（デプロイ後に設定するか設定パネルで入力） =====
+const WORKERS_URL_DEFAULT = '';
+
+// ===== スターアライアンス加盟 IATA コード =====
+const STAR_ALLIANCE = new Set([
+  'NH','UA','LH','LX','SQ','TG','OZ','AI','TK','AC','CA','NZ',
+  'OS','SK','TP','BR','SN','ET','LO','A3','OU','MS','SA','ZH','JP'
+]);
+
+// ===== 設定管理 =====
+function initSettings() {
+  const mode = localStorage.getItem('m8f_mode') || 'basic';
+  const radio = document.querySelector(`input[name="mode"][value="${mode}"]`);
+  if (radio) radio.checked = true;
+  const url = localStorage.getItem('m8f_workers_url') || '';
+  document.getElementById('workers-url-input').value = url;
+  toggleTokenRow();
+  updateSettingsStatus();
+}
+
+function onModeChange() {
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  localStorage.setItem('m8f_mode', mode);
+  toggleTokenRow();
+  updateSettingsStatus();
+  // APIモードに変更した場合、フライト確認カードを非表示にリセット
+  if (mode === 'basic') {
+    document.getElementById('flight-card').classList.add('hidden');
+  }
+}
+
+function toggleTokenRow() {
+  const mode = document.querySelector('input[name="mode"]:checked')?.value ?? 'basic';
+  const isApi = mode === 'api';
+  document.getElementById('token-row').classList.toggle('hidden', !isApi);
+  document.getElementById('workers-row').classList.toggle('hidden', !isApi);
+}
+
+function saveToken() {
+  const val = document.getElementById('token-input').value.trim();
+  if (!val) return;
+  localStorage.setItem('m8f_token', val);
+  document.getElementById('token-input').value = '';
+  updateSettingsStatus();
+  alert('アクセストークンを保存しました');
+}
+
+function saveWorkersUrl() {
+  const val = document.getElementById('workers-url-input').value.trim();
+  localStorage.setItem('m8f_workers_url', val);
+  updateSettingsStatus();
+  alert('Workers URLを保存しました');
+}
+
+function updateSettingsStatus() {
+  const mode = localStorage.getItem('m8f_mode') || 'basic';
+  const hasToken   = !!localStorage.getItem('m8f_token');
+  const hasUrl     = !!(localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT);
+  const el = document.getElementById('settings-status');
+  if (mode === 'basic') { el.className = 'settings-status'; el.textContent = ''; return; }
+  if (hasToken && hasUrl) {
+    el.className = 'settings-status';
+    el.textContent = '✅ フライト確認モード 設定済み';
+  } else if (!hasUrl) {
+    el.className = 'settings-status warn';
+    el.textContent = '⚠️ Workers URL未設定（モックデータで動作確認できます）';
+  } else {
+    el.className = 'settings-status warn';
+    el.textContent = '⚠️ アクセストークン未設定';
+  }
+}
+
+function toggleSettings() {
+  const body    = document.getElementById('settings-body');
+  const chevron = document.getElementById('settings-chevron');
+  const hidden  = body.classList.toggle('hidden');
+  chevron.textContent = hidden ? '▼' : '▲';
+}
+
+// ===== フライトキャッシュ（sessionStorage） =====
+const FLIGHT_CACHE = {
+  get(key) {
+    try { return JSON.parse(sessionStorage.getItem('fc_' + key)); } catch { return null; }
+  },
+  set(key, data) {
+    try { sessionStorage.setItem('fc_' + key, JSON.stringify(data)); } catch {}
+  },
+  invalidate(key) { sessionStorage.removeItem('fc_' + key); }
+};
+
+// ===== 旅程から区間リストを生成 =====
+function getLegs() {
+  const dep  = STATE.departure;
+  const dest = STATE.destination;
+  const arr  = STATE.arrival ?? STATE.departure;
+  if (!dep || !dest) return [];
+
+  const outPath = [dep, ...STATE.outbound.filter(Boolean), dest];
+  const retPath = [dest, ...STATE.return.filter(Boolean), arr];
+
+  const legs = [];
+  for (let i = 0; i < outPath.length - 1; i++) legs.push(`${outPath[i]}-${outPath[i+1]}`);
+  for (let i = 0; i < retPath.length - 1; i++) legs.push(`${retPath[i]}-${retPath[i+1]}`);
+  return legs;
+}
+
+// ===== 時刻文字列→分 =====
+function toMin(t) {
+  if (!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// ===== モックデータ（Workers未接続時の表示確認用） =====
+const FLIGHT_MOCK_DB = {
+  'HIJ-HND': [{ airline:'ANA', iata:'NH', flightNo:'NH671',  dep:'09:00', arr:'10:05' }],
+  'HND-HIJ': [{ airline:'ANA', iata:'NH', flightNo:'NH672',  dep:'11:40', arr:'12:45' }],
+  'HND-CDG': [{ airline:'ANA', iata:'NH', flightNo:'NH205',  dep:'11:40', arr:'16:15' }],
+  'CDG-HND': [{ airline:'ANA', iata:'NH', flightNo:'NH206',  dep:'12:25', arr:'08:00' }],
+  'HND-LHR': [{ airline:'ANA', iata:'NH', flightNo:'NH211',  dep:'11:10', arr:'15:10' }],
+  'LHR-HND': [{ airline:'ANA', iata:'NH', flightNo:'NH212',  dep:'14:45', arr:'10:45' }],
+  'HND-FRA': [{ airline:'ANA', iata:'NH', flightNo:'NH203',  dep:'11:50', arr:'16:30' }],
+  'FRA-HND': [{ airline:'ANA', iata:'NH', flightNo:'NH204',  dep:'14:55', arr:'10:20' }],
+  'HND-MUC': [{ airline:'ANA', iata:'NH', flightNo:'NH209',  dep:'10:55', arr:'15:55' }],
+  'HND-LAX': [{ airline:'ANA', iata:'NH', flightNo:'NH105',  dep:'17:35', arr:'10:30' }],
+  'LAX-HND': [{ airline:'ANA', iata:'NH', flightNo:'NH106',  dep:'12:45', arr:'15:50' }],
+  'HND-JFK': [{ airline:'ANA', iata:'NH', flightNo:'NH109',  dep:'16:55', arr:'15:45' }],
+};
+
+function getMockFlight(from, to) {
+  const key = `${from}-${to}`;
+  const flights = (FLIGHT_MOCK_DB[key] || []).map(f => ({
+    ...f, starAlliance: STAR_ALLIANCE.has(f.iata)
+  }));
+  return { flights, source: 'mock', noData: flights.length === 0 };
+}
+
+// ===== Workers レスポンスのパース（実装時に FlyStack 仕様に合わせる） =====
+function parseWorkersResponse(raw) {
+  // TODO: FlyStack API のレスポンス構造に合わせて修正
+  // 暫定: そのまま返す（Workers 側でパース済みを想定）
+  if (Array.isArray(raw?.flights)) return { flights: raw.flights.map(f => ({
+    ...f, starAlliance: STAR_ALLIANCE.has(f.iata)
+  })), source: 'api' };
+  return getMockFlight('', ''); // フォールバック
+}
+
+// ===== 区間フライト取得 =====
+async function fetchLeg(from, to, force = false) {
+  const cacheKey = `${from}-${to}`;
+  if (!force) {
+    const cached = FLIGHT_CACHE.get(cacheKey);
+    if (cached) return cached;
+  }
+
+  const workersUrl = localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
+  if (!workersUrl) {
+    const mock = getMockFlight(from, to);
+    FLIGHT_CACHE.set(cacheKey, mock);
+    return mock;
+  }
+
+  const token = localStorage.getItem('m8f_token') || '';
+  try {
+    const res = await fetch(`${workersUrl}/routes?from=${from}&to=${to}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.status === 401) return { flights: [], error: 'auth', source: 'api' };
+    if (!res.ok) return { flights: [], error: 'network', source: 'api' };
+    const raw = await res.json();
+    const data = parseWorkersResponse(raw);
+    FLIGHT_CACHE.set(cacheKey, data);
+    return data;
+  } catch {
+    return { flights: [], error: 'network', source: 'api' };
+  }
+}
+
+// ===== フライト確認メイン =====
+async function checkFlights(force = false) {
+  const mode = localStorage.getItem('m8f_mode') || 'basic';
+  if (mode !== 'api') return;
+
+  const legs = getLegs();
+  if (legs.length === 0) return;
+
+  const card = document.getElementById('flight-card');
+  card.classList.remove('hidden');
+  document.getElementById('flight-legs').innerHTML =
+    '<div class="flight-loading">🔍 フライト情報を取得中...</div>';
+  document.getElementById('flight-connections').innerHTML = '';
+
+  const results = {};
+  for (const leg of legs) {
+    const [from, to] = leg.split('-');
+    results[leg] = await fetchLeg(from, to, force);
+  }
+  renderFlightCard(legs, results);
+}
+
+function refreshFlights() {
+  getLegs().forEach(leg => FLIGHT_CACHE.invalidate(leg));
+  checkFlights(true);
+}
+
+// ===== フライト確認カードのレンダリング =====
+function renderFlightCard(legs, results) {
+  const cityName = iata => CITIES.find(c => c.iata === iata)?.name ?? iata;
+
+  // 区間ごとの便情報
+  document.getElementById('flight-legs').innerHTML = legs.map(leg => {
+    const [from, to] = leg.split('-');
+    const data = results[leg] || { flights: [] };
+
+    if (data.error === 'auth') return `
+      <div class="leg-block">
+        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
+        <div class="check-item check-ng">❌ アクセストークンが無効です。設定を確認してください。</div>
+      </div>`;
+    if (data.error === 'network') return `
+      <div class="leg-block">
+        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
+        <div class="check-item check-ng">❌ 通信エラー。ネットワーク・Workers URLを確認してください。</div>
+      </div>`;
+    if (!data.flights?.length) return `
+      <div class="leg-block">
+        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
+        <div class="check-item check-ng">❌ この区間のフライト情報が見つかりません${data.source==='mock'?' <span class="mock-note">（モックデータ）</span>':''}</div>
+      </div>`;
+
+    const isMock = data.source === 'mock';
+    const rows = data.flights.map(f => `
+      <div class="flight-row">
+        <div>✅ <b>${f.airline} ${f.flightNo}</b>${f.starAlliance ? '<span class="star-badge">★スターアライアンス</span>' : ''}${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
+        <div class="flight-time">${f.dep} → ${f.arr}</div>
+      </div>`).join('');
+
+    return `<div class="leg-block">
+      <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  // 乗り継ぎ可否チェック（連続区間の到着→次便出発を比較）
+  const checks = [];
+  for (let i = 0; i < legs.length - 1; i++) {
+    const legA = legs[i];
+    const legB = legs[i + 1];
+    const [, connIata] = legA.split('-');
+    const [nextFrom]   = legB.split('-');
+    if (connIata !== nextFrom) continue; // 往路→復路の境目はスキップ
+
+    const fA = results[legA]?.flights?.[0];
+    const fB = results[legB]?.flights?.[0];
+    if (!fA || !fB) continue;
+
+    const diff = toMin(fB.dep) - toMin(fA.arr);
+    const label = `${cityName(connIata)}（${connIata}）`;
+    const diffStr = diff >= 0 ? `+${diff}分` : `${diff}分`;
+
+    let cls, icon, msg;
+    if (diff >= 90) {
+      cls = 'check-ok';   icon = '✅';
+      msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎOK`;
+    } else if (diff >= 60) {
+      cls = 'check-warn'; icon = '⚠️';
+      msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）やや短い（90分以上推奨）`;
+    } else if (diff >= 0) {
+      cls = 'check-ng';   icon = '❌';
+      msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎ時間不足`;
+    } else {
+      cls = 'check-ng';   icon = '❌';
+      msg = `${label}: 着${fA.arr} → 発${fB.dep} 接続不可（到着より前に出発）`;
+    }
+    checks.push(`<div class="connection-row ${cls}">${icon} ${msg}</div>`);
+  }
+
+  document.getElementById('flight-connections').innerHTML = checks.length
+    ? `<div class="connection-block"><div class="card-title">乗り継ぎ確認</div>${checks.join('')}</div>`
+    : '';
+}
+
+// ===== 保存ルート機能（最大5件） =====
+const MAX_SAVED = 5;
+
+function getSavedRoutes() {
+  try { return JSON.parse(localStorage.getItem('m8f_saved') || '[]'); } catch { return []; }
+}
+
+function setSavedRoutes(routes) {
+  localStorage.setItem('m8f_saved', JSON.stringify(routes));
+}
+
+function saveRoute() {
+  if (!STATE.departure || !STATE.destination) {
+    alert('出発地と目的地を設定してから保存してください');
+    return;
+  }
+  const routes = getSavedRoutes();
+  if (routes.length >= MAX_SAVED) {
+    alert(`保存できるルートは最大${MAX_SAVED}件です。不要なルートを削除してください。`);
+    return;
+  }
+  const cityName = iata => CITIES.find(c => c.iata === iata)?.name ?? iata;
+  const defaultName = `${cityName(STATE.departure)} → ${cityName(STATE.destination)}`;
+  const name = prompt('ルート名を入力してください', defaultName);
+  if (name === null) return;
+
+  const legs = getLegs();
+  const flightData = legs.map(leg => ({ leg, data: FLIGHT_CACHE.get(leg) })).filter(x => x.data);
+
+  routes.push({
+    id: Date.now().toString(),
+    name: name || defaultName,
+    savedAt: new Date().toISOString(),
+    state: JSON.parse(JSON.stringify(STATE)),
+    flightData
+  });
+  setSavedRoutes(routes);
+  renderSavedRoutes();
+  alert('ルートを保存しました');
+}
+
+function loadRoute(id) {
+  const route = getSavedRoutes().find(r => r.id === id);
+  if (!route) return;
+
+  Object.assign(STATE, route.state);
+  route.flightData.forEach(({ leg, data }) => { if (data) FLIGHT_CACHE.set(leg, data); });
+  updateAllDots();
+  validate();
+}
+
+function deleteRoute(id) {
+  if (!confirm('このルートを削除しますか？')) return;
+  setSavedRoutes(getSavedRoutes().filter(r => r.id !== id));
+  renderSavedRoutes();
+}
+
+function renderSavedRoutes() {
+  const routes = getSavedRoutes();
+  document.getElementById('saved-count').textContent = `${routes.length} / ${MAX_SAVED} 件`;
+  document.getElementById('saved-list').innerHTML = routes.length === 0
+    ? '<div style="font-size:0.82rem;color:#aab;padding:8px 0">保存済みルートはありません</div>'
+    : routes.map(r => {
+        const date = new Date(r.savedAt).toLocaleDateString('ja-JP',{month:'short',day:'numeric'});
+        return `<div class="saved-route-item">
+          <div class="saved-route-info">
+            <div class="saved-route-name">${r.name}</div>
+            <div class="saved-route-date">${date}保存</div>
+          </div>
+          <button class="btn-load-route" onclick="loadRoute('${r.id}')">読込</button>
+          <button class="btn-del-route"  onclick="deleteRoute('${r.id}')">削除</button>
+        </div>`;
+      }).join('');
 }
 
 // ===== 初期化 =====
 updateAllDots();
+initSettings();
+renderSavedRoutes();
 </script>
 </body>
 </html>
