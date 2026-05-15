@@ -1335,14 +1335,15 @@ function getMockFlight(from, to) {
   return { flights, source: 'mock', noData: flights.length === 0 };
 }
 
-// ===== Workers レスポンスのパース（実装時に FlyStack 仕様に合わせる） =====
+// Workers 側で AviationStack → 正規化済み形式に変換済みのレスポンスを受け取る
 function parseWorkersResponse(raw) {
-  // TODO: FlyStack API のレスポンス構造に合わせて修正
-  // 暫定: そのまま返す（Workers 側でパース済みを想定）
-  if (Array.isArray(raw?.flights)) return { flights: raw.flights.map(f => ({
-    ...f, starAlliance: STAR_ALLIANCE.has(f.iata)
-  })), source: 'api' };
-  return getMockFlight('', ''); // フォールバック
+  if (Array.isArray(raw?.flights)) {
+    return {
+      flights: raw.flights.map(f => ({ ...f, starAlliance: STAR_ALLIANCE.has(f.iata) })),
+      source: 'api'
+    };
+  }
+  return { flights: [], source: 'api', noData: true };
 }
 
 // ===== 区間フライト取得 =====

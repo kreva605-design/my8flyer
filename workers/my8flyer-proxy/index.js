@@ -1,97 +1,90 @@
 // My 8flyer — Cloudflare Workers プロキシ
-// 役割: GitHub Pages から Bearer トークンで認証し、FlyStack API を代理呼び出し
+// 役割: GitHub Pages から Bearer トークンで認証し、AviationStack API を代理呼び出し
 //
-// 環境変数（wrangler secret put で設定）:
-//   ACCESS_TOKEN   ... 家族で共有するアクセストークン（自分で決める文字列）
-//   FLYSTACK_API_KEY ... FlyStack から発行される API キー
+// Cloudflare Secrets（wrangler secret put で設定済み）:
+//   ACCESS_TOKEN          ... 家族で共有するアクセストークン（ブラウザのlocalStorageにも保存）
+//   AVIATIONSTACK_API_KEY ... AviationStack から発行された API キー（バックエンド専用）
 
 export default {
   async fetch(request, env) {
     // CORS プリフライト対応
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders(env) });
+      return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
-    // Bearer トークン検証
+    // Bearer トークン検証（ここで「家族か否か」を判定）
     const auth = request.headers.get('Authorization') ?? '';
     if (!env.ACCESS_TOKEN || auth !== `Bearer ${env.ACCESS_TOKEN}`) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(env) },
-      });
+      return json({ error: 'Unauthorized' }, 401);
     }
 
-    const url = new URL(request.url);
+    const url  = new URL(request.url);
     const from = url.searchParams.get('from');
     const to   = url.searchParams.get('to');
+    if (!from || !to) return json({ error: 'from と to が必要です' }, 400);
 
-    if (!from || !to) {
-      return new Response(JSON.stringify({ error: 'from と to パラメータが必要です' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(env) },
-      });
-    }
+    // AviationStack API 呼び出し（APIキーはここでしか使わない）
+    const apiUrl = `https://api.aviationstack.com/v1/flights` +
+      `?dep_iata=${from}&arr_iata=${to}&access_key=${env.AVIATIONSTACK_API_KEY}&limit=10`;
 
-    // FlyStack API を呼び出し
-    // TODO: FlyStack API の正式エンドポイント・パラメータ名を確認後に修正
-    const apiUrl = buildFlyStackUrl(from, to, env.FLYSTACK_API_KEY);
-    let flyData;
+    let raw;
     try {
-      const res = await fetch(apiUrl, {
-        headers: { 'User-Agent': 'my8flyer/1.0' },
-      });
-      if (!res.ok) {
-        return new Response(JSON.stringify({ error: `FlyStack API エラー: ${res.status}` }), {
-          status: 502,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders(env) },
-        });
-      }
-      flyData = await res.json();
-    } catch (e) {
-      return new Response(JSON.stringify({ error: '外部 API 接続エラー' }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(env) },
-      });
+      const res = await fetch(apiUrl);
+      if (!res.ok) return json({ error: `AviationStack エラー: ${res.status}` }, 502);
+      raw = await res.json();
+    } catch {
+      return json({ error: '外部 API 接続エラー' }, 502);
     }
 
-    // FlyStack レスポンスを my8flyer 形式に変換して返す
-    const result = parseFlyStackResponse(flyData, from, to);
-    return new Response(JSON.stringify(result), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders(env) },
-    });
+    return new Response(
+      JSON.stringify(parseAviationStack(raw, from, to)),
+      { headers: { 'Content-Type': 'application/json', ...corsHeaders() } }
+    );
   },
 };
 
-// FlyStack API URL 構築
-// TODO: API 登録後に正式エンドポイント・パラメータ名を確認して修正
-function buildFlyStackUrl(from, to, apiKey) {
-  const base = 'https://api.flightstack.io/v1/routes'; // 仮エンドポイント
-  return `${base}?dep_iata=${from}&arr_iata=${to}&access_key=${apiKey}`;
-}
-
-// FlyStack レスポンスを my8flyer が期待する形式に変換
-// TODO: 実際のレスポンス構造を確認後に修正
-function parseFlyStackResponse(raw, from, to) {
-  // 期待する出力形式:
-  // { flights: [{ airline, iata, flightNo, dep, arr }] }
-  //
-  // FlyStack の実際のフィールド名に合わせて変換する
-  const flights = (raw?.data ?? raw?.routes ?? []).map(r => ({
-    airline:  r.airline_name  ?? r.airline  ?? '',
-    iata:     r.airline_iata  ?? r.iata     ?? '',
-    flightNo: r.flight_number ?? r.flightNo ?? '',
-    dep:      r.dep_time      ?? r.departure ?? '',
-    arr:      r.arr_time      ?? r.arrival   ?? '',
-  })).filter(f => f.iata);
+// AviationStack レスポンス → my8flyer 形式に変換
+function parseAviationStack(raw, from, to) {
+  const data = Array.isArray(raw?.data) ? raw.data : [];
+  const flights = data
+    .filter(f => f.departure?.iata === from && f.arrival?.iata === to)
+    .map(f => ({
+      airline:  f.airline?.name  ?? '',
+      iata:     f.airline?.iata  ?? '',
+      flightNo: f.flight?.iata   ?? '',
+      dep: toHHMM(f.departure?.scheduled),
+      arr: toHHMM(f.arrival?.scheduled),
+    }))
+    .filter(f => f.iata && f.dep && f.arr)
+    // 重複フライト番号を除去（同日複数便があれば代表1件）
+    .filter((f, i, arr) => arr.findIndex(x => x.flightNo === f.flightNo) === i);
 
   return { flights, from, to };
 }
 
-// CORS ヘッダー（GitHub Pages からのリクエストのみ許可）
-function corsHeaders(env) {
-  const origin = env.ALLOWED_ORIGIN || 'https://kreva605-design.github.io';
+// ISO8601 → "HH:MM"
+function toHHMM(iso) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('ja-JP', {
+      hour: '2-digit', minute: '2-digit', hour12: false,
+      timeZone: 'Asia/Tokyo'
+    });
+  } catch { return null; }
+}
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+  });
+}
+
+// GitHub Pages からのリクエストのみ許可
+function corsHeaders() {
   return {
-    'Access-Control-Allow-Origin':  origin,
+    'Access-Control-Allow-Origin':  'https://kreva605-design.github.io',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Max-Age':       '86400',
