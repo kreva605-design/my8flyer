@@ -1461,8 +1461,10 @@ function applyDefaultSettings() {
   if (localStorage.getItem('m8f_default_enabled') !== '1') return;
   const dep = localStorage.getItem('m8f_default_dep');
   const arr = localStorage.getItem('m8f_default_arr');
-  if (dep) { STATE.departure = dep; }
-  if (arr) { STATE.arrival  = arr === STATE.departure ? null : arr; }
+  if (dep) STATE.departure = dep;
+  // 帰着地が出発地と同じなら null（同表示）、異なれば設定
+  STATE.arrival = (arr && arr !== dep) ? arr : null;
+  updateAllDots(); // ← ドットにIATAコードを即時反映
 }
 
 // ===== 設定管理 =====
@@ -1508,14 +1510,22 @@ function saveToken() {
   localStorage.setItem('m8f_token', val);
   document.getElementById('token-input').value = '';
   updateSettingsStatus();
-  alert('アクセストークンを保存しました');
+  _closeSettings();
 }
 
 function saveWorkersUrl() {
   const val = document.getElementById('workers-url-input').value.trim();
   localStorage.setItem('m8f_workers_url', val);
   updateSettingsStatus();
-  alert('Workers URLを保存しました');
+  _closeSettings();
+}
+
+// 設定パネルを確実に閉じる
+function _closeSettings() {
+  const body    = document.getElementById('settings-body');
+  const chevron = document.getElementById('settings-chevron');
+  body.classList.add('hidden');
+  chevron.textContent = '▼';
 }
 
 function updateSettingsStatus() {
@@ -1839,20 +1849,36 @@ function _workersBase() {
 async function getSavedRoutes() {
   if (_routesCache !== null) return _routesCache;
 
+  // localStorageの現在のデータ（マイグレーション判定用）
+  const localData = (() => {
+    try { return JSON.parse(localStorage.getItem('m8f_saved') || '[]'); } catch { return []; }
+  })();
+
   if (_workersAvailable()) {
     try {
       const res = await fetch(`${_workersBase()}/saved-routes`, { headers: _authHeader() });
       if (res.ok) {
-        _routesCache = await res.json();
-        localStorage.setItem('m8f_saved', JSON.stringify(_routesCache)); // ローカルにも同期
+        const kvData = await res.json();
+        // KVになくてlocalStorageにあるルートをマイグレーション
+        // （basicモードで保存したものをAPIモードで引き継ぐ）
+        const kvIds    = new Set(kvData.map(r => r.id));
+        const localOnly = localData.filter(r => !kvIds.has(r.id));
+        if (localOnly.length > 0) {
+          const merged = [...kvData, ...localOnly]
+            .sort((a, b) => a.savedAt.localeCompare(b.savedAt))
+            .slice(-MAX_SAVED);
+          await setSavedRoutes(merged); // KVとlocalStorageに書き込み
+          return _routesCache; // setSavedRoutesがキャッシュをセット済み
+        }
+        _routesCache = kvData;
+        localStorage.setItem('m8f_saved', JSON.stringify(kvData));
         return _routesCache;
       }
     } catch {}
   }
 
   // フォールバック: localStorage（オフライン時・basicモード時）
-  try { _routesCache = JSON.parse(localStorage.getItem('m8f_saved') || '[]'); }
-  catch { _routesCache = []; }
+  _routesCache = localData;
   return _routesCache;
 }
 
