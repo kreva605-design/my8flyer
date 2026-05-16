@@ -386,6 +386,37 @@
       margin-left: 5px;
       vertical-align: middle;
     }
+    .conn-badge {
+      display: inline-block;
+      background: #c6f6d5;
+      color: #22543d;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.68rem;
+      font-weight: bold;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+    .partner-badge {
+      display: inline-block;
+      background: #bee3f8;
+      color: #2a4365;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.68rem;
+      font-weight: bold;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+    .partner-note {
+      font-size: 0.73rem;
+      color: #2b6cb0;
+      background: #ebf8ff;
+      border-left: 3px solid #63b3ed;
+      padding: 5px 8px;
+      margin-top: 6px;
+      border-radius: 0 4px 4px 0;
+    }
     .mock-note { font-size: 0.7rem; color: #d97706; margin-left: 5px; }
     .connection-block {
       margin-top: 12px;
@@ -1396,9 +1427,33 @@ function validate() {
 const WORKERS_URL_DEFAULT = 'https://my8flyer-proxy.kreva605.workers.dev';
 
 // ===== スターアライアンス加盟 IATA コード =====
+// SK（SAS）は2024年脱退、JP（アドリア航空）は倒産のため除外
+// AV（アビアンカ）、CM（コパ航空）を追加（ANA公式2026年5月確認）
 const STAR_ALLIANCE = new Set([
   'NH','UA','LH','LX','SQ','TG','OZ','AI','TK','AC','CA','NZ',
-  'OS','SK','TP','BR','SN','ET','LO','A3','OU','MS','SA','ZH','JP'
+  'OS','TP','BR','SN','ET','LO','A3','OU','MS','SA','ZH',
+  'AV','CM'
+]);
+
+// ===== スターアライアンス コネクティングパートナー =====
+// スターアライアンス便との混合旅程が可能
+const SA_CONNECTING = new Set(['HO']); // 吉祥航空
+
+// ===== 提携航空会社 =====
+// 単独旅程（全区間同一会社）のみ利用可能
+// ANA公式ページより（2026年5月時点）
+const PARTNER_AIRLINES = new Set([
+  'EN', // エアドロミティ
+  'NX', // マカオ航空
+  'EY', // エティハド航空
+  'EW', // ユーロウィングス
+  'OA', // オリンピック航空
+  'PR', // フィリピン航空
+  'VS', // ヴァージンアトランティック航空
+  'VN', // ベトナム航空
+  'VA', // ヴァージン・オーストラリア航空
+  'AZ', // ITAエアウェイズ（2026年4月1日より）
+  'VL', // ルフトハンザ シティ航空（2025年11月12日より）
 ]);
 
 // ===== 接続テスト（手動実行用・saveToken()でも自動実行される）=====
@@ -1703,11 +1758,18 @@ const FLIGHT_MOCK_DB = {
   'HND-JFK': [{ airline:'ANA', iata:'NH', flightNo:'NH109',  dep:'16:55', arr:'15:45' }],
 };
 
+function tagFlight(f) {
+  return {
+    ...f,
+    starAlliance:     STAR_ALLIANCE.has(f.iata),
+    connectingPartner: SA_CONNECTING.has(f.iata),
+    partnerAirline:   PARTNER_AIRLINES.has(f.iata),
+  };
+}
+
 function getMockFlight(from, to) {
   const key = `${from}-${to}`;
-  const flights = (FLIGHT_MOCK_DB[key] || []).map(f => ({
-    ...f, starAlliance: STAR_ALLIANCE.has(f.iata)
-  }));
+  const flights = (FLIGHT_MOCK_DB[key] || []).map(tagFlight);
   return { flights, source: 'mock', noData: flights.length === 0 };
 }
 
@@ -1715,7 +1777,7 @@ function getMockFlight(from, to) {
 function parseWorkersResponse(raw) {
   if (Array.isArray(raw?.flights)) {
     return {
-      flights: raw.flights.map(f => ({ ...f, starAlliance: STAR_ALLIANCE.has(f.iata) })),
+      flights: raw.flights.map(tagFlight),
       source: 'api'
     };
   }
@@ -1816,23 +1878,35 @@ function renderFlightCard(legArr, results, soIatas) {
       </div>`;
 
     const isMock = data.source === 'mock';
-    const starFlights = data.flights.filter(f => f.starAlliance);
+    // 利用可能便: スターアライアンス加盟 + コネクティングパートナー + 提携航空会社
+    const eligible = data.flights.filter(f => f.starAlliance || f.connectingPartner || f.partnerAirline);
 
-    if (!starFlights.length) return `
+    if (!eligible.length) return `
       <div class="leg-block">
         <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-        <div class="check-item check-ng">❌ スターアライアンス便がありません（全${data.flights.length}便が他社）</div>
+        <div class="check-item check-ng">❌ 利用可能な便がありません（全${data.flights.length}便が非対象）</div>
       </div>`;
 
-    const rows = starFlights.map(f => `
+    const hasPartner = eligible.some(f => f.partnerAirline);
+    const rows = eligible.map(f => {
+      let badge;
+      if (f.starAlliance)      badge = '<span class="star-badge">★スターアライアンス</span>';
+      else if (f.connectingPartner) badge = '<span class="conn-badge">★コネクティング</span>';
+      else                     badge = '<span class="partner-badge">🤝 提携航空会社</span>';
+      return `
       <div class="flight-row">
-        <div>✅ <b>${f.airline} ${f.flightNo}</b><span class="star-badge">★スターアライアンス</span>${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
+        <div>✅ <b>${f.airline} ${f.flightNo}</b>${badge}${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
         <div class="flight-time">${f.dep} → ${f.arr}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+
+    const partnerNote = hasPartner
+      ? '<div class="partner-note">🤝 提携航空会社の便を使う場合は、<b>全区間その航空会社のみ</b>の単独旅程が必要です（スターアライアンス便との混合不可）</div>'
+      : '';
 
     return `<div class="leg-block">
       <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-      ${rows}
+      ${rows}${partnerNote}
     </div>`;
   }).join('');
 
