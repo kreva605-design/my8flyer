@@ -653,6 +653,24 @@
           <select id="default-arr-select" class="default-select" onchange="saveDefaultArr()"></select>
         </div>
       </div>
+      <hr class="settings-divider">
+      <!-- オープンジョー設定 -->
+      <div class="mode-options">
+        <label class="mode-option">
+          <input type="checkbox" id="open-jaw-toggle" onchange="onOpenJawToggle()">
+          オープンジョー（往路到着地 ≠ 復路出発地）
+        </label>
+      </div>
+      <div id="open-jaw-fields" style="display:none;flex-direction:column;gap:10px">
+        <div style="font-size:0.74rem;color:#667;line-height:1.6">
+          往路と復路で折り返し地点が異なる旅程です。<br>
+          例: 東京→パリ着 / ミュンヘン発→東京（第6条: 同一ゾーン必須）
+        </div>
+        <div class="settings-field">
+          <span class="settings-field-label">復路出発地</span>
+          <select id="open-jaw-dep-select" class="default-select" onchange="saveOpenJawDep()"></select>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1049,6 +1067,7 @@ const STATE = {
   departure:   null,
   destination: null,
   arrival:     null,
+  returnDep:   null,   // オープンジョー時の復路出発地（null = 目的地と同じ）
   outbound:    [null, null, null],
   return:      [null, null, null],
   outboundSO:  [false, false, false],  // true = ストップオーバー
@@ -1259,51 +1278,72 @@ document.getElementById('modal-select').addEventListener('change', function() {
 
 // ===== 検証 =====
 function validate() {
-  const depIata  = STATE.departure;
-  const destIata = STATE.destination;
-  const arrIata  = STATE.arrival ?? STATE.departure;
+  const depIata    = STATE.departure;
+  const destIata   = STATE.destination;
+  const arrIata    = STATE.arrival ?? STATE.departure;
+  // オープンジョー: 復路出発地（未設定 or 目的地と同じなら通常往復）
+  const retDepIata = STATE.returnDep ?? destIata;
+  const isOpenJaw  = !!(STATE.returnDep && STATE.returnDep !== destIata);
 
   if (!depIata || !destIata) {
     alert('出発地（赤）と目的地（オレンジ）を設定してください');
     return;
   }
 
-  const depCity  = CITIES.find(c => c.iata === depIata);
-  const destCity = CITIES.find(c => c.iata === destIata);
-  const arrCity  = CITIES.find(c => c.iata === arrIata);
-  const outConns = STATE.outbound.filter(Boolean);
-  const retConns = STATE.return.filter(Boolean);
+  const depCity    = CITIES.find(c => c.iata === depIata);
+  const destCity   = CITIES.find(c => c.iata === destIata);
+  const arrCity    = CITIES.find(c => c.iata === arrIata);
+  const retDepCity = CITIES.find(c => c.iata === retDepIata);
+  const outConns   = STATE.outbound.filter(Boolean);
+  const retConns   = STATE.return.filter(Boolean);
+
+  // 目的地とオープンジョー復路出発地のうち高い方のゾーン順位
+  const maxDestRank = Math.max(
+    ZONE_RANK[destCity.zone] ?? 0,
+    retDepCity ? (ZONE_RANK[retDepCity.zone] ?? 0) : 0
+  );
 
   const checks = [];
 
-  // R1: 目的地は海外
+  // [第1条] 目的地は旅程内で最もマイルが高い地点
   if (destCity.type === 'domestic') {
-    checks.push({ ok:false, msg:`目的地「${destCity.name}」は海外都市にする必要があります` });
+    checks.push({ ok:false, msg:`[第1条] 目的地「${destCity.name}」は海外都市にする必要があります` });
   } else {
-    checks.push({ ok:true, msg:`目的地: ${destCity.name}（${destCity.iata}） — Zone ${destCity.zone}` });
+    const r1Viol = [...outConns, ...retConns]
+      .map(ic => CITIES.find(c => c.iata === ic))
+      .filter(c => c && c.type === 'overseas' && (ZONE_RANK[c.zone] ?? 0) > maxDestRank);
+    if (r1Viol.length > 0) {
+      const ns = r1Viol.map(c => `${c.name}（Zone${c.zone}）`).join('、');
+      checks.push({ ok:false, msg:`[第1条] 「${ns}」が目的地より高いゾーン — 目的地は旅程内最高マイル地点である必要があります` });
+    } else {
+      const destLabel = isOpenJaw
+        ? `${destCity.name} / ${retDepCity?.name ?? retDepIata}（Zone ${destCity.zone}）`
+        : `${destCity.name}（${destCity.iata}） — Zone ${destCity.zone}`;
+      checks.push({ ok:true, msg:`[第1条] 目的地: ${destLabel} ✓` });
+    }
   }
 
-  // R2: 往路の乗り継ぎ重複
-  const outBanned = new Set([depIata, destIata, arrIata]);
-  const outOvlp = outConns.filter(ic => outBanned.has(ic));
+  // [第2条] 往路: 最初（出発地）・最後（目的地）を乗り継ぎに使えない
+  const outBanned = new Set([depIata, destIata]);
+  const outOvlp   = outConns.filter(ic => outBanned.has(ic));
   if (outOvlp.length > 0) {
     const ns = outOvlp.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
-    checks.push({ ok:false, msg:`往路乗り継ぎに重複: 「${ns}」は出発地・目的地・帰着地と同じです` });
+    checks.push({ ok:false, msg:`[第2条] 往路乗り継ぎ違反: 「${ns}」は出発地または目的地と同じです` });
   } else {
-    checks.push({ ok:true, msg:'往路の乗り継ぎ: 重複なし ✓' });
+    checks.push({ ok:true, msg:'[第2条] 往路の乗り継ぎ: 重複なし ✓' });
   }
 
-  // R3: 復路の乗り継ぎ重複
-  const retBanned = new Set([destIata, depIata, arrIata]);
-  const retOvlp = retConns.filter(ic => retBanned.has(ic));
+  // [第2条] 復路: 最初（復路出発地）・最後（帰着地）を乗り継ぎに使えない
+  const retBanned = new Set([retDepIata, arrIata]);
+  const retOvlp   = retConns.filter(ic => retBanned.has(ic));
   if (retOvlp.length > 0) {
     const ns = retOvlp.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
-    checks.push({ ok:false, msg:`復路乗り継ぎに重複: 「${ns}」は目的地・出発地・帰着地と同じです` });
+    checks.push({ ok:false, msg:`[第2条] 復路乗り継ぎ違反: 「${ns}」は復路出発地または帰着地と同じです` });
   } else {
-    checks.push({ ok:true, msg:'復路の乗り継ぎ: 重複なし ✓' });
+    checks.push({ ok:true, msg:'[第2条] 復路の乗り継ぎ: 重複なし ✓' });
   }
 
-  // R4: ストップオーバーは1箇所まで
+  // ストップオーバー上限（1箇所まで）
   const soSlots = [
     ...STATE.outbound.map((v,i) => (v && STATE.outboundSO[i]) ? STATE.outbound[i] : null),
     ...STATE.return.map((v,i)   => (v && STATE.returnSO[i])   ? STATE.return[i]   : null),
@@ -1316,35 +1356,40 @@ function validate() {
     checks.push({ ok:true, msg:`ストップオーバー: ${soCity?.name ?? soSlots[0]} — 1箇所 ✓` });
   }
 
-  // ルール4: 乗り換え都市のゾーンは目的地ゾーン以下でなければならない
-  // 「出発地からの必要マイル数がより高いゾーンの都市を乗り換え地点にすることはできません」
+  // [第4条] 乗り換えゾーン ≤ 目的地ゾーン（オープンジョーは両端の高い方）
   if (destCity.type !== 'domestic') {
-    const destRank = ZONE_RANK[destCity.zone] ?? 0;
-    const zoneViolations = [...outConns, ...retConns]
+    const zoneViol = [...outConns, ...retConns]
       .map(ic => CITIES.find(c => c.iata === ic))
-      .filter(c => c && c.type === 'overseas' && (ZONE_RANK[c.zone] ?? 0) > destRank);
-    if (zoneViolations.length > 0) {
-      const ns = zoneViolations.map(c => `${c.name}（Zone${c.zone}）`).join('、');
-      checks.push({ ok:false, msg:`[ルール4] 乗り換えゾーン違反: 「${ns}」は目的地 Zone${destCity.zone} より高いゾーンのため乗り継ぎ不可` });
+      .filter(c => c && c.type === 'overseas' && (ZONE_RANK[c.zone] ?? 0) > maxDestRank);
+    if (zoneViol.length > 0) {
+      const ns = zoneViol.map(c => `${c.name}（Zone${c.zone}）`).join('、');
+      checks.push({ ok:false, msg:`[第4条] 乗り換えゾーン違反: 「${ns}」は目的地 Zone${destCity.zone} より高いゾーンのため不可` });
     } else {
-      checks.push({ ok:true, msg:`[ルール4] 乗り換えゾーン: すべて目的地 Zone${destCity.zone} 以下 ✓` });
+      checks.push({ ok:true, msg:`[第4条] 乗り換えゾーン: すべて目的地 Zone${destCity.zone} 以下 ✓` });
     }
   }
 
-  // ルール5: 出発地と帰着地が異なる場合、同一国であること（どちらも国内＝日本）
-  // 「出発地と最終帰着地が異なる場合、同一国内であることが必要です」
+  // [第5条] 出発地と帰着地が異なる場合、同一国（日本）
   if (STATE.arrival && STATE.arrival !== STATE.departure) {
     if (depCity.type !== arrCity.type) {
-      checks.push({ ok:false, msg:`[ルール5] 出発地（${depCity.name}）と帰着地（${arrCity.name}）は同一国（日本国内）である必要があります` });
+      checks.push({ ok:false, msg:`[第5条] 出発地（${depCity.name}）と帰着地（${arrCity.name}）は同一国（日本国内）である必要があります` });
     } else {
-      checks.push({ ok:true, msg:`[ルール5] 出発地・帰着地: 同一国（日本国内）✓` });
+      checks.push({ ok:true, msg:`[第5条] 出発地・帰着地: 同一国（日本国内）✓` });
     }
   }
 
-  // ルール6: 出発地と帰着地が異なる場合は同一エリア（Zone1内）であること
-  // ※ 本アプリでは国内都市はすべてZone1（日本）のため、ルール5で担保済み
+  // [第6条] オープンジョー時: 往路到着地と復路出発地は同一ゾーン
+  if (isOpenJaw) {
+    if (!retDepCity || retDepCity.type === 'domestic') {
+      checks.push({ ok:false, msg:`[第6条] 復路出発地は海外都市を選択してください` });
+    } else if (destCity.zone !== retDepCity.zone) {
+      checks.push({ ok:false, msg:`[第6条] 往路到着地（${destCity.name}・Zone${destCity.zone}）と復路出発地（${retDepCity.name}・Zone${retDepCity.zone}）は同一ゾーンである必要があります` });
+    } else {
+      checks.push({ ok:true, msg:`[第6条] 往路到着地・復路出発地: 同一Zone${destCity.zone}（${destCity.name} / ${retDepCity.name}）✓` });
+    }
+  }
 
-  // W: 往路・復路で同じ乗り継ぎ
+  // 往路・復路で同じ乗り継ぎ（警告）
   const common = outConns.filter(ic => retConns.includes(ic));
   if (common.length > 0) {
     const ns = common.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
@@ -1368,14 +1413,16 @@ function validate() {
     `<b>${cityName(destIata)}</b>`,
   ];
   const retParts = [
-    `<b>${cityName(destIata)}</b>`,
+    isOpenJaw
+      ? `<b>${cityName(retDepIata)}</b><sup style="color:#2b6cb0;font-size:0.7em"> OJ</sup>`
+      : `<b>${cityName(destIata)}</b>`,
     ...STATE.return.map((v,i) => v ? soLabel(v, 'ret', i) : null).filter(Boolean),
     `<b>${cityName(arrIata)}</b>`,
   ];
   const routeHtml = `往路: ${outParts.join(' → ')}<br>復路: ${retParts.join(' → ')}` +
-    (soSlots.length > 0 ? '<br><small style="color:#d97706">S = ストップオーバー</small>' : '');
+    (soSlots.length > 0 ? '<br><small style="color:#d97706">S = ストップオーバー</small>' : '') +
+    (isOpenJaw ? '<br><small style="color:#2b6cb0">OJ = 復路出発地（オープンジョー）</small>' : '');
 
-  // サマリー（常時表示）: 旅程テキスト + 総合OK/NG のみ
   document.getElementById('result-summary').innerHTML = `
     <div class="result-route">${routeHtml}</div>
     <div class="check-item ${hasNg ? 'check-ng' : 'check-ok'}" style="border-bottom:none;padding-bottom:4px">
@@ -1383,22 +1430,45 @@ function validate() {
       ${hasNg ? '<div style="font-size:0.74rem;color:#aa8;margin-top:3px">▼ 詳細をタップして確認</div>' : ''}
     </div>`;
 
-  // 詳細（折りたたみ）: 各ルールのチェック結果
   document.getElementById('check-results').innerHTML = checks.map(c => {
     const cls  = c.ok===true ? 'check-ok' : c.ok===false ? 'check-ng' : 'check-warn';
     const icon = c.ok===true ? '✅' : c.ok===false ? '❌' : '⚠️';
     return `<div class="check-item ${cls}">${icon} ${c.msg}</div>`;
   }).join('');
 
-  // マイル情報
+  // マイル情報（オープンジョー: 第7条計算を追記）
   const mileDiv = document.getElementById('mile-info');
   const info = MILE_CHART[destCity.zone];
   if (info) {
     const fmtM = v => v != null
       ? `<span class="val">${v.toLocaleString()} マイル</span>`
       : `<span style="color:#bbb">—</span>`;
+
+    let ojNote = '';
+    if (isOpenJaw && retDepCity) {
+      if (retDepCity.zone !== destCity.zone) {
+        const infoRet = MILE_CHART[retDepCity.zone];
+        if (infoRet) {
+          const halfOut = Math.round((info.reg.eco    ?? 0) / 2);
+          const halfRet = Math.round((infoRet.reg.eco ?? 0) / 2);
+          ojNote = `
+            <div style="margin-top:10px;padding:8px;background:#ebf8ff;border-radius:6px;font-size:0.74rem;line-height:1.9;color:#2a4365">
+              <b>[第7条] オープンジョー マイル目安（エコノミー）</b><br>
+              往路 Zone${destCity.zone}: ${(info.reg.eco??0).toLocaleString()} ÷ 2 = ${halfOut.toLocaleString()} マイル<br>
+              復路 Zone${retDepCity.zone}: ${(infoRet.reg.eco??0).toLocaleString()} ÷ 2 = ${halfRet.toLocaleString()} マイル<br>
+              <b>合計目安: ${(halfOut + halfRet).toLocaleString()} マイル</b>
+            </div>`;
+        }
+      } else {
+        ojNote = `<div style="margin-top:6px;font-size:0.73rem;color:#2b6cb0">オープンジョー（同一Zone${destCity.zone}）: マイル計算は通常往復と同じです</div>`;
+      }
+    }
+
     mileDiv.innerHTML = `
-      <div><span class="zone-badge">Zone ${destCity.zone}</span></div>
+      <div>
+        <span class="zone-badge">Zone ${destCity.zone}</span>
+        ${isOpenJaw && retDepCity && retDepCity.zone !== destCity.zone ? `<span class="zone-badge" style="margin-left:4px">Zone ${retDepCity.zone}</span>` : ''}
+      </div>
       <div style="font-size:0.78rem;color:#558;margin-bottom:10px">${info.label}</div>
       <div class="mile-row"><span>✈ エコノミー（往復 レギュラー）</span>${fmtM(info.reg.eco)}</div>
       <div class="mile-row"><span>🛋 ビジネス（往復 レギュラー）</span>${fmtM(info.reg.biz)}</div>
@@ -1407,7 +1477,8 @@ function validate() {
         ローシーズン: エコノミー ${info.low.eco?.toLocaleString()??'—'} / ビジネス ${info.low.biz?.toLocaleString()??'—'} マイル<br>
         ハイシーズン: エコノミー ${info.high.eco?.toLocaleString()??'—'} / ビジネス ${info.high.biz?.toLocaleString()??'—'} マイル<br>
         ※シーズン区分はANA公式カレンダーで確認してください
-      </div>`;
+      </div>
+      ${ojNote}`;
     mileDiv.classList.remove('hidden');
   } else {
     mileDiv.classList.add('hidden');
@@ -1415,7 +1486,6 @@ function validate() {
 
   const rc = document.getElementById('result-card');
   rc.classList.remove('hidden');
-  // 詳細は常時折りたたみ（NGの場合はユーザーが開く）
   document.getElementById('result-body').style.display = 'none';
   document.getElementById('result-chevron').textContent = '▼';
   rc.scrollIntoView({ behavior:'smooth', block:'start' });
@@ -1542,6 +1612,47 @@ function onDefaultToggle() {
   }
 }
 
+// ===== オープンジョー設定 =====
+function buildOverseasSelect(selId, currentIata) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '';
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '（選択なし = 往路目的地と同じ）';
+  sel.appendChild(blank);
+  const zones = [...new Set(CITIES.filter(c => c.type === 'overseas').map(c => c.zone))].sort((a,b) => a-b);
+  zones.forEach(z => {
+    const grp = document.createElement('optgroup');
+    grp.label = `🌏 ${MILE_CHART[z]?.label ?? 'Zone ' + z}`;
+    CITIES.filter(c => c.type === 'overseas' && c.zone === z).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.iata;
+      o.textContent = `${c.name}（${c.iata}）`;
+      grp.appendChild(o);
+    });
+    sel.appendChild(grp);
+  });
+  sel.value = currentIata ?? '';
+}
+
+function onOpenJawToggle() {
+  const enabled = document.getElementById('open-jaw-toggle').checked;
+  localStorage.setItem('m8f_open_jaw', enabled ? '1' : '0');
+  const fields = document.getElementById('open-jaw-fields');
+  fields.style.display = enabled ? 'flex' : 'none';
+  if (enabled) {
+    buildOverseasSelect('open-jaw-dep-select', STATE.returnDep);
+  } else {
+    STATE.returnDep = null;
+  }
+}
+
+function saveOpenJawDep() {
+  const val = document.getElementById('open-jaw-dep-select').value || null;
+  STATE.returnDep = val;
+}
+
 function saveDefaultDep() {
   localStorage.setItem('m8f_default_dep', document.getElementById('default-dep-select').value);
 }
@@ -1577,6 +1688,14 @@ function initSettings() {
     buildDefaultSelect('default-arr-select', 'm8f_default_arr');
   }
   applyDefaultSettings();
+
+  // オープンジョー設定の初期化
+  const ojEnabled = localStorage.getItem('m8f_open_jaw') === '1';
+  document.getElementById('open-jaw-toggle').checked = ojEnabled;
+  if (ojEnabled) {
+    document.getElementById('open-jaw-fields').style.display = 'flex';
+    buildOverseasSelect('open-jaw-dep-select', STATE.returnDep);
+  }
 }
 
 function onModeChange() {
