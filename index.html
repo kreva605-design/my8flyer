@@ -584,7 +584,7 @@
       <span>⚙ 設定</span>
       <span id="settings-chevron">▼</span>
     </div>
-    <div id="settings-body" class="settings-body hidden">
+    <div id="settings-body" class="settings-body" style="display:none">
       <div class="mode-options">
         <label class="mode-option">
           <input type="radio" name="mode" value="basic" onchange="onModeChange()">
@@ -1522,10 +1522,8 @@ function saveWorkersUrl() {
 
 // 設定パネルを確実に閉じる
 function _closeSettings() {
-  const body    = document.getElementById('settings-body');
-  const chevron = document.getElementById('settings-chevron');
-  body.classList.add('hidden');
-  chevron.textContent = '▼';
+  document.getElementById('settings-body').style.display = 'none';
+  document.getElementById('settings-chevron').textContent = '▼';
 }
 
 function updateSettingsStatus() {
@@ -1549,8 +1547,9 @@ function updateSettingsStatus() {
 function toggleSettings() {
   const body    = document.getElementById('settings-body');
   const chevron = document.getElementById('settings-chevron');
-  const hidden  = body.classList.toggle('hidden');
-  chevron.textContent = hidden ? '▼' : '▲';
+  const isOpen  = body.style.display !== 'none';
+  body.style.display    = isOpen ? 'none' : 'flex';
+  chevron.textContent   = isOpen ? '▼' : '▲';
 }
 
 function toggleResultCard() {
