@@ -601,15 +601,9 @@
           <input type="password" id="token-input" class="token-input" placeholder="入力して保存">
           <button class="btn-token-save" onclick="saveToken()">保存</button>
         </div>
-        <div class="settings-field" id="workers-row">
-          <span class="settings-field-label">Workers URL</span>
-          <input type="text" id="workers-url-input" class="token-input" placeholder="https://xxx.workers.dev">
-          <button class="btn-token-save" onclick="saveWorkersUrl()">保存</button>
-        </div>
       </div>
       <div id="settings-status" class="settings-status"></div>
-      <button onclick="runConnectionTest()" style="padding:8px 14px;background:#f0f2f5;color:#445;border:none;border-radius:9px;font-size:0.8rem;cursor:pointer;align-self:flex-start">🔍 接続テスト</button>
-      <div id="conn-test-result" style="font-size:0.76rem;line-height:1.8;color:#445;white-space:pre-wrap"></div>
+      <div id="conn-test-result" style="font-size:0.76rem;line-height:1.8;white-space:pre-wrap"></div>
       <hr class="settings-divider">
       <!-- デフォルト出発地・帰着地 -->
       <div class="mode-options">
@@ -1391,8 +1385,8 @@ function validate() {
   checkFlights();
 }
 
-// ===== CF Workers URL（デプロイ後に設定するか設定パネルで入力） =====
-const WORKERS_URL_DEFAULT = '';
+// ===== CF Workers URL（固定）=====
+const WORKERS_URL_DEFAULT = 'https://my8flyer-proxy.kreva605.workers.dev';
 
 // ===== スターアライアンス加盟 IATA コード =====
 const STAR_ALLIANCE = new Set([
@@ -1400,46 +1394,39 @@ const STAR_ALLIANCE = new Set([
   'OS','SK','TP','BR','SN','ET','LO','A3','OU','MS','SA','ZH','JP'
 ]);
 
-// ===== 接続テスト（スマホデバッグ用）=====
+// ===== 接続テスト（手動実行用・saveToken()でも自動実行される）=====
 async function runConnectionTest() {
   const el  = document.getElementById('conn-test-result');
-  const mode = localStorage.getItem('m8f_mode') || 'basic';
-  const url  = localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
-  const tok  = localStorage.getItem('m8f_token') || '';
+  const tok = localStorage.getItem('m8f_token') || '';
 
+  el.style.color = '#667';
   el.textContent = '⏳ テスト中...';
 
-  const lines = [
-    `モード: ${mode}`,
-    `Workers URL: ${url || '（未設定）'}`,
-    `トークン: ${tok ? '設定あり（' + tok.length + '文字）' : '（未設定）'}`,
-    '',
-  ];
-
-  if (!url) { el.textContent = lines.join('\n') + '❌ Workers URL が未設定です'; return; }
-  if (!tok) { el.textContent = lines.join('\n') + '❌ アクセストークンが未設定です'; return; }
-
-  try {
-    const res = await fetch(`${url}/saved-routes`, {
-      headers: { 'Authorization': `Bearer ${tok}` }
-    });
-    lines.push(`HTTP ステータス: ${res.status} ${res.statusText}`);
-    if (res.status === 401) {
-      lines.push('❌ 認証失敗 — トークンが一致しません');
-      lines.push('CloudflareのACCESS_TOKENと一致しているか確認してください');
-    } else if (res.ok) {
-      const data = await res.json();
-      lines.push(`✅ 接続成功 — 保存ルート: ${data.length} 件`);
-      if (data.length > 0) lines.push(`　最新: ${data[data.length-1].name}`);
-    } else {
-      lines.push(`❌ エラー: ${res.status}`);
-    }
-  } catch (e) {
-    lines.push(`❌ 通信エラー: ${e.message}`);
-    lines.push('Workers URLが正しいか確認してください');
+  if (!tok) {
+    el.style.color = '#c53030';
+    el.textContent = '❌ アクセストークンが未設定です';
+    return;
   }
 
-  el.textContent = lines.join('\n');
+  try {
+    const res = await fetch(`${_workersBase()}/saved-routes`, {
+      headers: { 'Authorization': `Bearer ${tok}` }
+    });
+    if (res.status === 401) {
+      el.style.color = '#c53030';
+      el.textContent = '❌ 認証失敗 — トークンが一致しません\nCloudflareのACCESS_TOKENを確認してください';
+    } else if (res.ok) {
+      const data = await res.json();
+      el.style.color = '#276749';
+      el.textContent = `✅ 接続成功 — 保存ルート: ${data.length}件${data.length > 0 ? '\n最新: ' + data[data.length-1].name : ''}`;
+    } else {
+      el.style.color = '#d97706';
+      el.textContent = `⚠️ エラー: HTTP ${res.status}`;
+    }
+  } catch (e) {
+    el.style.color = '#d97706';
+    el.textContent = `❌ 通信エラー: ${e.message}`;
+  }
 }
 
 // ===== デフォルト出発地・帰着地 =====
@@ -1516,8 +1503,6 @@ function initSettings() {
   const mode = localStorage.getItem('m8f_mode') || 'basic';
   const radio = document.querySelector(`input[name="mode"][value="${mode}"]`);
   if (radio) radio.checked = true;
-  const url = localStorage.getItem('m8f_workers_url') || '';
-  document.getElementById('workers-url-input').value = url;
   toggleTokenRow();
   updateSettingsStatus();
 
@@ -1548,20 +1533,45 @@ function toggleTokenRow() {
   document.getElementById('api-fields').style.display = mode === 'api' ? 'flex' : 'none';
 }
 
-function saveToken() {
+async function saveToken() {
   const val = document.getElementById('token-input').value.trim();
   if (!val) return;
+
+  // まず保存
   localStorage.setItem('m8f_token', val);
   document.getElementById('token-input').value = '';
   updateSettingsStatus();
-  _closeSettings();
-}
+  _routesCache = null; // キャッシュクリアして再取得に備える
 
-function saveWorkersUrl() {
-  const val = document.getElementById('workers-url-input').value.trim();
-  localStorage.setItem('m8f_workers_url', val);
-  updateSettingsStatus();
-  _closeSettings();
+  // 自動接続テスト
+  const el = document.getElementById('conn-test-result');
+  el.style.color = '#667';
+  el.textContent = '⏳ アクセストークンを確認中...';
+
+  try {
+    const res = await fetch(`${_workersBase()}/saved-routes`, {
+      headers: { 'Authorization': `Bearer ${val}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      el.style.color = '#276749';
+      el.textContent = `✅ 認証OK（保存ルート: ${data.length}件）`;
+      renderSavedRoutes();
+      setTimeout(() => _closeSettings(), 1200);
+    } else if (res.status === 401) {
+      el.style.color = '#c53030';
+      el.textContent = '❌ トークンが一致しません\nCloudflareのACCESS_TOKENと同じ文字列を入力してください';
+      // パネルは閉じない（再入力できるように）
+    } else {
+      el.style.color = '#d97706';
+      el.textContent = `⚠️ Workers エラー: HTTP ${res.status}`;
+      setTimeout(() => _closeSettings(), 1500);
+    }
+  } catch {
+    el.style.color = '#d97706';
+    el.textContent = '⚠️ 通信エラー（トークンは保存済み）';
+    setTimeout(() => _closeSettings(), 1500);
+  }
 }
 
 // 設定パネルを確実に閉じる
@@ -1571,20 +1581,16 @@ function _closeSettings() {
 }
 
 function updateSettingsStatus() {
-  const mode = localStorage.getItem('m8f_mode') || 'basic';
-  const hasToken   = !!localStorage.getItem('m8f_token');
-  const hasUrl     = !!(localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT);
-  const el = document.getElementById('settings-status');
+  const mode     = localStorage.getItem('m8f_mode') || 'basic';
+  const hasToken = !!localStorage.getItem('m8f_token');
+  const el       = document.getElementById('settings-status');
   if (mode === 'basic') { el.className = 'settings-status'; el.textContent = ''; return; }
-  if (hasToken && hasUrl) {
+  if (hasToken) {
     el.className = 'settings-status';
     el.textContent = '✅ フライト確認モード 設定済み';
-  } else if (!hasUrl) {
-    el.className = 'settings-status warn';
-    el.textContent = '⚠️ Workers URL未設定（モックデータで動作確認できます）';
   } else {
     el.className = 'settings-status warn';
-    el.textContent = '⚠️ アクセストークン未設定';
+    el.textContent = '⚠️ アクセストークンを入力して保存してください';
   }
 }
 
@@ -1717,7 +1723,7 @@ async function fetchLeg(from, to, force = false) {
     if (cached) return cached;
   }
 
-  const workersUrl = localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
+  const workersUrl = _workersBase();
   if (!workersUrl) {
     const mock = getMockFlight(from, to);
     FLIGHT_CACHE.set(cacheKey, mock);
@@ -1876,8 +1882,7 @@ const MAX_SAVED = 5;
 let _routesCache = null;
 
 function _workersAvailable() {
-  return localStorage.getItem('m8f_mode') === 'api'
-      && !!(localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT);
+  return localStorage.getItem('m8f_mode') === 'api';
 }
 
 function _authHeader() {
@@ -1885,8 +1890,7 @@ function _authHeader() {
 }
 
 function _workersBase() {
-  const url = localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
-  return url.replace(/\/+$/, ''); // 末尾スラッシュを除去（ダブルスラッシュ防止）
+  return WORKERS_URL_DEFAULT; // ハードコーディング済み（末尾スラッシュなし）
 }
 
 // 保存ルート取得（初回のみネットワーク）
