@@ -755,10 +755,12 @@
     <div class="card-title" onclick="toggleResultCard()"
          style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
       <span>ルール検証結果</span>
-      <span id="result-chevron" style="font-size:0.8rem;color:#bbb">▲</span>
+      <span id="result-chevron" style="font-size:0.8rem;color:#bbb">▼</span>
     </div>
-    <div id="result-body">
-      <div class="result-route" id="result-route"></div>
+    <!-- 常時表示: 総合判定 + 旅程テキスト -->
+    <div id="result-summary"></div>
+    <!-- 折りたたみ: 各ルール詳細 + マイル情報 -->
+    <div id="result-body" style="display:none">
       <div id="check-results"></div>
       <div class="mile-info hidden" id="mile-info"></div>
     </div>
@@ -892,6 +894,11 @@ const CITIES = [
   { name:"名古屋",            iata:"NGO", type:"domestic",  zone:1,  miles:0    },
   { name:"福岡",              iata:"FUK", type:"domestic",  zone:1,  miles:0    },
   { name:"広島",              iata:"HIJ", type:"domestic",  zone:1,  miles:0    },
+  { name:"大阪（伊丹）",      iata:"ITM", type:"domestic",  zone:1,  miles:0    },
+  { name:"神戸",              iata:"UKB", type:"domestic",  zone:1,  miles:0    },
+  // グループ空港（複数空港を一括確認）
+  { name:"東京（羽田 / 成田）",        iata:"TYO", type:"domestic",  zone:1,  miles:0, group:["HND","NRT"] },
+  { name:"大阪（関空 / 伊丹 / 神戸）", iata:"OSA", type:"domestic",  zone:1,  miles:0, group:["KIX","ITM","UKB"] },
   { name:"札幌（新千歳）",    iata:"CTS", type:"domestic",  zone:1,  miles:0    },
   { name:"那覇",              iata:"OKA", type:"domestic",  zone:1,  miles:0    },
   { name:"ソウル（仁川）",    iata:"ICN", type:"overseas",  zone:2,  miles:760  },
@@ -921,6 +928,16 @@ const CITIES = [
   { name:"ミュンヘン",        iata:"MUC", type:"overseas",  zone:7,  miles:5840 },
   { name:"ウィーン",          iata:"VIE", type:"overseas",  zone:7,  miles:5870 },
   { name:"イスタンブール",    iata:"IST", type:"overseas",  zone:7,  miles:5780 },
+  // ヨーロッパ追加
+  { name:"リスボン",          iata:"LIS", type:"overseas",  zone:7,  miles:6200 },
+  { name:"ストックホルム",    iata:"ARN", type:"overseas",  zone:7,  miles:5800 },
+  { name:"コペンハーゲン",    iata:"CPH", type:"overseas",  zone:7,  miles:5900 },
+  { name:"オスロ",            iata:"OSL", type:"overseas",  zone:7,  miles:5900 },
+  { name:"ヘルシンキ",        iata:"HEL", type:"overseas",  zone:7,  miles:5600 },
+  // 中東
+  { name:"ドバイ",            iata:"DXB", type:"overseas",  zone:7,  miles:5900 },
+  // インド
+  { name:"ムンバイ",          iata:"BOM", type:"overseas",  zone:4,  miles:4200 },
   { name:"シドニー",          iata:"SYD", type:"overseas",  zone:10, miles:4870 },
 ];
 
@@ -1257,7 +1274,6 @@ function validate() {
 
   // 総合判定
   const hasNg = checks.some(c => c.ok === false);
-  checks.unshift({ ok:!hasNg, msg: hasNg ? 'この旅程にはルール違反があります' : 'この旅程は問題ありません' });
 
   // 旅程テキスト生成
   const cityName = iata => CITIES.find(c=>c.iata===iata)?.name ?? iata;
@@ -1277,10 +1293,18 @@ function validate() {
     ...STATE.return.map((v,i) => v ? soLabel(v, 'ret', i) : null).filter(Boolean),
     `<b>${cityName(arrIata)}</b>`,
   ];
-  document.getElementById('result-route').innerHTML =
-    `往路: ${outParts.join(' → ')}<br>復路: ${retParts.join(' → ')}` +
+  const routeHtml = `往路: ${outParts.join(' → ')}<br>復路: ${retParts.join(' → ')}` +
     (soSlots.length > 0 ? '<br><small style="color:#d97706">S = ストップオーバー</small>' : '');
 
+  // サマリー（常時表示）: 旅程テキスト + 総合OK/NG のみ
+  document.getElementById('result-summary').innerHTML = `
+    <div class="result-route">${routeHtml}</div>
+    <div class="check-item ${hasNg ? 'check-ng' : 'check-ok'}" style="border-bottom:none;padding-bottom:4px">
+      ${hasNg ? '❌ ルール違反があります' : '✅ この旅程は問題ありません'}
+      ${hasNg ? '<div style="font-size:0.74rem;color:#aa8;margin-top:3px">▼ 詳細をタップして確認</div>' : ''}
+    </div>`;
+
+  // 詳細（折りたたみ）: 各ルールのチェック結果
   document.getElementById('check-results').innerHTML = checks.map(c => {
     const cls  = c.ok===true ? 'check-ok' : c.ok===false ? 'check-ng' : 'check-warn';
     const icon = c.ok===true ? '✅' : c.ok===false ? '❌' : '⚠️';
@@ -1312,9 +1336,9 @@ function validate() {
 
   const rc = document.getElementById('result-card');
   rc.classList.remove('hidden');
-  // 再検証のたびにルール検証結果を展開する
-  document.getElementById('result-body').style.display = '';
-  document.getElementById('result-chevron').textContent = '▲';
+  // 詳細は常時折りたたみ（NGの場合はユーザーが開く）
+  document.getElementById('result-body').style.display = 'none';
+  document.getElementById('result-chevron').textContent = '▼';
   rc.scrollIntoView({ behavior:'smooth', block:'start' });
 
   checkFlights();
@@ -1416,8 +1440,29 @@ const FLIGHT_CACHE = {
   invalidate(key) { sessionStorage.removeItem('fc_' + key); }
 };
 
-// ===== 旅程から区間リストを生成 =====
+// ===== 旅程から区間リストを生成（シンプル版・保存用） =====
 function getLegs() {
+  const dep  = STATE.departure;
+  const dest = STATE.destination;
+  const arr  = STATE.arrival ?? STATE.departure;
+  if (!dep || !dest) return [];
+  const outPath = [dep, ...STATE.outbound.filter(Boolean), dest];
+  const retPath = [dest, ...STATE.return.filter(Boolean), arr];
+  const legs = [];
+  for (let i = 0; i < outPath.length - 1; i++) legs.push(`${outPath[i]}-${outPath[i+1]}`);
+  for (let i = 0; i < retPath.length - 1; i++) legs.push(`${retPath[i]}-${retPath[i+1]}`);
+  return legs;
+}
+
+// ===== グループ空港の展開（TYO→[HND,NRT] 等） =====
+function expandIata(iata) {
+  const city = CITIES.find(c => c.iata === iata);
+  return city?.group ?? [iata];
+}
+
+// ===== フライト確認用の展開済み区間リストを生成 =====
+// グループ空港を個別空港に展開し、dir（往路/復路）とpos（位置）を付与
+function getExpandedLegs() {
   const dep  = STATE.departure;
   const dest = STATE.destination;
   const arr  = STATE.arrival ?? STATE.departure;
@@ -1425,10 +1470,25 @@ function getLegs() {
 
   const outPath = [dep, ...STATE.outbound.filter(Boolean), dest];
   const retPath = [dest, ...STATE.return.filter(Boolean), arr];
-
   const legs = [];
-  for (let i = 0; i < outPath.length - 1; i++) legs.push(`${outPath[i]}-${outPath[i+1]}`);
-  for (let i = 0; i < retPath.length - 1; i++) legs.push(`${retPath[i]}-${retPath[i+1]}`);
+  const seen = new Set();
+
+  const addLegs = (path, dir) => {
+    for (let i = 0; i < path.length - 1; i++) {
+      for (const from of expandIata(path[i])) {
+        for (const to of expandIata(path[i + 1])) {
+          const key = `${from}-${to}`;
+          if (!seen.has(key)) {
+            legs.push({ key, from, to, dir, pos: i });
+            seen.add(key);
+          }
+        }
+      }
+    }
+  };
+
+  addLegs(outPath, 'out');
+  addLegs(retPath, 'ret');
   return legs;
 }
 
@@ -1510,8 +1570,14 @@ async function checkFlights(force = false) {
   const mode = localStorage.getItem('m8f_mode') || 'basic';
   if (mode !== 'api') return;
 
-  const legs = getLegs();
-  if (legs.length === 0) return;
+  const legArr = getExpandedLegs();
+  if (legArr.length === 0) return;
+
+  // ストップオーバー都市セット（乗り継ぎチェック対象外）
+  const soIatas = new Set([
+    ...STATE.outbound.map((v,i) => v && STATE.outboundSO[i] ? v : null),
+    ...STATE.return.map((v,i)   => v && STATE.returnSO[i]   ? v : null),
+  ].filter(Boolean));
 
   const card = document.getElementById('flight-card');
   card.classList.remove('hidden');
@@ -1519,27 +1585,31 @@ async function checkFlights(force = false) {
     '<div class="flight-loading">🔍 フライト情報を取得中...</div>';
   document.getElementById('flight-connections').innerHTML = '';
 
+  // ユニークなキーだけ API を叩く
   const results = {};
-  for (const leg of legs) {
-    const [from, to] = leg.split('-');
-    results[leg] = await fetchLeg(from, to, force);
+  const fetched = new Set();
+  for (const l of legArr) {
+    if (!fetched.has(l.key)) {
+      results[l.key] = await fetchLeg(l.from, l.to, force);
+      fetched.add(l.key);
+    }
   }
-  renderFlightCard(legs, results);
+  renderFlightCard(legArr, results, soIatas);
 }
 
 function refreshFlights() {
-  getLegs().forEach(leg => FLIGHT_CACHE.invalidate(leg));
+  getExpandedLegs().forEach(l => FLIGHT_CACHE.invalidate(l.key));
   checkFlights(true);
 }
 
 // ===== フライト確認カードのレンダリング =====
-function renderFlightCard(legs, results) {
+function renderFlightCard(legArr, results, soIatas) {
   const cityName = iata => CITIES.find(c => c.iata === iata)?.name ?? iata;
 
   // 区間ごとの便情報
-  document.getElementById('flight-legs').innerHTML = legs.map(leg => {
-    const [from, to] = leg.split('-');
-    const data = results[leg] || { flights: [] };
+  document.getElementById('flight-legs').innerHTML = legArr.map(l => {
+    const { from, to, key } = l;
+    const data = results[key] || { flights: [] };
 
     if (data.error === 'auth') return `
       <div class="leg-block">
@@ -1578,42 +1648,48 @@ function renderFlightCard(legs, results) {
     </div>`;
   }).join('');
 
-  // 乗り継ぎ可否チェック（連続区間の到着→次便出発を比較）
+  // 乗り継ぎ可否チェック
+  // 対象: 往路/復路それぞれの「トランジット」区間のみ
+  // 除外: ①ストップオーバー都市 ②目的地（往路→復路の境目） ③方向が変わる境界
   const checks = [];
-  for (let i = 0; i < legs.length - 1; i++) {
-    const legA = legs[i];
-    const legB = legs[i + 1];
-    const [, connIata] = legA.split('-');
-    const [nextFrom]   = legB.split('-');
-    if (connIata !== nextFrom) continue; // 往路→復路の境目はスキップ
+  for (let i = 0; i < legArr.length; i++) {
+    for (let j = i + 1; j < legArr.length; j++) {
+      const legA = legArr[i];
+      const legB = legArr[j];
+      if (legA.dir !== legB.dir) continue;           // 往路と復路の境目はスキップ
+      if (legB.pos !== legA.pos + 1) continue;       // 連続していない区間はスキップ
+      if (legA.to !== legB.from) continue;           // 接続点が一致しない組み合わせはスキップ
+      if (legA.to === STATE.destination) continue;   // 目的地（折り返し地点）はスキップ
+      if (soIatas?.has(legA.to)) continue;           // ストップオーバーはスキップ
 
-    const fA = results[legA]?.flights?.[0];
-    const fB = results[legB]?.flights?.[0];
-    if (!fA || !fB) continue;
+      const fA = results[legA.key]?.flights?.[0];
+      const fB = results[legB.key]?.flights?.[0];
+      if (!fA || !fB) continue;
 
-    const diff = toMin(fB.dep) - toMin(fA.arr);
-    const label = `${cityName(connIata)}（${connIata}）`;
-    const diffStr = diff >= 0 ? `+${diff}分` : `${diff}分`;
+      const diff = toMin(fB.dep) - toMin(fA.arr);
+      const label = `${cityName(legA.to)}（${legA.to}）`;
+      const diffStr = diff >= 0 ? `+${diff}分` : `${diff}分`;
 
-    let cls, icon, msg;
-    if (diff >= 90) {
-      cls = 'check-ok';   icon = '✅';
-      msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎOK`;
-    } else if (diff >= 60) {
-      cls = 'check-warn'; icon = '⚠️';
-      msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）やや短い（90分以上推奨）`;
-    } else if (diff >= 0) {
-      cls = 'check-ng';   icon = '❌';
-      msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎ時間不足`;
-    } else {
-      cls = 'check-ng';   icon = '❌';
-      msg = `${label}: 着${fA.arr} → 発${fB.dep} 接続不可（到着より前に出発）`;
+      let cls, icon, msg;
+      if (diff >= 90) {
+        cls = 'check-ok';   icon = '✅';
+        msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎOK`;
+      } else if (diff >= 60) {
+        cls = 'check-warn'; icon = '⚠️';
+        msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）やや短い（90分以上推奨）`;
+      } else if (diff >= 0) {
+        cls = 'check-ng';   icon = '❌';
+        msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎ時間不足`;
+      } else {
+        cls = 'check-ng';   icon = '❌';
+        msg = `${label}: 着${fA.arr} → 発${fB.dep} 接続不可`;
+      }
+      checks.push(`<div class="connection-row ${cls}">${icon} ${msg}</div>`);
     }
-    checks.push(`<div class="connection-row ${cls}">${icon} ${msg}</div>`);
   }
 
   document.getElementById('flight-connections').innerHTML = checks.length
-    ? `<div class="connection-block"><div class="card-title">乗り継ぎ確認</div>${checks.join('')}</div>`
+    ? `<div class="connection-block"><div class="card-title">乗り継ぎ確認（トランジット区間）</div>${checks.join('')}</div>`
     : '';
 }
 
@@ -1643,8 +1719,9 @@ function saveRoute() {
   const name = prompt('ルート名を入力してください', defaultName);
   if (name === null) return;
 
-  const legs = getLegs();
-  const flightData = legs.map(leg => ({ leg, data: FLIGHT_CACHE.get(leg) })).filter(x => x.data);
+  const flightData = getExpandedLegs()
+    .map(l => ({ leg: l.key, data: FLIGHT_CACHE.get(l.key) }))
+    .filter(x => x.data);
 
   routes.push({
     id: Date.now().toString(),
