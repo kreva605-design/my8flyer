@@ -608,6 +608,8 @@
         </div>
       </div>
       <div id="settings-status" class="settings-status"></div>
+      <button onclick="runConnectionTest()" style="padding:8px 14px;background:#f0f2f5;color:#445;border:none;border-radius:9px;font-size:0.8rem;cursor:pointer;align-self:flex-start">🔍 接続テスト</button>
+      <div id="conn-test-result" style="font-size:0.76rem;line-height:1.8;color:#445;white-space:pre-wrap"></div>
       <hr class="settings-divider">
       <!-- デフォルト出発地・帰着地 -->
       <div class="mode-options">
@@ -1397,6 +1399,48 @@ const STAR_ALLIANCE = new Set([
   'NH','UA','LH','LX','SQ','TG','OZ','AI','TK','AC','CA','NZ',
   'OS','SK','TP','BR','SN','ET','LO','A3','OU','MS','SA','ZH','JP'
 ]);
+
+// ===== 接続テスト（スマホデバッグ用）=====
+async function runConnectionTest() {
+  const el  = document.getElementById('conn-test-result');
+  const mode = localStorage.getItem('m8f_mode') || 'basic';
+  const url  = localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
+  const tok  = localStorage.getItem('m8f_token') || '';
+
+  el.textContent = '⏳ テスト中...';
+
+  const lines = [
+    `モード: ${mode}`,
+    `Workers URL: ${url || '（未設定）'}`,
+    `トークン: ${tok ? '設定あり（' + tok.length + '文字）' : '（未設定）'}`,
+    '',
+  ];
+
+  if (!url) { el.textContent = lines.join('\n') + '❌ Workers URL が未設定です'; return; }
+  if (!tok) { el.textContent = lines.join('\n') + '❌ アクセストークンが未設定です'; return; }
+
+  try {
+    const res = await fetch(`${url}/saved-routes`, {
+      headers: { 'Authorization': `Bearer ${tok}` }
+    });
+    lines.push(`HTTP ステータス: ${res.status} ${res.statusText}`);
+    if (res.status === 401) {
+      lines.push('❌ 認証失敗 — トークンが一致しません');
+      lines.push('CloudflareのACCESS_TOKENと一致しているか確認してください');
+    } else if (res.ok) {
+      const data = await res.json();
+      lines.push(`✅ 接続成功 — 保存ルート: ${data.length} 件`);
+      if (data.length > 0) lines.push(`　最新: ${data[data.length-1].name}`);
+    } else {
+      lines.push(`❌ エラー: ${res.status}`);
+    }
+  } catch (e) {
+    lines.push(`❌ 通信エラー: ${e.message}`);
+    lines.push('Workers URLが正しいか確認してください');
+  }
+
+  el.textContent = lines.join('\n');
+}
 
 // ===== デフォルト出発地・帰着地 =====
 function buildDefaultSelect(selId, savedKey) {
