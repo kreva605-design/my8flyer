@@ -1885,7 +1885,8 @@ function _authHeader() {
 }
 
 function _workersBase() {
-  return localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
+  const url = localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
+  return url.replace(/\/+$/, ''); // 末尾スラッシュを除去（ダブルスラッシュ防止）
 }
 
 // 保存ルート取得（初回のみネットワーク）
