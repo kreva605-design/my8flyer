@@ -343,6 +343,15 @@
     }
     .settings-status { font-size: 0.78rem; color: #38a169; min-height: 1.2em; }
     .settings-status.warn { color: #d97706; }
+    .settings-divider { border: none; border-top: 1px solid #e8eaf0; margin: 4px 0; }
+    .default-select {
+      flex: 1;
+      padding: 9px 10px;
+      border: 1.5px solid #dde3ea;
+      border-radius: 9px;
+      font-size: 0.83rem;
+      background: #f8f9fb;
+    }
 
     /* ===== フライト確認カード ===== */
     .leg-block {
@@ -599,6 +608,24 @@
         </div>
       </div>
       <div id="settings-status" class="settings-status"></div>
+      <hr class="settings-divider">
+      <!-- デフォルト出発地・帰着地 -->
+      <div class="mode-options">
+        <label class="mode-option">
+          <input type="checkbox" id="default-toggle" onchange="onDefaultToggle()">
+          デフォルト出発地・帰着地を設定する
+        </label>
+      </div>
+      <div id="default-fields" style="display:none;flex-direction:column;gap:10px">
+        <div class="settings-field">
+          <span class="settings-field-label">出発地</span>
+          <select id="default-dep-select" class="default-select" onchange="saveDefaultDep()"></select>
+        </div>
+        <div class="settings-field">
+          <span class="settings-field-label">帰着地</span>
+          <select id="default-arr-select" class="default-select" onchange="saveDefaultArr()"></select>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -888,19 +915,20 @@
 <script>
 // ===== 都市マスタ =====
 const CITIES = [
-  { name:"東京（成田）",      iata:"NRT", type:"domestic",  zone:1,  miles:0    },
-  { name:"東京（羽田）",      iata:"HND", type:"domestic",  zone:1,  miles:0    },
-  { name:"大阪（関西）",      iata:"KIX", type:"domestic",  zone:1,  miles:0    },
-  { name:"名古屋",            iata:"NGO", type:"domestic",  zone:1,  miles:0    },
-  { name:"福岡",              iata:"FUK", type:"domestic",  zone:1,  miles:0    },
-  { name:"広島",              iata:"HIJ", type:"domestic",  zone:1,  miles:0    },
-  { name:"大阪（伊丹）",      iata:"ITM", type:"domestic",  zone:1,  miles:0    },
-  { name:"神戸",              iata:"UKB", type:"domestic",  zone:1,  miles:0    },
-  // グループ空港（複数空港を一括確認）
-  { name:"東京（羽田 / 成田）",        iata:"TYO", type:"domestic",  zone:1,  miles:0, group:["HND","NRT"] },
-  { name:"大阪（関空 / 伊丹 / 神戸）", iata:"OSA", type:"domestic",  zone:1,  miles:0, group:["KIX","ITM","UKB"] },
-  { name:"札幌（新千歳）",    iata:"CTS", type:"domestic",  zone:1,  miles:0    },
-  { name:"那覇",              iata:"OKA", type:"domestic",  zone:1,  miles:0    },
+  // ── グループ空港（複数空港を一括でフライト確認） ──
+  { name:"東京（羽田 / 成田）",        iata:"TYO", type:"domestic", zone:1, miles:0, group:["HND","NRT"] },
+  { name:"大阪（関空 / 伊丹 / 神戸）", iata:"OSA", type:"domestic", zone:1, miles:0, group:["KIX","ITM","UKB"] },
+  // ── 個別空港（北→南） ──
+  { name:"札幌（新千歳）",    iata:"CTS", type:"domestic", zone:1, miles:0 },
+  { name:"東京（成田）",      iata:"NRT", type:"domestic", zone:1, miles:0 },
+  { name:"東京（羽田）",      iata:"HND", type:"domestic", zone:1, miles:0 },
+  { name:"名古屋",            iata:"NGO", type:"domestic", zone:1, miles:0 },
+  { name:"大阪（関西）",      iata:"KIX", type:"domestic", zone:1, miles:0 },
+  { name:"大阪（伊丹）",      iata:"ITM", type:"domestic", zone:1, miles:0 },
+  { name:"神戸",              iata:"UKB", type:"domestic", zone:1, miles:0 },
+  { name:"広島",              iata:"HIJ", type:"domestic", zone:1, miles:0 },
+  { name:"福岡",              iata:"FUK", type:"domestic", zone:1, miles:0 },
+  { name:"那覇",              iata:"OKA", type:"domestic", zone:1, miles:0 },
   { name:"ソウル（仁川）",    iata:"ICN", type:"overseas",  zone:2,  miles:760  },
   { name:"台北",              iata:"TPE", type:"overseas",  zone:3,  miles:1400 },
   { name:"香港",              iata:"HKG", type:"overseas",  zone:3,  miles:1820 },
@@ -1074,16 +1102,33 @@ function buildModalSelect() {
     : '選択してください';
   sel.appendChild(emptyOpt);
 
-  // 国内グループ
-  const domGrp = document.createElement('optgroup');
-  domGrp.label = '🇯🇵 国内（Zone 1）';
-  CITIES.filter(c => c.type === 'domestic').forEach(c => {
+  // 国内 — グループ空港
+  const domGrpA = document.createElement('optgroup');
+  domGrpA.label = '🇯🇵 国内 まとめて確認';
+  CITIES.filter(c => c.type === 'domestic' && c.group).forEach(c => {
     const o = document.createElement('option');
     o.value = c.iata;
     o.textContent = `${c.name}（${c.iata}）`;
-    domGrp.appendChild(o);
+    domGrpA.appendChild(o);
   });
-  sel.appendChild(domGrp);
+  sel.appendChild(domGrpA);
+
+  // 区切り線
+  const sep = document.createElement('option');
+  sep.disabled = true;
+  sep.textContent = '─────────────────────';
+  sel.appendChild(sep);
+
+  // 国内 — 個別空港（北→南）
+  const domGrpB = document.createElement('optgroup');
+  domGrpB.label = '🇯🇵 国内 個別空港（北→南）';
+  CITIES.filter(c => c.type === 'domestic' && !c.group).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.iata;
+    o.textContent = `${c.name}（${c.iata}）`;
+    domGrpB.appendChild(o);
+  });
+  sel.appendChild(domGrpB);
 
   // 海外グループ（ゾーン別）
   const zones = [...new Set(CITIES.filter(c => c.type === 'overseas').map(c => c.zone))].sort((a,b) => a-b);
@@ -1353,6 +1398,73 @@ const STAR_ALLIANCE = new Set([
   'OS','SK','TP','BR','SN','ET','LO','A3','OU','MS','SA','ZH','JP'
 ]);
 
+// ===== デフォルト出発地・帰着地 =====
+function buildDefaultSelect(selId, savedKey) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '';
+
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '（設定なし）';
+  sel.appendChild(blank);
+
+  // グループ空港
+  const grpA = document.createElement('optgroup');
+  grpA.label = '🇯🇵 国内 まとめて確認';
+  CITIES.filter(c => c.type === 'domestic' && c.group).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.iata;
+    o.textContent = `${c.name}（${c.iata}）`;
+    grpA.appendChild(o);
+  });
+  sel.appendChild(grpA);
+
+  const sep = document.createElement('option');
+  sep.disabled = true;
+  sep.textContent = '─────────────────────';
+  sel.appendChild(sep);
+
+  const grpB = document.createElement('optgroup');
+  grpB.label = '🇯🇵 国内 個別（北→南）';
+  CITIES.filter(c => c.type === 'domestic' && !c.group).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.iata;
+    o.textContent = `${c.name}（${c.iata}）`;
+    grpB.appendChild(o);
+  });
+  sel.appendChild(grpB);
+
+  sel.value = localStorage.getItem(savedKey) || '';
+}
+
+function onDefaultToggle() {
+  const enabled = document.getElementById('default-toggle').checked;
+  localStorage.setItem('m8f_default_enabled', enabled ? '1' : '0');
+  const fields = document.getElementById('default-fields');
+  fields.style.display = enabled ? 'flex' : 'none';
+  if (enabled) {
+    buildDefaultSelect('default-dep-select', 'm8f_default_dep');
+    buildDefaultSelect('default-arr-select', 'm8f_default_arr');
+  }
+}
+
+function saveDefaultDep() {
+  localStorage.setItem('m8f_default_dep', document.getElementById('default-dep-select').value);
+}
+
+function saveDefaultArr() {
+  localStorage.setItem('m8f_default_arr', document.getElementById('default-arr-select').value);
+}
+
+function applyDefaultSettings() {
+  if (localStorage.getItem('m8f_default_enabled') !== '1') return;
+  const dep = localStorage.getItem('m8f_default_dep');
+  const arr = localStorage.getItem('m8f_default_arr');
+  if (dep) { STATE.departure = dep; }
+  if (arr) { STATE.arrival  = arr === STATE.departure ? null : arr; }
+}
+
 // ===== 設定管理 =====
 function initSettings() {
   const mode = localStorage.getItem('m8f_mode') || 'basic';
@@ -1362,6 +1474,16 @@ function initSettings() {
   document.getElementById('workers-url-input').value = url;
   toggleTokenRow();
   updateSettingsStatus();
+
+  // デフォルト出発地・帰着地の初期化
+  const defaultEnabled = localStorage.getItem('m8f_default_enabled') === '1';
+  document.getElementById('default-toggle').checked = defaultEnabled;
+  if (defaultEnabled) {
+    document.getElementById('default-fields').style.display = 'flex';
+    buildDefaultSelect('default-dep-select', 'm8f_default_dep');
+    buildDefaultSelect('default-arr-select', 'm8f_default_arr');
+  }
+  applyDefaultSettings();
 }
 
 function onModeChange() {

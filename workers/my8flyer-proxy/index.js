@@ -92,14 +92,13 @@ function parseAviationStack(raw, from, to) {
   return { flights, from, to };
 }
 
-// ISO8601 → "HH:MM"（JST）
+// ISO8601 → "HH:MM"（ローカル空港時刻をそのまま抽出）
+// AviationStack はローカル時刻を UTC オフセット（+00:00）で誤って返す場合があるため
+// タイムゾーン変換を行わず "T" 以降の HH:MM を直接使用する
 function toHHMM(iso) {
   if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleTimeString('ja-JP', {
-      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tokyo'
-    });
-  } catch { return null; }
+  const m = iso.match(/T(\d{2}:\d{2})/);
+  return m ? m[1] : null;
 }
 
 function json(body, status = 200) {
