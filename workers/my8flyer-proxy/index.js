@@ -1,9 +1,16 @@
 // My 8flyer — Cloudflare Workers プロキシ
-// 役割: GitHub Pages から Bearer トークンで認証し、AviationStack API を代理呼び出し
 //
-// Cloudflare Secrets（wrangler secret put で設定済み）:
-//   ACCESS_TOKEN          ... 家族で共有するアクセストークン（ブラウザのlocalStorageにも保存）
-//   AVIATIONSTACK_API_KEY ... AviationStack から発行された API キー（バックエンド専用）
+// エンドポイント:
+//   GET  /saved-routes              保存ルート一覧を KV から取得
+//   PUT  /saved-routes              保存ルート一覧を KV に書き込み
+//   GET  /routes?from=HND&to=CDG   AviationStack API でフライト確認
+//
+// Secrets（wrangler secret put で設定済み）:
+//   ACCESS_TOKEN          ... 家族共有アクセストークン
+//   AVIATIONSTACK_API_KEY ... AviationStack API キー
+//
+// KV バインディング（wrangler.toml で設定済み）:
+//   SAVED_ROUTES          ... 保存ルート用 KV namespace
 
 export default {
   async fetch(request, env) {
@@ -12,18 +19,42 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
-    // Bearer トークン検証（ここで「家族か否か」を判定）
+    // Bearer トークン検証（全エンドポイント共通）
     const auth = request.headers.get('Authorization') ?? '';
     if (!env.ACCESS_TOKEN || auth !== `Bearer ${env.ACCESS_TOKEN}`) {
       return json({ error: 'Unauthorized' }, 401);
     }
 
     const url  = new URL(request.url);
+    const path = url.pathname;
+
+    // ===== 保存ルート: 取得 =====
+    if (path === '/saved-routes' && request.method === 'GET') {
+      const data = await env.SAVED_ROUTES.get('routes');
+      return new Response(data || '[]', {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+      });
+    }
+
+    // ===== 保存ルート: 書き込み =====
+    if (path === '/saved-routes' && request.method === 'PUT') {
+      const body = await request.text();
+      // 簡易バリデーション（JSONであること・配列であること）
+      try {
+        const parsed = JSON.parse(body);
+        if (!Array.isArray(parsed)) throw new Error('not array');
+      } catch {
+        return json({ error: '不正なデータ形式です' }, 400);
+      }
+      await env.SAVED_ROUTES.put('routes', body);
+      return json({ ok: true });
+    }
+
+    // ===== フライト確認: AviationStack API 呼び出し =====
     const from = url.searchParams.get('from');
     const to   = url.searchParams.get('to');
     if (!from || !to) return json({ error: 'from と to が必要です' }, 400);
 
-    // AviationStack API 呼び出し（APIキーはここでしか使わない）
     const apiUrl = `https://api.aviationstack.com/v1/flights` +
       `?dep_iata=${from}&arr_iata=${to}&access_key=${env.AVIATIONSTACK_API_KEY}&limit=10`;
 
@@ -56,20 +87,17 @@ function parseAviationStack(raw, from, to) {
       arr: toHHMM(f.arrival?.scheduled),
     }))
     .filter(f => f.iata && f.dep && f.arr)
-    // 重複フライト番号を除去（同日複数便があれば代表1件）
     .filter((f, i, arr) => arr.findIndex(x => x.flightNo === f.flightNo) === i);
 
   return { flights, from, to };
 }
 
-// ISO8601 → "HH:MM"
+// ISO8601 → "HH:MM"（JST）
 function toHHMM(iso) {
   if (!iso) return null;
   try {
-    const d = new Date(iso);
-    return d.toLocaleTimeString('ja-JP', {
-      hour: '2-digit', minute: '2-digit', hour12: false,
-      timeZone: 'Asia/Tokyo'
+    return new Date(iso).toLocaleTimeString('ja-JP', {
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tokyo'
     });
   } catch { return null; }
 }
@@ -81,12 +109,11 @@ function json(body, status = 200) {
   });
 }
 
-// GitHub Pages からのリクエストのみ許可
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin':  'https://kreva605-design.github.io',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
     'Access-Control-Max-Age':       '86400',
   };
 }

@@ -1696,25 +1696,71 @@ function renderFlightCard(legArr, results, soIatas) {
 // ===== 保存ルート機能（最大5件） =====
 const MAX_SAVED = 5;
 
-function getSavedRoutes() {
-  try { return JSON.parse(localStorage.getItem('m8f_saved') || '[]'); } catch { return []; }
+// ===== 保存ルート — Workers KV 経由（デバイス間共有） =====
+// インメモリキャッシュ（初回ロード後は同期で参照）
+let _routesCache = null;
+
+function _workersAvailable() {
+  return localStorage.getItem('m8f_mode') === 'api'
+      && !!(localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT);
 }
 
-function setSavedRoutes(routes) {
-  localStorage.setItem('m8f_saved', JSON.stringify(routes));
+function _authHeader() {
+  return { 'Authorization': `Bearer ${localStorage.getItem('m8f_token') || ''}` };
 }
 
-function saveRoute() {
+function _workersBase() {
+  return localStorage.getItem('m8f_workers_url') || WORKERS_URL_DEFAULT;
+}
+
+// 保存ルート取得（初回のみネットワーク）
+async function getSavedRoutes() {
+  if (_routesCache !== null) return _routesCache;
+
+  if (_workersAvailable()) {
+    try {
+      const res = await fetch(`${_workersBase()}/saved-routes`, { headers: _authHeader() });
+      if (res.ok) {
+        _routesCache = await res.json();
+        localStorage.setItem('m8f_saved', JSON.stringify(_routesCache)); // ローカルにも同期
+        return _routesCache;
+      }
+    } catch {}
+  }
+
+  // フォールバック: localStorage（オフライン時・basicモード時）
+  try { _routesCache = JSON.parse(localStorage.getItem('m8f_saved') || '[]'); }
+  catch { _routesCache = []; }
+  return _routesCache;
+}
+
+// 保存ルート書き込み（KV + localStorage 両方に保存）
+async function setSavedRoutes(routes) {
+  _routesCache = routes;
+  localStorage.setItem('m8f_saved', JSON.stringify(routes)); // 常にローカルにも残す
+
+  if (_workersAvailable()) {
+    try {
+      await fetch(`${_workersBase()}/saved-routes`, {
+        method: 'PUT',
+        headers: { ...( _authHeader()), 'Content-Type': 'application/json' },
+        body: JSON.stringify(routes)
+      });
+    } catch {} // 失敗してもローカルには保存済みなので継続
+  }
+}
+
+async function saveRoute() {
   if (!STATE.departure || !STATE.destination) {
     alert('出発地と目的地を設定してから保存してください');
     return;
   }
-  const routes = getSavedRoutes();
+  const routes = await getSavedRoutes();
   if (routes.length >= MAX_SAVED) {
     alert(`保存できるルートは最大${MAX_SAVED}件です。不要なルートを削除してください。`);
     return;
   }
-  const cityName = iata => CITIES.find(c => c.iata === iata)?.name ?? iata;
+  const cityName  = iata => CITIES.find(c => c.iata === iata)?.name ?? iata;
   const defaultName = `${cityName(STATE.departure)} → ${cityName(STATE.destination)}`;
   const name = prompt('ルート名を入力してください', defaultName);
   if (name === null) return;
@@ -1726,36 +1772,39 @@ function saveRoute() {
   routes.push({
     id: Date.now().toString(),
     name: name || defaultName,
+    comment: '',
     savedAt: new Date().toISOString(),
     state: JSON.parse(JSON.stringify(STATE)),
     flightData
   });
-  setSavedRoutes(routes);
+  await setSavedRoutes(routes);
   renderSavedRoutes();
   alert('ルートを保存しました');
 }
 
-function loadRoute(id) {
-  const route = getSavedRoutes().find(r => r.id === id);
+async function loadRoute(id) {
+  const routes = await getSavedRoutes();
+  const route  = routes.find(r => r.id === id);
   if (!route) return;
-
   Object.assign(STATE, route.state);
-  route.flightData.forEach(({ leg, data }) => { if (data) FLIGHT_CACHE.set(leg, data); });
+  (route.flightData ?? []).forEach(({ leg, data }) => { if (data) FLIGHT_CACHE.set(leg, data); });
   updateAllDots();
   validate();
 }
 
-function deleteRoute(id) {
+async function deleteRoute(id) {
   if (!confirm('このルートを削除しますか？')) return;
-  setSavedRoutes(getSavedRoutes().filter(r => r.id !== id));
+  const routes = await getSavedRoutes();
+  await setSavedRoutes(routes.filter(r => r.id !== id));
   renderSavedRoutes();
 }
 
 // ===== ルート編集モーダル =====
 let editingRouteId = null;
 
-function editRoute(id) {
-  const route = getSavedRoutes().find(r => r.id === id);
+async function editRoute(id) {
+  const routes = await getSavedRoutes();
+  const route  = routes.find(r => r.id === id);
   if (!route) return;
   editingRouteId = id;
   document.getElementById('edit-name-input').value    = route.name    ?? '';
@@ -1763,14 +1812,14 @@ function editRoute(id) {
   document.getElementById('edit-modal-overlay').classList.remove('hidden');
 }
 
-function saveEditRoute() {
+async function saveEditRoute() {
   if (!editingRouteId) return;
   const name    = document.getElementById('edit-name-input').value.trim();
   const comment = document.getElementById('edit-comment-input').value.trim();
-  const routes  = getSavedRoutes().map(r =>
+  const routes  = await getSavedRoutes();
+  await setSavedRoutes(routes.map(r =>
     r.id === editingRouteId ? { ...r, name: name || r.name, comment } : r
-  );
-  setSavedRoutes(routes);
+  ));
   renderSavedRoutes();
   closeEditModal();
 }
@@ -1780,13 +1829,16 @@ function closeEditModal() {
   editingRouteId = null;
 }
 
-function renderSavedRoutes() {
-  const routes = getSavedRoutes();
+async function renderSavedRoutes() {
+  document.getElementById('saved-list').innerHTML =
+    '<div style="font-size:0.82rem;color:#aab;padding:8px 0">読み込み中...</div>';
+
+  const routes = await getSavedRoutes();
   document.getElementById('saved-count').textContent = `${routes.length} / ${MAX_SAVED} 件`;
   document.getElementById('saved-list').innerHTML = routes.length === 0
     ? '<div style="font-size:0.82rem;color:#aab;padding:8px 0">保存済みルートはありません</div>'
     : routes.map(r => {
-        const date    = new Date(r.savedAt).toLocaleDateString('ja-JP',{month:'short',day:'numeric'});
+        const date    = new Date(r.savedAt).toLocaleDateString('ja-JP', { month:'short', day:'numeric' });
         const comment = r.comment
           ? `<div class="saved-route-comment">💬 ${r.comment}</div>`
           : '';
@@ -1802,6 +1854,14 @@ function renderSavedRoutes() {
         </div>`;
       }).join('');
 }
+
+// モード変更時はキャッシュをクリアして再取得
+const _origOnModeChange = onModeChange;
+onModeChange = function() {
+  _routesCache = null;
+  _origOnModeChange.call(this);
+  renderSavedRoutes();
+};
 
 // ===== 初期化 =====
 updateAllDots();
