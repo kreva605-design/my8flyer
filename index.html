@@ -37,7 +37,34 @@
       box-shadow: 0 4px 24px rgba(0,70,160,0.1);
       margin-bottom: 14px;
       backdrop-filter: blur(4px);
+      position: relative;
     }
+    .transit-counter {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      background: rgba(255,255,255,0.82);
+      border-radius: 10px;
+      padding: 5px 9px;
+      font-size: 0.68rem;
+      color: #445;
+      line-height: 1.7;
+      box-shadow: 0 1px 6px rgba(0,40,100,0.08);
+      min-width: 80px;
+    }
+    .transit-counter .tc-dir {
+      font-weight: bold;
+      font-size: 0.7rem;
+      color: #336;
+      margin-bottom: 1px;
+    }
+    .transit-counter .tc-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .transit-counter .tc-over  { color: #c53030; font-weight: bold; }
+    .transit-counter .tc-ok    { color: #276749; }
     .plane-hint {
       text-align: center;
       font-size: 0.72rem;
@@ -675,6 +702,18 @@
   </div>
 
   <div class="plane-section">
+    <div class="transit-counter" id="transit-counter">
+      <div class="tc-dir">往路</div>
+      <div class="tc-row">
+        <span>国内 <span id="tc-out-dom">0</span>/1</span>
+        <span>海外 <span id="tc-out-ovs">0</span>/2</span>
+      </div>
+      <div class="tc-dir" style="margin-top:4px">復路</div>
+      <div class="tc-row">
+        <span>国内 <span id="tc-ret-dom">0</span>/1</span>
+        <span>海外 <span id="tc-ret-ovs">0</span>/2</span>
+      </div>
+    </div>
     <p class="plane-hint">各丸をタップして都市を設定 · 🌙マークがストップオーバー</p>
 
     <!--
@@ -1138,6 +1177,36 @@ function updateAllDots() {
       badge.style.visibility = (so && !!val) ? 'visible' : 'hidden';
     }
   });
+  updateTransitCounter();
+}
+
+// ===== 乗り継ぎ回数カウンター =====
+function updateTransitCounter() {
+  const count = (slots) => {
+    let dom = 0, ovs = 0;
+    slots.forEach(iata => {
+      if (!iata) return;
+      const city = CITIES.find(c => c.iata === iata);
+      if (!city) return;
+      if (city.type === 'domestic') dom++;
+      else ovs++;
+    });
+    return { dom, ovs };
+  };
+
+  const setCell = (id, val, max) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = val;
+    el.className = val > max ? 'tc-over' : val > 0 ? 'tc-ok' : '';
+  };
+
+  const out = count(STATE.outbound);
+  const ret = count(STATE.return);
+  setCell('tc-out-dom', out.dom, 1);
+  setCell('tc-out-ovs', out.ovs, 2);
+  setCell('tc-ret-dom', ret.dom, 1);
+  setCell('tc-ret-ovs', ret.ovs, 2);
 }
 
 // ===== モーダル制御 =====
