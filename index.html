@@ -40,9 +40,6 @@
       position: relative;
     }
     .transit-counter {
-      position: absolute;
-      top: 10px;
-      left: 12px;
       background: rgba(255,255,255,0.82);
       border-radius: 10px;
       padding: 5px 9px;
@@ -51,6 +48,7 @@
       line-height: 1.7;
       box-shadow: 0 1px 6px rgba(0,40,100,0.08);
       min-width: 80px;
+      flex-shrink: 0;
     }
     .transit-counter .tc-dir {
       font-weight: bold;
@@ -65,11 +63,18 @@
     }
     .transit-counter .tc-over  { color: #c53030; font-weight: bold; }
     .transit-counter .tc-ok    { color: #276749; }
+    .plane-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
     .plane-hint {
       text-align: center;
       font-size: 0.72rem;
       color: #6688aa;
-      margin-bottom: 8px;
+      margin: 0;
+      flex: 1;
     }
     #plane-svg {
       width: 100%;
@@ -702,19 +707,21 @@
   </div>
 
   <div class="plane-section">
-    <div class="transit-counter" id="transit-counter">
-      <div class="tc-dir">往路</div>
-      <div class="tc-row">
-        <span>国内 <span id="tc-out-dom">0</span>/1</span>
-        <span>海外 <span id="tc-out-ovs">0</span>/2</span>
+    <div class="plane-header">
+      <div class="transit-counter" id="transit-counter">
+        <div class="tc-dir">往路</div>
+        <div class="tc-row">
+          <span>国内 <span id="tc-out-dom">0</span>/1</span>
+          <span>海外 <span id="tc-out-ovs">0</span>/2</span>
+        </div>
+        <div class="tc-dir" style="margin-top:4px">復路</div>
+        <div class="tc-row">
+          <span>国内 <span id="tc-ret-dom">0</span>/1</span>
+          <span>海外 <span id="tc-ret-ovs">0</span>/2</span>
+        </div>
       </div>
-      <div class="tc-dir" style="margin-top:4px">復路</div>
-      <div class="tc-row">
-        <span>国内 <span id="tc-ret-dom">0</span>/1</span>
-        <span>海外 <span id="tc-ret-ovs">0</span>/2</span>
-      </div>
+      <p class="plane-hint">各丸をタップして都市を設定 · <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#d97706;color:white;font-size:8px;font-weight:bold;vertical-align:middle;">S</span> マークがストップオーバー</p>
     </div>
-    <p class="plane-hint">各丸をタップして都市を設定 · 🌙マークがストップオーバー</p>
 
     <!--
       SVG viewBox: 0 0 320 490
@@ -855,7 +862,7 @@
       <span class="legend-item"><span class="legend-dot" style="background:#3a80d2"></span>往路接続</span>
       <span class="legend-item"><span class="legend-dot" style="background:#38a169"></span>復路接続</span>
       <span class="legend-item"><span class="legend-dot" style="background:#e53e3e"></span>出発/帰着</span>
-      <span class="legend-item"><span class="legend-dot" style="background:#d97706"></span>ストップオーバー</span>
+      <span class="legend-item"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#d97706;color:white;font-size:8px;font-weight:bold;">S</span>ストップオーバー</span>
     </div>
   </div>
 
@@ -986,7 +993,7 @@
     <div class="type-row hidden" id="type-row">
       <span class="type-label">タイプ：</span>
       <button id="btn-transit"   class="type-btn active" onclick="setType('transit')">🔄 乗り換え（トランジット）</button>
-      <button id="btn-stopover"  class="type-btn"        onclick="setType('stopover')">🌙 ストップオーバー</button>
+      <button id="btn-stopover"  class="type-btn"        onclick="setType('stopover')"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#d97706;color:white;font-size:9px;font-weight:bold;vertical-align:middle;margin-right:2px;">S</span> ストップオーバー</button>
     </div>
 
     <div class="modal-buttons">
