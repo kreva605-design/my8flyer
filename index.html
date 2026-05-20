@@ -113,6 +113,30 @@
       margin-bottom: 14px;
       box-shadow: 0 4px 12px rgba(0,50,150,0.2);
     }
+    .btn-ana-bridge {
+      width: 100%;
+      background: linear-gradient(135deg, #ff8a3d, #ff6b35);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(255,107,53,0.25);
+    }
+    .btn-ana-bridge[disabled] {
+      background: #ccc;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .btn-ana-bridge-hint {
+      font-size: 0.72rem;
+      color: #888;
+      margin: -10px 0 14px 0;
+      text-align: center;
+    }
 
     /* ===== カード ===== */
     .card {
@@ -898,6 +922,9 @@
   </div>
 
   <button class="btn-validate" onclick="validate()">ルールを検証する ▶</button>
+
+  <button class="btn-ana-bridge" onclick="sendRouteToAnaBridge()" id="btn-ana-bridge">✈️ ANAで空席確認（拡張機能必要）</button>
+  <div class="btn-ana-bridge-hint" id="btn-ana-bridge-hint">※ Chrome拡張「My 8flyer → ANA Bridge」をインストールすると有効</div>
 
   <!-- 結果カード -->
   <div class="card hidden" id="result-card">
@@ -2173,6 +2200,82 @@ function getLegs() {
   for (let i = 0; i < retPath.length - 1; i++) legs.push(`${retPath[i]}-${retPath[i+1]}`);
   return legs;
 }
+
+// ===== Chrome拡張（My 8flyer → ANA Bridge）にルートを送信 =====
+// 拡張が入っていれば content_8flyer.js が listen している
+function sendRouteToAnaBridge() {
+  const dep  = STATE.departure;
+  const dest = STATE.destination;
+  const arr  = STATE.arrival ?? STATE.departure;
+  if (!dep || !dest) {
+    alert('出発地と目的地を指定してください');
+    return;
+  }
+  const outPath = [dep, ...STATE.outbound.filter(Boolean), dest];
+  const retPath = [dest, ...STATE.return.filter(Boolean), arr];
+
+  // IATA→{iata, name} に解決。グループ空港(TYO等)は最初の実空港にフォールバック
+  const resolve = (iata) => {
+    const city = CITIES.find(c => c.iata === iata);
+    if (!city) return { iata, name: iata };
+    if (city.group && city.group.length > 0) {
+      // グループ空港: 最初の実空港に展開（HND等）。ユーザーは拡張側で確認できる
+      const first = city.group[0];
+      const child = CITIES.find(c => c.iata === first);
+      return { iata: first, name: child ? child.name : first, fromGroup: city.iata };
+    }
+    return { iata: city.iata, name: city.name };
+  };
+
+  const pathToLegs = (path) => {
+    const legs = [];
+    for (let i = 0; i < path.length - 1; i++) {
+      legs.push({ from: resolve(path[i]), to: resolve(path[i + 1]) });
+    }
+    return legs;
+  };
+
+  const legs = [...pathToLegs(outPath), ...pathToLegs(retPath)];
+
+  if (legs.length === 0) {
+    alert('区間を構成できませんでした');
+    return;
+  }
+  if (legs.length > 8) {
+    alert(`区間が${legs.length}個ありますが、ANAフォームは8区間が上限です`);
+    return;
+  }
+
+  // 拡張に postMessage で渡す（同一window内のcontent_8flyer.jsが listen）
+  window.postMessage({
+    type: 'my8flyer:route',
+    version: '1',
+    legs,
+    sentAt: new Date().toISOString()
+  }, '*');
+
+  // 拡張が反応しない場合のフォールバック（拡張未インストール時）
+  setTimeout(() => {
+    if (!document.documentElement.hasAttribute('data-my8flyer-bridge')) {
+      alert('Chrome拡張「My 8flyer → ANA Bridge」が見つかりません。\nGitHubリポジトリのREADMEを参照してインストールしてください。');
+    }
+  }, 500);
+}
+
+// 拡張インストール状態をUIに反映
+function updateAnaBridgeButtonState() {
+  const btn = document.getElementById('btn-ana-bridge');
+  const hint = document.getElementById('btn-ana-bridge-hint');
+  if (!btn) return;
+  const installed = document.documentElement.hasAttribute('data-my8flyer-bridge');
+  if (installed) {
+    btn.textContent = '✈️ ANAで空席確認';
+    hint.textContent = '※ ANA特典予約ページがログイン済みの新タブで開きます';
+  }
+}
+// 拡張のcontent_scriptがDOM属性を立てるタイミングに合わせて再評価
+setTimeout(updateAnaBridgeButtonState, 100);
+setTimeout(updateAnaBridgeButtonState, 1000);
 
 // ===== グループ空港の展開（TYO→[HND,NRT] 等） =====
 function expandIata(iata) {
