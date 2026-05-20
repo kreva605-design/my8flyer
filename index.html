@@ -663,7 +663,8 @@
       </div>
       <div id="award-type-note" style="font-size:0.7rem;color:#88a;line-height:1.6;margin:-4px 0 10px 4px">
         提携航空会社：途中降機1回・乗換 国内1+海外2/方向、エリア制限あり<br>
-        ANA便のみ：日本発SO不可・乗換 国内1/方向のみ
+        ANA便のみ：日本発SO不可・乗換 国内1/方向のみ<br>
+        <span style="color:#a55;font-weight:bold">※本ツールは日本発着の旅程専用です。海外発の場合は未対応です。</span>
       </div>
       <hr class="settings-divider">
       <!-- API設定 -->
@@ -1517,11 +1518,21 @@ function validate() {
   // 旅程モード表示（先頭に1行）
   checks.push({ ok:'info', msg:`旅程タイプ: ${cfg.label}` });
 
+  // [ツール制限] 日本発着前提（海外発 or 海外帰着の場合は警告）
+  if (depCity.type === 'overseas' || (arrCity && arrCity.type === 'overseas')) {
+    checks.push({ ok:'warn', msg:'※本ツールは日本発着の旅程専用です。海外発の場合は未対応です。' });
+  }
+
   // [第1条] 目的地は旅程内で最もマイルが高い地点
   if (ruleOn(1)) {
-    if (destCity.type === 'domestic') {
-      checks.push({ ok:false, msg:`[第1条] 目的地「${destCity.name}」は海外都市にする必要があります` });
+    if (depCity.type === 'domestic' && destCity.type === 'domestic') {
+      // 国内発・国内目的地: 国内のみの旅程は対象外
+      checks.push({ ok:false, msg:`[第1条] 国内のみの旅程は本ツール対象外です（国際線特典航空券用）` });
+    } else if (depCity.type === 'overseas' && destCity.type === 'domestic') {
+      // 海外発・国内目的地: ツール制限警告で既に表示済。第1条判定はスキップ
+      // （注: 公式ルールでは合法な可能性あり）
     } else {
+      // 標準ケース: 国内発・海外目的地 または 海外発・海外目的地
       const r1Viol = [...outConns, ...retConns]
         .map(ic => CITIES.find(c => c.iata === ic))
         .filter(c => c && c.type === 'overseas' && (ZONE_RANK[c.zone] ?? 0) > maxDestRank);
