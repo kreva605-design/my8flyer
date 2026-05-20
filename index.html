@@ -731,13 +731,13 @@
       <div class="transit-counter" id="transit-counter">
         <div class="tc-dir">往路</div>
         <div class="tc-row">
-          <span>国内 <span id="tc-out-dom">0</span>/1</span>
-          <span>海外 <span id="tc-out-ovs">0</span>/2</span>
+          <span data-cell="dom">国内 <span id="tc-out-dom">0</span>/<span id="tc-out-dom-max">2</span></span>
+          <span data-cell="ovs">海外 <span id="tc-out-ovs">0</span>/<span id="tc-out-ovs-max">2</span></span>
         </div>
         <div class="tc-dir" style="margin-top:4px">復路</div>
         <div class="tc-row">
-          <span>国内 <span id="tc-ret-dom">0</span>/1</span>
-          <span>海外 <span id="tc-ret-ovs">0</span>/2</span>
+          <span data-cell="dom">国内 <span id="tc-ret-dom">0</span>/<span id="tc-ret-dom-max">2</span></span>
+          <span data-cell="ovs">海外 <span id="tc-ret-ovs">0</span>/<span id="tc-ret-ovs-max">2</span></span>
         </div>
       </div>
       <p class="plane-hint">各丸をタップして都市を設定 · <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#d97706;color:white;font-size:8px;font-weight:bold;vertical-align:middle;">S</span> マークがストップオーバー</p>
@@ -798,6 +798,15 @@
         <circle class="node-circle" cx="160" cy="50" r="24" fill="#f47c20" stroke="white" stroke-width="3"/>
         <text id="txt-destination" x="160" y="55" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Arial">＋</text>
         <text x="160" y="83" text-anchor="middle" fill="#c55a00" font-size="11" font-weight="bold" font-family="Arial">目的地</text>
+      </g>
+
+      <!-- 復路出発地（オープンジョー時のみ表示・紫） -->
+      <g id="node-returnDep" class="city-node" style="display:none" onclick="openModal('returnDep')">
+        <!-- 目的地と復路出発地を繋ぐ破線 -->
+        <line x1="178" y1="62" x2="200" y2="80" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>
+        <circle class="node-circle" cx="212" cy="92" r="18" fill="#7c3aed" stroke="white" stroke-width="2.5"/>
+        <text id="txt-returnDep" x="212" y="96" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="Arial">＋</text>
+        <text x="212" y="120" text-anchor="middle" fill="#6b21a8" font-size="9" font-weight="bold" font-family="Arial">復路出発</text>
       </g>
 
       <!-- 往路 乗り継ぎ① (下・内側) ※①③入れ替え済み -->
@@ -883,6 +892,7 @@
       <span class="legend-item"><span class="legend-dot" style="background:#38a169"></span>復路接続</span>
       <span class="legend-item"><span class="legend-dot" style="background:#e53e3e"></span>出発/帰着</span>
       <span class="legend-item"><span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#d97706;color:white;font-size:8px;font-weight:bold;">S</span>ストップオーバー</span>
+      <span class="legend-item" id="legend-returnDep" style="display:none"><span class="legend-dot" style="background:#7c3aed"></span>復路出発地（OJ）</span>
     </div>
   </div>
 
@@ -1173,6 +1183,7 @@ const SLOT_META = {
   'departure':   { label:'出発地',                       nullable:false },
   'destination': { label:'目的地',                       nullable:false },
   'arrival':     { label:'帰着地（省略→出発地と同じ）',   nullable:true  },
+  'returnDep':   { label:'復路出発地（OJ）',             nullable:true, overseasOnly:true },
   'out-0':       { label:'往路 乗り継ぎ ①',              nullable:true, isConn:true },
   'out-1':       { label:'往路 乗り継ぎ ②',              nullable:true, isConn:true },
   'out-2':       { label:'往路 乗り継ぎ ③',              nullable:true, isConn:true },
@@ -1201,6 +1212,7 @@ function getVal(slot) {
   if (slot === 'departure')    return STATE.departure;
   if (slot === 'destination')  return STATE.destination;
   if (slot === 'arrival')      return STATE.arrival;
+  if (slot === 'returnDep')    return STATE.returnDep;
   if (slot.startsWith('out-')) return STATE.outbound[+slot[4]];
   if (slot.startsWith('ret-')) return STATE.return[+slot[4]];
   return null;
@@ -1209,6 +1221,12 @@ function setVal(slot, iata) {
   if (slot === 'departure')        STATE.departure        = iata;
   else if (slot === 'destination') STATE.destination      = iata;
   else if (slot === 'arrival')     STATE.arrival          = iata;
+  else if (slot === 'returnDep') {
+    STATE.returnDep = iata;
+    // 設定パネルのセレクトと同期
+    const sel = document.getElementById('open-jaw-dep-select');
+    if (sel) sel.value = iata ?? '';
+  }
   else if (slot.startsWith('out-')) STATE.outbound[+slot[4]] = iata;
   else if (slot.startsWith('ret-')) STATE.return[+slot[4]]   = iata;
 }
@@ -1265,6 +1283,10 @@ function updateAllDots() {
 
 // ===== 乗り継ぎ回数カウンター =====
 function updateTransitCounter() {
+  const cfg = getAwardCfg();
+  const domMax = cfg.transitDomMax ?? 2;
+  const ovsMax = cfg.transitOvsMax ?? 2;
+
   const count = (slots) => {
     let dom = 0, ovs = 0;
     slots.forEach(iata => {
@@ -1284,12 +1306,26 @@ function updateTransitCounter() {
     el.className = val > max ? 'tc-over' : val > 0 ? 'tc-ok' : '';
   };
 
+  const setMax = (id, max) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = max;
+  };
+
   const out = count(STATE.outbound);
   const ret = count(STATE.return);
-  setCell('tc-out-dom', out.dom, 1);
-  setCell('tc-out-ovs', out.ovs, 2);
-  setCell('tc-ret-dom', ret.dom, 1);
-  setCell('tc-ret-ovs', ret.ovs, 2);
+  setCell('tc-out-dom', out.dom, domMax);
+  setCell('tc-out-ovs', out.ovs, ovsMax);
+  setCell('tc-ret-dom', ret.dom, domMax);
+  setCell('tc-ret-ovs', ret.ovs, ovsMax);
+  setMax('tc-out-dom-max', domMax);
+  setMax('tc-out-ovs-max', ovsMax);
+  setMax('tc-ret-dom-max', domMax);
+  setMax('tc-ret-ovs-max', ovsMax);
+
+  // ANAモード（海外乗換上限=0）では「海外」セルを非表示
+  document.querySelectorAll('#transit-counter [data-cell="ovs"]').forEach(el => {
+    el.style.display = ovsMax === 0 ? 'none' : '';
+  });
 }
 
 // ===== モーダル制御 =====
@@ -1303,37 +1339,42 @@ function buildModalSelect() {
   const emptyOpt = document.createElement('option');
   emptyOpt.value = '';
   emptyOpt.textContent = meta.nullable
-    ? (currentSlot === 'arrival' ? '（出発地と同じ）' : '（乗り継ぎなし）')
+    ? (currentSlot === 'arrival'   ? '（出発地と同じ）'
+       : currentSlot === 'returnDep' ? '（往路目的地と同じ）'
+       : '（乗り継ぎなし）')
     : '選択してください';
   sel.appendChild(emptyOpt);
 
-  // 国内 — グループ空港
-  const domGrpA = document.createElement('optgroup');
-  domGrpA.label = '🇯🇵 国内 まとめて確認';
-  CITIES.filter(c => c.type === 'domestic' && c.group).forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.iata;
-    o.textContent = `${c.name}（${c.iata}）`;
-    domGrpA.appendChild(o);
-  });
-  sel.appendChild(domGrpA);
+  // overseasOnlyスロット（復路出発地など）は海外都市のみ表示
+  if (!meta.overseasOnly) {
+    // 国内 — グループ空港
+    const domGrpA = document.createElement('optgroup');
+    domGrpA.label = '🇯🇵 国内 まとめて確認';
+    CITIES.filter(c => c.type === 'domestic' && c.group).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.iata;
+      o.textContent = `${c.name}（${c.iata}）`;
+      domGrpA.appendChild(o);
+    });
+    sel.appendChild(domGrpA);
 
-  // 区切り線
-  const sep = document.createElement('option');
-  sep.disabled = true;
-  sep.textContent = '─────────────────────';
-  sel.appendChild(sep);
+    // 区切り線
+    const sep = document.createElement('option');
+    sep.disabled = true;
+    sep.textContent = '─────────────────────';
+    sel.appendChild(sep);
 
-  // 国内 — 個別空港（北→南）
-  const domGrpB = document.createElement('optgroup');
-  domGrpB.label = '🇯🇵 国内 個別空港（北→南）';
-  CITIES.filter(c => c.type === 'domestic' && !c.group).forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.iata;
-    o.textContent = `${c.name}（${c.iata}）`;
-    domGrpB.appendChild(o);
-  });
-  sel.appendChild(domGrpB);
+    // 国内 — 個別空港（北→南）
+    const domGrpB = document.createElement('optgroup');
+    domGrpB.label = '🇯🇵 国内 個別空港（北→南）';
+    CITIES.filter(c => c.type === 'domestic' && !c.group).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.iata;
+      o.textContent = `${c.name}（${c.iata}）`;
+      domGrpB.appendChild(o);
+    });
+    sel.appendChild(domGrpB);
+  }
 
   // 海外グループ（ゾーン別）
   const zones = [...new Set(CITIES.filter(c => c.type === 'overseas').map(c => c.zone))].sort((a,b) => a-b);
@@ -1357,7 +1398,7 @@ function openModal(slot) {
   document.getElementById('modal-title').textContent = SLOT_META[slot].label + ' を選択';
   buildModalSelect();
 
-  // トグル：接続都市は有効、出発地・目的地・帰着地はグレーアウト
+  // トグル：接続都市は有効、出発地・目的地・帰着地・復路出発地はグレーアウト
   const typeRow = document.getElementById('type-row');
   typeRow.classList.remove('hidden');
   if (isConn(slot)) {
@@ -1864,11 +1905,22 @@ function onOpenJawToggle() {
   } else {
     STATE.returnDep = null;
   }
+  applyOpenJawUI(enabled);
+}
+
+function applyOpenJawUI(enabled) {
+  // SVGの復路出発地ノードと凡例項目の表示切替
+  const node = document.getElementById('node-returnDep');
+  if (node) node.style.display = enabled ? '' : 'none';
+  const legend = document.getElementById('legend-returnDep');
+  if (legend) legend.style.display = enabled ? '' : 'none';
+  updateAllDots();
 }
 
 function saveOpenJawDep() {
   const val = document.getElementById('open-jaw-dep-select').value || null;
   STATE.returnDep = val;
+  updateAllDots();
 }
 
 function saveDefaultDep() {
@@ -1921,6 +1973,7 @@ function initSettings() {
     document.getElementById('open-jaw-fields').style.display = 'flex';
     buildOverseasSelect('open-jaw-dep-select', STATE.returnDep);
   }
+  applyOpenJawUI(ojEnabled);
 }
 
 // ===== 特典航空券タイプの切替 =====
@@ -1944,6 +1997,8 @@ function applyAwardTypeUI() {
   }
   if (partEl) partEl.style.display = STATE.awardType === 'ana' ? 'none' : 'block';
   if (anaEl)  anaEl.style.display  = STATE.awardType === 'ana' ? 'block' : 'none';
+  // 乗り換え上限カウンタを即時更新
+  if (typeof updateTransitCounter === 'function') updateTransitCounter();
 }
 
 function onModeChange() {
