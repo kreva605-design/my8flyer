@@ -662,8 +662,8 @@
         </label>
       </div>
       <div id="award-type-note" style="font-size:0.7rem;color:#88a;line-height:1.6;margin:-4px 0 10px 4px">
-        提携航空会社：日本発・海外発とも途中降機1回可、乗り換えエリア制限あり<br>
-        ANA便のみ：日本発の途中降機不可、乗り換え制限なし
+        提携航空会社：途中降機1回・乗換 国内1+海外2/方向、エリア制限あり<br>
+        ANA便のみ：日本発SO不可・乗換 国内1/方向のみ
       </div>
       <hr class="settings-divider">
       <!-- API設定 -->
@@ -941,14 +941,14 @@
       <div style="padding:6px 0"><b>ルール7</b> 往路到着地と復路出発地が異なるゾーンの場合、マイルは各ゾーン必要マイルの1/2合算</div>
       <div style="margin-top:10px;font-size:0.7rem;color:#aab;line-height:1.9">
         ※途中降機: 日本発・海外発とも目的地以外に往路・復路いずれか1回可能<br>
-        ※乗り換え: 日本国内 往路・復路各2回まで＋日本以外 往路・復路各2回まで<br>
+        ※乗り換え: 日本国内 往路・復路各1回まで＋日本以外 往路・復路各2回まで（往復計6回まで）<br>
         <span style="display:block;margin-top:4px;padding-top:4px;border-top:1px dashed #ccd">
         ・目的地は乗り換え回数に含めません<br>
         ・地上移動区間は両端の都市を合わせて1回の乗り換えと数えます<br>
         ・途中降機（ストップオーバー）は乗り継ぎ回数に含まれます
         </span>
         <span style="display:block;margin-top:4px">
-        参照：<a href="https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/" target="_blank" rel="noopener">ANA公式 提携航空会社特典航空券 ご利用条件</a>（2025年6月24日改定）
+        参照：<a href="https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/" target="_blank" rel="noopener">ANA公式 提携航空会社特典航空券 ご利用条件</a>（2025年6月24日以降の予約・発券分）
         </span>
       </div>
     </div>
@@ -961,14 +961,14 @@
       <div style="padding:6px 0"><b>ルール5</b> 往路到着地と復路出発地が異なるゾーンの場合、マイルは各ゾーン必要マイルの1/2合算</div>
       <div style="margin-top:10px;font-size:0.7rem;color:#aab;line-height:1.9">
         ※途中降機: <b>日本発は不可</b>、海外発は目的地以外に1回可能<br>
-        ※乗り換え: 日本国内で往路・復路各2回まで<br>
+        ※乗り換え: 日本国内で往路・復路各1回まで（往復計2回まで）<br>
         <span style="display:block;margin-top:4px;padding-top:4px;border-top:1px dashed #ccd">
         ・目的地は乗り換え回数に含めません<br>
         ・地上移動区間は両端の都市を合わせて1回の乗り換えと数えます<br>
         ・途中降機（ストップオーバー）は乗り継ぎ回数に含まれます
         </span>
         <span style="display:block;margin-top:4px">
-        参照：<a href="https://www.ana.co.jp/ja/jp/guide/amc/award/international/usage/" target="_blank" rel="noopener">ANA公式 ANA国際線特典航空券 ご利用条件</a>（2025年6月24日改定）
+        参照：<a href="https://www.ana.co.jp/ja/jp/guide/amc/award/international/usage/" target="_blank" rel="noopener">ANA公式 ANA国際線特典航空券 ご利用条件</a>（2025年6月24日以降の予約・発券分）
         </span>
       </div>
     </div>
@@ -1182,13 +1182,13 @@ const AWARD_RULES = {
     label: '提携航空会社特典航空券',
     rules: [1,2,3,4,5,6,7],         // 適用するルール番号
     stopoverJapanAllowed: true,     // 日本発の途中降機可
-    transitDomMax: 2, transitOvsMax: 2,  // 乗り換え上限（往路/復路ごと）
+    transitDomMax: 1, transitOvsMax: 2,  // 乗り換え上限/方向（2025/6/24以降: 国内1+海外2）
   },
   ana: {
     label: 'ANA国際線特典航空券',
     rules: [1,2,5,6,7],             // 第3条・第4条は非適用
     stopoverJapanAllowed: false,    // 日本発の途中降機不可
-    transitDomMax: 2, transitOvsMax: 0,  // ANAは日本国内のみ
+    transitDomMax: 1, transitOvsMax: 0,  // ANAは日本国内のみ・各1回（2025/6/24以降）
   },
 };
 
