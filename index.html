@@ -939,10 +939,17 @@
       <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール5</b> 出発地と帰着地が異なる場合は同一国（米=カナダ、欧州=同一国扱い等の特例あり）</div>
       <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール6</b> 出発地≠帰着地 or 往路到着≠復路出発の場合は同一<b>エリア</b>（同一ゾーンである必要なし）</div>
       <div style="padding:6px 0"><b>ルール7</b> 往路到着地と復路出発地が異なるゾーンの場合、マイルは各ゾーン必要マイルの1/2合算</div>
-      <div style="margin-top:10px;font-size:0.7rem;color:#aab">
+      <div style="margin-top:10px;font-size:0.7rem;color:#aab;line-height:1.9">
         ※途中降機: 日本発・海外発とも目的地以外に往路・復路いずれか1回可能<br>
         ※乗り換え: 日本国内 往路・復路各2回まで＋日本以外 往路・復路各2回まで<br>
+        <span style="display:block;margin-top:4px;padding-top:4px;border-top:1px dashed #ccd">
+        ・目的地は乗り換え回数に含めません<br>
+        ・地上移動区間は両端の都市を合わせて1回の乗り換えと数えます<br>
+        ・途中降機（ストップオーバー）は乗り継ぎ回数に含まれます
+        </span>
+        <span style="display:block;margin-top:4px">
         参照：<a href="https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/" target="_blank" rel="noopener">ANA公式 提携航空会社特典航空券 ご利用条件</a>（2025年6月24日改定）
+        </span>
       </div>
     </div>
     <!-- ANA便のみ 全5条 -->
@@ -952,10 +959,17 @@
       <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール3</b> 出発地と帰着地が異なる場合は同一国（米=カナダ、欧州=同一国扱い等の特例あり）</div>
       <div style="padding:6px 0;border-bottom:1px solid #f0f2f5"><b>ルール4</b> 出発地≠帰着地 or 往路到着≠復路出発の場合は同一<b>エリア</b></div>
       <div style="padding:6px 0"><b>ルール5</b> 往路到着地と復路出発地が異なるゾーンの場合、マイルは各ゾーン必要マイルの1/2合算</div>
-      <div style="margin-top:10px;font-size:0.7rem;color:#aab">
+      <div style="margin-top:10px;font-size:0.7rem;color:#aab;line-height:1.9">
         ※途中降機: <b>日本発は不可</b>、海外発は目的地以外に1回可能<br>
         ※乗り換え: 日本国内で往路・復路各2回まで<br>
+        <span style="display:block;margin-top:4px;padding-top:4px;border-top:1px dashed #ccd">
+        ・目的地は乗り換え回数に含めません<br>
+        ・地上移動区間は両端の都市を合わせて1回の乗り換えと数えます<br>
+        ・途中降機（ストップオーバー）は乗り継ぎ回数に含まれます
+        </span>
+        <span style="display:block;margin-top:4px">
         参照：<a href="https://www.ana.co.jp/ja/jp/guide/amc/award/international/usage/" target="_blank" rel="noopener">ANA公式 ANA国際線特典航空券 ご利用条件</a>（2025年6月24日改定）
+        </span>
       </div>
     </div>
   </details>
@@ -1636,11 +1650,41 @@ function validate() {
     const soCity = CITIES.find(c => c.iata === soSlots[0]);
     // ANA便モード: 日本発の途中降機は不可
     if (!cfg.stopoverJapanAllowed && depCity.type === 'domestic') {
-      checks.push({ ok:false, msg:`ストップオーバー違反: ANA便のみモードでは日本発の途中降機は不可（${soCity?.name ?? soSlots[0]}）。提携航空会社モードに変更するか、ストップオーバーを解除してください` });
+      checks.push({ ok:false, msg:`[途中降機] ANA国際線特典航空券では日本発の途中降機はできません（${soCity?.name ?? soSlots[0]}）。提携航空会社モードに変更するか、ストップオーバーを解除してください` });
     } else {
-      checks.push({ ok:true, msg:`ストップオーバー: ${soCity?.name ?? soSlots[0]} — 1箇所 ✓` });
+      checks.push({ ok:true, msg:`[途中降機] ${soCity?.name ?? soSlots[0]} — 1箇所 ✓` });
     }
   }
+
+  // [乗り換え] 上限チェック（提携: 国内2+海外2 / ANA: 国内2のみ）
+  const countByType = (slots) => {
+    let dom = 0, ovs = 0;
+    slots.forEach(iata => {
+      if (!iata) return;
+      const c = CITIES.find(x => x.iata === iata);
+      if (!c) return;
+      if (c.type === 'domestic') dom++; else ovs++;
+    });
+    return { dom, ovs };
+  };
+  const outCnt = countByType(STATE.outbound);
+  const retCnt = countByType(STATE.return);
+  const domMax = cfg.transitDomMax ?? 2;
+  const ovsMax = cfg.transitOvsMax ?? 2;
+
+  const transitCheck = (label, cnt) => {
+    if (cnt.dom > domMax) {
+      checks.push({ ok:false, msg:`[乗り換え] ${label} 日本国内 ${cnt.dom}/${domMax} — 日本国内の乗り換えは${domMax}回までです` });
+    }
+    if (cnt.ovs > ovsMax) {
+      const reason = ovsMax === 0
+        ? 'ANA国際線特典航空券では日本以外の乗り換えはできません'
+        : `日本以外の乗り換えは${ovsMax}回までです`;
+      checks.push({ ok:false, msg:`[乗り換え] ${label} 日本以外 ${cnt.ovs}/${ovsMax} — ${reason}` });
+    }
+  };
+  transitCheck('往路', outCnt);
+  transitCheck('復路', retCnt);
 
   // 往路・復路で同じ乗り継ぎ（警告）
   const common = outConns.filter(ic => retConns.includes(ic));
