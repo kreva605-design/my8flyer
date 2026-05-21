@@ -1155,6 +1155,9 @@ const CITIES = [
   // インド
   { name:"ムンバイ",          iata:"BOM", type:"overseas",  zone:4,  miles:4200 },
   { name:"シドニー",          iata:"SYD", type:"overseas",  zone:10, miles:4870 },
+  // アフリカ（Zone 8）※ MILE_CHART は未定義のためルール1判定の参考値のみ
+  { name:"カサブランカ",      iata:"CMN", type:"overseas",  zone:8,  miles:7500 },
+  { name:"マラケシュ",        iata:"RAK", type:"overseas",  zone:8,  miles:7550 },
 ];
 
 const MILE_CHART = {
@@ -2215,14 +2218,25 @@ function sendRouteToAnaBridge() {
   const retPath = [dest, ...STATE.return.filter(Boolean), arr];
 
   // IATA→{iata, name} に解決。グループ空港(TYO等)は最初の実空港にフォールバック
+  // 拡張側で他の空港候補を選べるよう groupMembers も同梱する（v0.3.0 AB2対応）
   const resolve = (iata) => {
     const city = CITIES.find(c => c.iata === iata);
     if (!city) return { iata, name: iata };
     if (city.group && city.group.length > 0) {
-      // グループ空港: 最初の実空港に展開（HND等）。ユーザーは拡張側で確認できる
-      const first = city.group[0];
-      const child = CITIES.find(c => c.iata === first);
-      return { iata: first, name: child ? child.name : first, fromGroup: city.iata };
+      const members = city.group.map(memIata => {
+        const m = CITIES.find(c => c.iata === memIata);
+        return { iata: memIata, name: m ? m.name : memIata };
+      });
+      const first = members[0];
+      // グループ空港: 最初の実空港に展開（HND等）。
+      // groupMembers/fromGroup を含めて拡張側でユーザーに選び直しの選択肢を提供する。
+      return {
+        iata: first.iata,
+        name: first.name,
+        fromGroup: city.iata,
+        groupName: city.name,
+        groupMembers: members,
+      };
     }
     return { iata: city.iata, name: city.name };
   };
