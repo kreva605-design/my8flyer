@@ -61,7 +61,21 @@ export default {
     let raw;
     try {
       const res = await fetch(apiUrl);
-      if (!res.ok) return json({ error: `AviationStack エラー: ${res.status}` }, 502);
+      if (!res.ok) {
+        // HTTP 4xx/5xx の場合も body に error 情報が入っていることがある
+        // 例: 429 でも body に rate_limit_reached / usage_limit_reached の詳細
+        let upstreamErr = null;
+        try {
+          const errBody = await res.json();
+          upstreamErr = errBody?.error || null;
+        } catch {}
+        const code = upstreamErr?.code || upstreamErr?.type || res.status;
+        const msg  = upstreamErr?.message || upstreamErr?.info || '';
+        return json({
+          error: `AviationStack: ${code}${msg ? ' — ' + msg : ''} (HTTP ${res.status})`,
+          upstream: upstreamErr || { status: res.status },
+        }, 502);
+      }
       raw = await res.json();
     } catch {
       return json({ error: '外部 API 接続エラー' }, 502);

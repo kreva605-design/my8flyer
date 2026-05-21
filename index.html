@@ -2477,10 +2477,20 @@ function renderFlightCard(legArr, results, soIatas) {
       </div>`;
     if (data.error === 'upstream') {
       const detail = (data.errorDetail || '').toString();
-      const isLimit = /usage_limit|monthly|rate_limit/i.test(detail);
-      const hint = isLimit
-        ? '<br><span style="font-size:0.8em;color:#666">AviationStack 無料プラン（100req/月）上限。次月リセットを待つか、Basicモードに切り替えてください。</span>'
-        : '';
+      // AviationStack エラーコード公式仕様で原因を分岐:
+      //   usage_limit_reached / 104 → 月間上限到達（無料プラン100req/月）
+      //   rate_limit_reached / HTTP 429 → 短期レート制限
+      //   invalid_access_key / 401 → APIキー無効
+      const note = '<br><span style="font-size:0.8em;color:#666">';
+      const close = '</span>';
+      let hint = '';
+      if (/usage_limit_reached|\b104\b|monthly|上限/i.test(detail)) {
+        hint = `${note}🗓 月間上限到達（無料プラン100req/月）。次月リセットを待つか Basic モードに切り替えてください。${close}`;
+      } else if (/rate_limit_reached|\b429\b|HTTP 429/i.test(detail)) {
+        hint = `${note}⏱ 短期レート制限。数十秒〜数分待って再実行してください。<br>※ 連続でこのエラーが続く場合は実質的な月間上限到達の可能性あり。${close}`;
+      } else if (/invalid_access_key|\b401\b/i.test(detail)) {
+        hint = `${note}🔑 AviationStack APIキーが無効です。Cloudflare Workers の Secrets を確認してください。${close}`;
+      }
       return `
       <div class="leg-block">
         <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
