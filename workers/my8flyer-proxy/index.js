@@ -67,6 +67,18 @@ export default {
       return json({ error: '外部 API 接続エラー' }, 502);
     }
 
+    // AviationStack は HTTP 200 でも body に error を返すケースがある
+    // 例: usage_limit_reached（無料プラン月間上限到達）、invalid_access_key 等
+    // 無音失敗を防ぐため明示的に検知して 502 に変換する
+    if (raw && raw.error) {
+      const code = raw.error.code || raw.error.type || 'unknown';
+      const msg  = raw.error.message || raw.error.info || '';
+      return json({
+        error: `AviationStack: ${code} — ${msg}`,
+        upstream: raw.error,
+      }, 502);
+    }
+
     return new Response(
       JSON.stringify(parseAviationStack(raw, from, to)),
       { headers: { 'Content-Type': 'application/json', ...corsHeaders() } }

@@ -2399,7 +2399,17 @@ async function fetchLeg(from, to, force = false) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (res.status === 401) return { flights: [], error: 'auth', source: 'api' };
-    if (!res.ok) return { flights: [], error: 'network', source: 'api' };
+    if (!res.ok) {
+      // Workers が 502 で返した upstream エラーを救出
+      // 例: AviationStack 月間上限到達時に Workers v0.2 から `{ error: "AviationStack: usage_limit_reached — ..." }` が返る
+      try {
+        const errBody = await res.json();
+        if (errBody && errBody.error) {
+          return { flights: [], error: 'upstream', errorDetail: errBody.error, source: 'api' };
+        }
+      } catch {}
+      return { flights: [], error: 'network', source: 'api' };
+    }
     const raw = await res.json();
     const data = parseWorkersResponse(raw);
     FLIGHT_CACHE.set(cacheKey, data);
@@ -2465,6 +2475,18 @@ function renderFlightCard(legArr, results, soIatas) {
         <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
         <div class="check-item check-ng">❌ 通信エラー。ネットワーク・Workers URLを確認してください。</div>
       </div>`;
+    if (data.error === 'upstream') {
+      const detail = (data.errorDetail || '').toString();
+      const isLimit = /usage_limit|monthly|rate_limit/i.test(detail);
+      const hint = isLimit
+        ? '<br><span style="font-size:0.8em;color:#666">AviationStack 無料プラン（100req/月）上限。次月リセットを待つか、Basicモードに切り替えてください。</span>'
+        : '';
+      return `
+      <div class="leg-block">
+        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
+        <div class="check-item check-ng">❌ 外部APIエラー: ${detail}${hint}</div>
+      </div>`;
+    }
     if (!data.flights?.length) return `
       <div class="leg-block">
         <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
