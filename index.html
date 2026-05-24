@@ -423,6 +423,29 @@
       color: #334;
       margin-bottom: 8px;
     }
+    /* グループ集約表示用 */
+    .leg-block-grouped { border-left: 3px solid #6b8db5; }
+    .group-summary {
+      font-size: 0.78rem;
+      color: #667;
+      margin-top: -4px;
+      margin-bottom: 8px;
+    }
+    .leg-sub {
+      padding: 6px 10px;
+      margin: 4px 0;
+      background: rgba(255,255,255,0.5);
+      border-radius: 6px;
+    }
+    .leg-sub-header {
+      font-size: 0.78rem;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    .check-muted {
+      color: #888;
+      font-size: 0.8rem;
+    }
     .flight-row {
       display: flex;
       flex-direction: column;
@@ -2312,11 +2335,14 @@ function getExpandedLegs() {
 
   const addLegs = (path, dir) => {
     for (let i = 0; i < path.length - 1; i++) {
-      for (const from of expandIata(path[i])) {
-        for (const to of expandIata(path[i + 1])) {
+      const groupFrom = path[i];
+      const groupTo   = path[i + 1];
+      const groupKey  = `${groupFrom}-${groupTo}-${dir}-${i}`;
+      for (const from of expandIata(groupFrom)) {
+        for (const to of expandIata(groupTo)) {
           const key = `${from}-${to}`;
           if (!seen.has(key)) {
-            legs.push({ key, from, to, dir, pos: i });
+            legs.push({ key, from, to, dir, pos: i, groupFrom, groupTo, groupKey });
             seen.add(key);
           }
         }
@@ -2460,81 +2486,140 @@ function refreshFlights() {
 function renderFlightCard(legArr, results, soIatas) {
   const cityName = iata => CITIES.find(c => c.iata === iata)?.name ?? iata;
 
-  // 区間ごとの便情報
-  document.getElementById('flight-legs').innerHTML = legArr.map(l => {
-    const { from, to, key } = l;
-    const data = results[key] || { flights: [] };
+  // ----- グループ単位に集約 -----
+  // 同じ groupKey の区間（例: TYO→FRA を HND-FRA / NRT-FRA に展開した群）をまとめる
+  const groups = [];
+  const groupIdx = new Map();
+  legArr.forEach(l => {
+    const gk = l.groupKey || l.key;
+    if (!groupIdx.has(gk)) {
+      groupIdx.set(gk, groups.length);
+      groups.push({
+        groupKey: gk,
+        groupFrom: l.groupFrom || l.from,
+        groupTo:   l.groupTo   || l.to,
+        legs: [],
+      });
+    }
+    groups[groupIdx.get(gk)].legs.push(l);
+  });
 
-    if (data.error === 'auth') return `
-      <div class="leg-block">
-        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-        <div class="check-item check-ng">❌ アクセストークンが無効です。設定を確認してください。</div>
-      </div>`;
-    if (data.error === 'network') return `
-      <div class="leg-block">
-        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-        <div class="check-item check-ng">❌ 通信エラー。ネットワーク・Workers URLを確認してください。</div>
-      </div>`;
+  // 各区間の状態を分類
+  // - 'ok'     : eligible 便あり
+  // - 'empty'  : 便ゼロ or eligibleなし
+  // - 'error'  : auth/network/upstream
+  const classifyLeg = (data) => {
+    if (data.error === 'auth' || data.error === 'network' || data.error === 'upstream') return 'error';
+    if (!data.flights?.length) return 'empty';
+    const eligible = data.flights.filter(f => f.starAlliance || f.connectingPartner || f.partnerAirline);
+    return eligible.length > 0 ? 'ok' : 'empty';
+  };
+
+  // upstream エラーのヒント生成（既存ロジックを関数化）
+  const upstreamHint = (detail) => {
+    const note = '<br><span style="font-size:0.8em;color:#666">';
+    const close = '</span>';
+    if (/usage_limit_reached|\b104\b|monthly|上限/i.test(detail))
+      return `${note}🗓 月間上限到達（無料プラン100req/月）。次月リセットを待つか Basic モードに切り替えてください。${close}`;
+    if (/rate_limit_reached|\b429\b|HTTP 429/i.test(detail))
+      return `${note}⏱ 短期レート制限。数十秒〜数分待って再実行してください。<br>※ 連続でこのエラーが続く場合は実質的な月間上限到達の可能性あり。${close}`;
+    if (/invalid_access_key|\b401\b/i.test(detail))
+      return `${note}🔑 AviationStack APIキーが無効です。Cloudflare Workers の Secrets を確認してください。${close}`;
+    return '';
+  };
+
+  // 1区間分のレンダリング（フル表示）
+  const renderLegFull = (leg, data, opts = {}) => {
+    const { from, to } = leg;
+    const isAlt = opts.asAlternative === true;
+    const header = isAlt
+      ? `<div class="leg-sub-header">└ ${from} 〜 ${to} 経由</div>`
+      : `<div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>`;
+
+    if (data.error === 'auth') return `${header}<div class="check-item check-ng">❌ アクセストークンが無効です。設定を確認してください。</div>`;
+    if (data.error === 'network') return `${header}<div class="check-item check-ng">❌ 通信エラー。ネットワーク・Workers URLを確認してください。</div>`;
     if (data.error === 'upstream') {
       const detail = (data.errorDetail || '').toString();
-      // AviationStack エラーコード公式仕様で原因を分岐:
-      //   usage_limit_reached / 104 → 月間上限到達（無料プラン100req/月）
-      //   rate_limit_reached / HTTP 429 → 短期レート制限
-      //   invalid_access_key / 401 → APIキー無効
-      const note = '<br><span style="font-size:0.8em;color:#666">';
-      const close = '</span>';
-      let hint = '';
-      if (/usage_limit_reached|\b104\b|monthly|上限/i.test(detail)) {
-        hint = `${note}🗓 月間上限到達（無料プラン100req/月）。次月リセットを待つか Basic モードに切り替えてください。${close}`;
-      } else if (/rate_limit_reached|\b429\b|HTTP 429/i.test(detail)) {
-        hint = `${note}⏱ 短期レート制限。数十秒〜数分待って再実行してください。<br>※ 連続でこのエラーが続く場合は実質的な月間上限到達の可能性あり。${close}`;
-      } else if (/invalid_access_key|\b401\b/i.test(detail)) {
-        hint = `${note}🔑 AviationStack APIキーが無効です。Cloudflare Workers の Secrets を確認してください。${close}`;
-      }
-      return `
-      <div class="leg-block">
-        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-        <div class="check-item check-ng">❌ 外部APIエラー: ${detail}${hint}</div>
-      </div>`;
+      return `${header}<div class="check-item check-ng">❌ 外部APIエラー: ${detail}${upstreamHint(detail)}</div>`;
     }
-    if (!data.flights?.length) return `
-      <div class="leg-block">
-        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-        <div class="check-item check-ng">❌ この区間のフライト情報が見つかりません${data.source==='mock'?' <span class="mock-note">（モックデータ）</span>':''}</div>
-      </div>`;
-
+    if (!data.flights?.length) {
+      const msg = isAlt
+        ? '⚪ この空港経由の便なし（代替候補）'
+        : '❌ この区間のフライト情報が見つかりません';
+      const mockNote = data.source === 'mock' ? ' <span class="mock-note">（モックデータ）</span>' : '';
+      return `${header}<div class="check-item ${isAlt ? 'check-muted' : 'check-ng'}">${msg}${mockNote}</div>`;
+    }
     const isMock = data.source === 'mock';
-    // 利用可能便: スターアライアンス加盟 + コネクティングパートナー + 提携航空会社
     const eligible = data.flights.filter(f => f.starAlliance || f.connectingPartner || f.partnerAirline);
-
-    if (!eligible.length) return `
-      <div class="leg-block">
-        <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-        <div class="check-item check-ng">❌ 利用可能な便がありません（全${data.flights.length}便が非対象）</div>
-      </div>`;
+    if (!eligible.length) {
+      const msg = isAlt
+        ? `⚪ 対象便なし（${data.flights.length}便すべて非対象・代替候補）`
+        : `❌ 利用可能な便がありません（全${data.flights.length}便が非対象）`;
+      return `${header}<div class="check-item ${isAlt ? 'check-muted' : 'check-ng'}">${msg}</div>`;
+    }
 
     const hasPartner = eligible.some(f => f.partnerAirline);
     const rows = eligible.map(f => {
       let badge;
-      if (f.starAlliance)      badge = '<span class="star-badge">★スターアライアンス</span>';
+      if (f.starAlliance)           badge = '<span class="star-badge">★スターアライアンス</span>';
       else if (f.connectingPartner) badge = '<span class="conn-badge">★コネクティング</span>';
-      else                     badge = '<span class="partner-badge">🤝 提携航空会社</span>';
-      return `
-      <div class="flight-row">
+      else                          badge = '<span class="partner-badge">🤝 提携航空会社</span>';
+      return `<div class="flight-row">
         <div>✅ <b>${f.airline} ${f.flightNo}</b>${badge}${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
         <div class="flight-time">${f.dep} → ${f.arr}</div>
       </div>`;
     }).join('');
-
     const partnerNote = hasPartner
       ? '<div class="partner-note">🤝 提携航空会社の便を使う場合は、<b>全区間その航空会社のみ</b>の単独旅程が必要です（スターアライアンス便との混合不可）</div>'
       : '';
+    return `${header}${rows}${partnerNote}`;
+  };
 
-    return `<div class="leg-block">
-      <div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>
-      ${rows}${partnerNote}
-    </div>`;
-  }).join('');
+  // 1グループ分のレンダリング
+  const renderGroup = (g) => {
+    // 単一区間（グループ展開なし）→ 既存形式そのまま
+    if (g.legs.length === 1) {
+      const leg = g.legs[0];
+      const data = results[leg.key] || { flights: [] };
+      return `<div class="leg-block">${renderLegFull(leg, data, { asAlternative: false })}</div>`;
+    }
+    // 複数区間（グループ空港展開あり）→ グループヘッダ＋OK便を主、それ以外を代替候補表示
+    const states = g.legs.map(leg => ({
+      leg,
+      data: results[leg.key] || { flights: [] },
+      state: classifyLeg(results[leg.key] || { flights: [] }),
+    }));
+    const okLegs    = states.filter(s => s.state === 'ok');
+    const emptyLegs = states.filter(s => s.state === 'empty');
+    const errLegs   = states.filter(s => s.state === 'error');
+
+    const overallOk = okLegs.length > 0;
+    const overallErr = !overallOk && errLegs.length === states.length; // 全errorなら error扱い
+    const summaryIcon = overallOk ? '✅' : (overallErr ? '⚠️' : '❌');
+    const summaryText = overallOk
+      ? `${okLegs.length}/${states.length} 経路で利用可能便あり`
+      : (overallErr
+          ? `全${states.length}経路でAPIエラー`
+          : `全${states.length}経路で利用可能便なし`);
+
+    const groupHeader = `
+      <div class="leg-header">${summaryIcon} ${cityName(g.groupFrom)}（${g.groupFrom}）→ ${cityName(g.groupTo)}（${g.groupTo}）</div>
+      <div class="group-summary">${summaryText}</div>`;
+
+    // OK便を先に、代替候補（empty/error）を後に
+    const orderedStates = [...okLegs, ...emptyLegs, ...errLegs];
+    const body = orderedStates.map(s => {
+      // OK便でグループ展開ありの場合も asAlternative=false（メイン扱い）
+      // 1個目以降は asAlternative=true で薄く表示
+      const isFirst = orderedStates[0] === s;
+      const asAlt = !isFirst || s.state !== 'ok';
+      return `<div class="leg-sub">${renderLegFull(s.leg, s.data, { asAlternative: asAlt })}</div>`;
+    }).join('');
+
+    return `<div class="leg-block leg-block-grouped">${groupHeader}${body}</div>`;
+  };
+
+  document.getElementById('flight-legs').innerHTML = groups.map(renderGroup).join('');
 
   // 乗り継ぎ可否チェック
   // 対象: 往路/復路それぞれの「トランジット」区間のみ
