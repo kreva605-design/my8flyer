@@ -1750,13 +1750,6 @@ function validate() {
   transitCheck('往路', outCnt);
   transitCheck('復路', retCnt);
 
-  // 往路・復路で同じ乗り継ぎ（警告）
-  const common = outConns.filter(ic => retConns.includes(ic));
-  if (common.length > 0) {
-    const ns = common.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
-    checks.push({ ok:'warn', msg:`往路と復路で同じ乗り継ぎ地: 「${ns}」— ANA公式条文には記載なし。下記「同区間2回」警告も併せて確認してください` });
-  }
-
   // [非公表ルール] 同一区間 (A→B) の2回利用検出
   // ANA公式7条には明記なし、ただし予約システム（Amadeus Altea PSS）が弾く
   // 出典: 「お得トラベル / ANAマイル講座」YouTube動画（uReA7HRWmos） 05:06〜
@@ -1786,6 +1779,7 @@ function validate() {
 
   // 総合判定
   const hasNg = checks.some(c => c.ok === false);
+  const warnCount = checks.filter(c => c.ok === 'warn').length;
 
   // 旅程テキスト生成
   const cityName = iata => CITIES.find(c=>c.iata===iata)?.name ?? iata;
@@ -1811,11 +1805,18 @@ function validate() {
     (soSlots.length > 0 ? '<br><small style="color:#d97706">S = ストップオーバー</small>' : '') +
     (isOpenJaw ? '<br><small style="color:#2b6cb0">OJ = 復路出発地（オープンジョー）</small>' : '');
 
+  const summaryCls = hasNg ? 'check-ng' : (warnCount > 0 ? 'check-warn' : 'check-ok');
+  const summaryMsg = hasNg
+    ? `❌ ルール違反があります${warnCount > 0 ? `（＋警告${warnCount}件）` : ''}`
+    : (warnCount > 0 ? `⚠️ 警告 ${warnCount}件あり — 内容を確認してください` : '✅ この旅程は問題ありません');
+  const summaryHint = (hasNg || warnCount > 0)
+    ? '<div style="font-size:0.74rem;color:#aa8;margin-top:3px">▼ 詳細をタップして確認</div>'
+    : '';
   document.getElementById('result-summary').innerHTML = `
     <div class="result-route">${routeHtml}</div>
-    <div class="check-item ${hasNg ? 'check-ng' : 'check-ok'}" style="border-bottom:none;padding-bottom:4px">
-      ${hasNg ? '❌ ルール違反があります' : '✅ この旅程は問題ありません'}
-      ${hasNg ? '<div style="font-size:0.74rem;color:#aa8;margin-top:3px">▼ 詳細をタップして確認</div>' : ''}
+    <div class="check-item ${summaryCls}" style="border-bottom:none;padding-bottom:4px">
+      ${summaryMsg}
+      ${summaryHint}
     </div>`;
 
   document.getElementById('check-results').innerHTML = checks.map(c => {
