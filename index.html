@@ -1754,7 +1754,34 @@ function validate() {
   const common = outConns.filter(ic => retConns.includes(ic));
   if (common.length > 0) {
     const ns = common.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
-    checks.push({ ok:'warn', msg:`往路と復路で同じ乗り継ぎ: 「${ns}」— ANA公式で要確認` });
+    checks.push({ ok:'warn', msg:`往路と復路で同じ乗り継ぎ地: 「${ns}」— ANA公式条文には記載なし。下記「同区間2回」警告も併せて確認してください` });
+  }
+
+  // [非公表ルール] 同一区間 (A→B) の2回利用検出
+  // ANA公式7条には明記なし、ただし予約システム（Amadeus Altea PSS）が弾く
+  // 出典: 「お得トラベル / ANAマイル講座」YouTube動画（uReA7HRWmos） 05:06〜
+  // 回避策: 経由地を別都市にする、オープンジョーで分割する 等
+  const outSeq = [depIata, ...outConns, destIata];
+  const retSeq = [isOpenJaw ? retDepIata : destIata, ...retConns, arrIata];
+  const pairs = arr => arr.slice(0, -1).map((a, i) => [a, arr[i + 1]]);
+  const allSegs = [...pairs(outSeq), ...pairs(retSeq)];
+  const segCount = {};
+  allSegs.forEach(([a, b]) => {
+    const key = `${a}→${b}`;
+    segCount[key] = (segCount[key] || 0) + 1;
+  });
+  const dupSegs = Object.entries(segCount).filter(([, c]) => c >= 2);
+  if (dupSegs.length > 0) {
+    const ns = dupSegs.map(([k, c]) => {
+      const [a, b] = k.split('→');
+      const na = CITIES.find(x => x.iata === a)?.name ?? a;
+      const nb = CITIES.find(x => x.iata === b)?.name ?? b;
+      return `${na}→${nb}（${c}回）`;
+    }).join('、');
+    checks.push({
+      ok: 'warn',
+      msg: `[非公表ルール] 同じ区間を旅程内で2回飛ぶ予約は予約システム上エラーになります: ${ns} — 経由地を別都市に変える、オープンジョーで分割する等で回避可能（ANA公式7条には記載なし）`
+    });
   }
 
   // 総合判定
