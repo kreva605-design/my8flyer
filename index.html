@@ -732,6 +732,15 @@
           <input type="password" id="token-input" class="token-input" placeholder="入力して保存">
           <button class="btn-token-save" onclick="saveToken()">保存</button>
         </div>
+        <!-- 代表空港のみ問い合わせ（API節約・既定ON） -->
+        <label class="mode-option">
+          <input type="checkbox" id="group-primary-toggle" onchange="onGroupPrimaryToggle()" checked>
+          グループ空港は代表空港のみ確認（API節約・既定ON）
+        </label>
+        <div style="font-size:0.72rem;color:#889;line-height:1.5">
+          東京=HND / 大阪=KIX など代表空港のみ問い合わせ、月間リクエスト消費を抑えます。<br>
+          OFFにすると全空港（HND・NRT等）を確認しますが消費が増えます。
+        </div>
       </div>
       <div id="settings-status" class="settings-status"></div>
       <div id="conn-test-result" style="font-size:0.76rem;line-height:1.8;white-space:pre-wrap"></div>
@@ -2041,6 +2050,14 @@ function buildOverseasSelect(selId, currentIata) {
   sel.value = currentIata ?? '';
 }
 
+// 代表空港のみ問い合わせトグル（API節約）
+// 設定変更だけ行い、自動再取得はしない（再取得はAPIを消費するため）。
+// 次回のフライト確認／🔄再取得から新しい設定が反映される。
+function onGroupPrimaryToggle() {
+  const enabled = document.getElementById('group-primary-toggle').checked;
+  localStorage.setItem('m8f_group_primary_only', enabled ? '1' : '0');
+}
+
 function onOpenJawToggle() {
   const enabled = document.getElementById('open-jaw-toggle').checked;
   localStorage.setItem('m8f_open_jaw', enabled ? '1' : '0');
@@ -2101,6 +2118,9 @@ function initSettings() {
   if (radio) radio.checked = true;
   toggleTokenRow();
   updateSettingsStatus();
+
+  // 代表空港のみ問い合わせトグルの初期化（未設定＝既定ON）
+  document.getElementById('group-primary-toggle').checked = isGroupPrimaryOnly();
 
   // デフォルト出発地・帰着地の初期化
   const defaultEnabled = localStorage.getItem('m8f_default_enabled') === '1';
@@ -2240,15 +2260,27 @@ function toggleResultCard() {
   chevron.textContent   = closing ? '▼' : '▲';
 }
 
-// ===== フライトキャッシュ（sessionStorage） =====
+// ===== フライトキャッシュ（localStorage・7日TTL／API節約） =====
+// 永続キャッシュ: タブを閉じても残り、TTL内の同一区間はAviationStackを再消費しない。
+// 「🔄再取得」(refreshFlights) は force でキャッシュを無効化し最新化できる。
+const FLIGHT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7日（フライト時刻表は数日単位で安定）
 const FLIGHT_CACHE = {
   get(key) {
-    try { return JSON.parse(sessionStorage.getItem('fc_' + key)); } catch { return null; }
+    try {
+      const entry = JSON.parse(localStorage.getItem('fc_' + key));
+      // 旧形式（{ts}なし）は無効として再取得させる
+      if (!entry || typeof entry !== 'object' || typeof entry.ts !== 'number') return null;
+      if (Date.now() - entry.ts > FLIGHT_TTL_MS) {   // TTL切れ → 破棄
+        localStorage.removeItem('fc_' + key);
+        return null;
+      }
+      return entry.data;
+    } catch { return null; }
   },
   set(key, data) {
-    try { sessionStorage.setItem('fc_' + key, JSON.stringify(data)); } catch {}
+    try { localStorage.setItem('fc_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
   },
-  invalidate(key) { sessionStorage.removeItem('fc_' + key); }
+  invalidate(key) { localStorage.removeItem('fc_' + key); }
 };
 
 // ===== 旅程から区間リストを生成（シンプル版・保存用） =====
@@ -2352,10 +2384,19 @@ function updateAnaBridgeButtonState() {
 setTimeout(updateAnaBridgeButtonState, 100);
 setTimeout(updateAnaBridgeButtonState, 1000);
 
+// ===== 代表空港のみモード（設定 既定ON／API節約） =====
+// ONのときグループ空港は先頭1空港だけ問い合わせ、直積による消費増を抑える。
+function isGroupPrimaryOnly() {
+  return localStorage.getItem('m8f_group_primary_only') !== '0'; // 未設定＝既定ON
+}
+
 // ===== グループ空港の展開（TYO→[HND,NRT] 等） =====
+// 代表空港のみモードONなら先頭空港のみ（例: 東京=HND・大阪=KIX）を返す。
 function expandIata(iata) {
   const city = CITIES.find(c => c.iata === iata);
-  return city?.group ?? [iata];
+  const group = city?.group;
+  if (!group || group.length === 0) return [iata];
+  return isGroupPrimaryOnly() ? [group[0]] : group;
 }
 
 // ===== フライト確認用の展開済み区間リストを生成 =====
@@ -2657,7 +2698,11 @@ function renderFlightCard(legArr, results, soIatas) {
     return `<div class="leg-block leg-block-grouped">${groupHeader}${body}</div>`;
   };
 
-  document.getElementById('flight-legs').innerHTML = groups.map(renderGroup).join('');
+  // 代表空港のみモードONなら注記を先頭に表示（全空港を見たい場合は設定でOFF）
+  const primaryNote = isGroupPrimaryOnly()
+    ? '<div class="group-summary" style="margin-bottom:8px">🛫 グループ空港は代表空港のみ確認中（API節約）。全空港を確認するには設定でOFFにしてください。</div>'
+    : '';
+  document.getElementById('flight-legs').innerHTML = primaryNote + groups.map(renderGroup).join('');
 
   // 乗り継ぎ可否チェック
   // 対象: 往路/復路それぞれの「トランジット」区間のみ
