@@ -714,33 +714,26 @@
         <span style="color:#a55;font-weight:bold">※本ツールは日本発着の旅程専用です。海外発の場合は未対応です。</span>
       </div>
       <hr class="settings-divider">
-      <!-- API設定 -->
-      <div style="font-size:0.72rem;color:#667;font-weight:bold;margin-bottom:6px">動作モード</div>
-      <div class="mode-options">
-        <label class="mode-option">
-          <input type="radio" name="mode" value="basic" onchange="onModeChange()">
-          ルールチェックのみ（APIキー不要）
-        </label>
-        <label class="mode-option">
-          <input type="radio" name="mode" value="api" onchange="onModeChange()">
-          フライト確認あり（アクセストークン必要）
-        </label>
+      <!-- フライト確認の表示設定 -->
+      <div style="font-size:0.72rem;color:#667;font-weight:bold;margin-bottom:6px">フライト確認の表示</div>
+      <label class="mode-option">
+        <input type="checkbox" id="group-primary-toggle" onchange="onGroupPrimaryToggle()" checked>
+        グループ空港は代表空港のみ表示（すっきり）
+      </label>
+      <div style="font-size:0.72rem;color:#889;line-height:1.5">
+        東京=HND / 大阪=KIX など代表空港のみ表示します。<br>
+        OFFにすると全空港（HND・NRT等）の運航会社を表示します。
       </div>
-      <div id="api-fields" style="display:none;flex-direction:column;gap:12px">
-        <div class="settings-field" id="token-row">
-          <span class="settings-field-label">アクセストークン</span>
-          <input type="password" id="token-input" class="token-input" placeholder="入力して保存">
-          <button class="btn-token-save" onclick="saveToken()">保存</button>
-        </div>
-        <!-- 代表空港のみ問い合わせ（API節約・既定ON） -->
-        <label class="mode-option">
-          <input type="checkbox" id="group-primary-toggle" onchange="onGroupPrimaryToggle()" checked>
-          グループ空港は代表空港のみ確認（API節約・既定ON）
-        </label>
-        <div style="font-size:0.72rem;color:#889;line-height:1.5">
-          東京=HND / 大阪=KIX など代表空港のみ問い合わせ、月間リクエスト消費を抑えます。<br>
-          OFFにすると全空港（HND・NRT等）を確認しますが消費が増えます。
-        </div>
+      <hr class="settings-divider">
+      <!-- 保存ルートの端末間同期（任意） -->
+      <div style="font-size:0.72rem;color:#667;font-weight:bold;margin-bottom:6px">保存ルートの端末間同期（任意）</div>
+      <div style="font-size:0.72rem;color:#889;line-height:1.5;margin-bottom:8px">
+        同期トークンを入れると保存ルートを複数端末で共有できます。空欄でもこの端末内では利用できます。
+      </div>
+      <div class="settings-field" id="token-row">
+        <span class="settings-field-label">同期トークン</span>
+        <input type="password" id="token-input" class="token-input" placeholder="入力して保存（任意）">
+        <button class="btn-token-save" onclick="saveToken()">保存</button>
       </div>
       <div id="settings-status" class="settings-status"></div>
       <div id="conn-test-result" style="font-size:0.76rem;line-height:1.8;white-space:pre-wrap"></div>
@@ -974,7 +967,7 @@
     </div>
   </div>
 
-  <!-- フライト確認カード（APIモード時のみ表示） -->
+  <!-- フライト確認カード（旅程確定時に表示） -->
   <div class="card hidden" id="flight-card">
     <div class="card-title">フライト確認</div>
     <div id="flight-legs"></div>
@@ -1907,8 +1900,37 @@ function validate() {
   checkFlights();
 }
 
-// ===== CF Workers URL（固定）=====
+// ===== CF Workers URL（固定・保存ルート同期のみに使用）=====
 const WORKERS_URL_DEFAULT = 'https://my8flyer-proxy.kreva605.workers.dev';
+
+// ===== 路線データ（routes.json・ローカル辞書）=====
+// AviationStack（有料・月間上限あり）を廃止し、静的な路線辞書に置換。
+// 形式: { "_meta":{...}, "_names":{ "NH":"ANA", ... }, "FROM-TO":["NH","SQ",...] }
+// 生成: scripts/my8flyer/build_routes.py（Jonty/airline-route-data・週次更新）
+let ROUTE_DB = null;          // 区間→運航キャリアIATA配列
+let AIRLINE_NAMES = {};       // IATA→社名（表示用）
+let _routeDBPromise = null;
+
+async function loadRouteDB() {
+  try {
+    const res = await fetch('routes.json', { cache: 'default' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    AIRLINE_NAMES = data._names || {};
+    ROUTE_DB = data;
+    return true;
+  } catch (e) {
+    console.warn('routes.json 読込失敗（モックにフォールバック）:', e);
+    ROUTE_DB = null;
+    return false;
+  }
+}
+
+// 一度だけ読み込む（checkFlights から await される）
+function ensureRouteDB() {
+  if (!_routeDBPromise) _routeDBPromise = loadRouteDB();
+  return _routeDBPromise;
+}
 
 // ===== スターアライアンス加盟 IATA コード =====
 // SK（SAS）は2024年脱退、JP（アドリア航空）は倒産のため除外
@@ -1950,7 +1972,7 @@ async function runConnectionTest() {
 
   if (!tok) {
     el.style.color = '#c53030';
-    el.textContent = '❌ アクセストークンが未設定です';
+    el.textContent = '❌ 同期トークンが未設定です';
     return;
   }
 
@@ -2113,13 +2135,9 @@ function initSettings() {
   if (atRadio) atRadio.checked = true;
   applyAwardTypeUI();
 
-  const mode = localStorage.getItem('m8f_mode') || 'basic';
-  const radio = document.querySelector(`input[name="mode"][value="${mode}"]`);
-  if (radio) radio.checked = true;
-  toggleTokenRow();
   updateSettingsStatus();
 
-  // 代表空港のみ問い合わせトグルの初期化（未設定＝既定ON）
+  // 代表空港のみ表示トグルの初期化（未設定＝既定ON）
   document.getElementById('group-primary-toggle').checked = isGroupPrimaryOnly();
 
   // デフォルト出発地・帰着地の初期化
@@ -2167,22 +2185,6 @@ function applyAwardTypeUI() {
   if (typeof updateTransitCounter === 'function') updateTransitCounter();
 }
 
-function onModeChange() {
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  localStorage.setItem('m8f_mode', mode);
-  toggleTokenRow();
-  updateSettingsStatus();
-  // APIモードに変更した場合、フライト確認カードを非表示にリセット
-  if (mode === 'basic') {
-    document.getElementById('flight-card').classList.add('hidden');
-  }
-}
-
-function toggleTokenRow() {
-  const mode = document.querySelector('input[name="mode"]:checked')?.value ?? 'basic';
-  document.getElementById('api-fields').style.display = mode === 'api' ? 'flex' : 'none';
-}
-
 async function saveToken() {
   const val = document.getElementById('token-input').value.trim();
   if (!val) return;
@@ -2196,7 +2198,7 @@ async function saveToken() {
   // 自動接続テスト
   const el = document.getElementById('conn-test-result');
   el.style.color = '#667';
-  el.textContent = '⏳ アクセストークンを確認中...';
+  el.textContent = '⏳ 同期トークンを確認中...';
 
   try {
     const res = await fetch(`${_workersBase()}/saved-routes`, {
@@ -2231,16 +2233,15 @@ function _closeSettings() {
 }
 
 function updateSettingsStatus() {
-  const mode     = localStorage.getItem('m8f_mode') || 'basic';
   const hasToken = !!localStorage.getItem('m8f_token');
   const el       = document.getElementById('settings-status');
-  if (mode === 'basic') { el.className = 'settings-status'; el.textContent = ''; return; }
+  // 同期トークンは任意。設定済みのときだけ状態を表示する。
   if (hasToken) {
     el.className = 'settings-status';
-    el.textContent = '✅ フライト確認モード 設定済み';
+    el.textContent = '✅ 同期トークン設定済み（保存ルートを端末間で共有）';
   } else {
-    el.className = 'settings-status warn';
-    el.textContent = '⚠️ アクセストークンを入力して保存してください';
+    el.className = 'settings-status';
+    el.textContent = '';
   }
 }
 
@@ -2483,54 +2484,33 @@ function parseWorkersResponse(raw) {
   return { flights: [], source: 'api', noData: true };
 }
 
-// ===== 区間フライト取得 =====
+// ===== 区間フライト取得（ローカル路線辞書 routes.json から）=====
+// AviationStack 呼び出しは廃止。ROUTE_DB から運航キャリアを引く（時刻情報は持たない）。
 async function fetchLeg(from, to, force = false) {
-  const cacheKey = `${from}-${to}`;
-  if (!force) {
-    const cached = FLIGHT_CACHE.get(cacheKey);
-    if (cached) return cached;
-  }
+  // データ未ロード時はモックにフォールバック
+  if (!ROUTE_DB) return getMockFlight(from, to);
 
-  const workersUrl = _workersBase();
-  if (!workersUrl) {
-    const mock = getMockFlight(from, to);
-    FLIGHT_CACHE.set(cacheKey, mock);
-    return mock;
+  const carriers = ROUTE_DB[`${from}-${to}`];
+  if (!carriers || !carriers.length) {
+    return { flights: [], source: 'db', noData: true };
   }
-
-  const token = localStorage.getItem('m8f_token') || '';
-  try {
-    const res = await fetch(`${workersUrl}/routes?from=${from}&to=${to}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.status === 401) return { flights: [], error: 'auth', source: 'api' };
-    if (!res.ok) {
-      // Workers が 502 で返した upstream エラーを救出
-      // 例: AviationStack 月間上限到達時に Workers v0.2 から `{ error: "AviationStack: usage_limit_reached — ..." }` が返る
-      try {
-        const errBody = await res.json();
-        if (errBody && errBody.error) {
-          return { flights: [], error: 'upstream', errorDetail: errBody.error, source: 'api' };
-        }
-      } catch {}
-      return { flights: [], error: 'network', source: 'api' };
-    }
-    const raw = await res.json();
-    const data = parseWorkersResponse(raw);
-    FLIGHT_CACHE.set(cacheKey, data);
-    return data;
-  } catch {
-    return { flights: [], error: 'network', source: 'api' };
-  }
+  const flights = carriers.map(iata => tagFlight({
+    airline:  AIRLINE_NAMES[iata] || iata,
+    iata,
+    flightNo: '',
+    dep: '',
+    arr: '',
+  }));
+  return { flights, source: 'db' };
 }
 
 // ===== フライト確認メイン =====
 async function checkFlights(force = false) {
-  const mode = localStorage.getItem('m8f_mode') || 'basic';
-  if (mode !== 'api') return;
-
   const legArr = getExpandedLegs();
   if (legArr.length === 0) return;
+
+  // 路線辞書の読み込みを保証（初回のみネットワーク）
+  await ensureRouteDB();
 
   // ストップオーバー都市セット（乗り継ぎチェック対象外）
   const soIatas = new Set([
@@ -2623,8 +2603,8 @@ function renderFlightCard(legArr, results, soIatas) {
     }
     if (!data.flights?.length) {
       const msg = isAlt
-        ? '⚪ この空港経由の便なし（代替候補）'
-        : '❌ この区間のフライト情報が見つかりません';
+        ? '⚪ この空港経由の直行便なし（代替候補）'
+        : '❌ この区間の直行便が見つかりません（データ未収載の可能性）';
       const mockNote = data.source === 'mock' ? ' <span class="mock-note">（モックデータ）</span>' : '';
       return `${header}<div class="check-item ${isAlt ? 'check-muted' : 'check-ng'}">${msg}${mockNote}</div>`;
     }
@@ -2632,8 +2612,8 @@ function renderFlightCard(legArr, results, soIatas) {
     const eligible = data.flights.filter(f => f.starAlliance || f.connectingPartner || f.partnerAirline);
     if (!eligible.length) {
       const msg = isAlt
-        ? `⚪ 対象便なし（${data.flights.length}便すべて非対象・代替候補）`
-        : `❌ 利用可能な便がありません（全${data.flights.length}便が非対象）`;
+        ? `⚪ 対象便なし（運航${data.flights.length}社すべて非対象・代替候補）`
+        : `❌ 特典対象の航空会社がありません（運航${data.flights.length}社が非対象）`;
       return `${header}<div class="check-item ${isAlt ? 'check-muted' : 'check-ng'}">${msg}</div>`;
     }
 
@@ -2644,8 +2624,7 @@ function renderFlightCard(legArr, results, soIatas) {
       else if (f.connectingPartner) badge = '<span class="conn-badge">★コネクティング</span>';
       else                          badge = '<span class="partner-badge">🤝 提携航空会社</span>';
       return `<div class="flight-row">
-        <div>✅ <b>${f.airline} ${f.flightNo}</b>${badge}${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
-        <div class="flight-time">${f.dep} → ${f.arr}</div>
+        <div>✅ <b>${f.airline}（${f.iata}）</b>${badge}${isMock ? '<span class="mock-note">モック</span>' : ''}</div>
       </div>`;
     }).join('');
     const partnerNote = hasPartner
@@ -2698,55 +2677,15 @@ function renderFlightCard(legArr, results, soIatas) {
     return `<div class="leg-block leg-block-grouped">${groupHeader}${body}</div>`;
   };
 
-  // 代表空港のみモードONなら注記を先頭に表示（全空港を見たい場合は設定でOFF）
+  // 代表空港のみ表示ONなら注記を先頭に表示（全空港を見たい場合は設定でOFF）
   const primaryNote = isGroupPrimaryOnly()
-    ? '<div class="group-summary" style="margin-bottom:8px">🛫 グループ空港は代表空港のみ確認中（API節約）。全空港を確認するには設定でOFFにしてください。</div>'
+    ? '<div class="group-summary" style="margin-bottom:8px">🛫 グループ空港は代表空港のみ表示中。全空港を表示するには設定でOFFにしてください。</div>'
     : '';
   document.getElementById('flight-legs').innerHTML = primaryNote + groups.map(renderGroup).join('');
 
-  // 乗り継ぎ可否チェック
-  // 対象: 往路/復路それぞれの「トランジット」区間のみ
-  // 除外: ①ストップオーバー都市 ②目的地（往路→復路の境目） ③方向が変わる境界
-  const checks = [];
-  for (let i = 0; i < legArr.length; i++) {
-    for (let j = i + 1; j < legArr.length; j++) {
-      const legA = legArr[i];
-      const legB = legArr[j];
-      if (legA.dir !== legB.dir) continue;           // 往路と復路の境目はスキップ
-      if (legB.pos !== legA.pos + 1) continue;       // 連続していない区間はスキップ
-      if (legA.to !== legB.from) continue;           // 接続点が一致しない組み合わせはスキップ
-      if (legA.to === STATE.destination) continue;   // 目的地（折り返し地点）はスキップ
-      if (soIatas?.has(legA.to)) continue;           // ストップオーバーはスキップ
-
-      const fA = results[legA.key]?.flights?.[0];
-      const fB = results[legB.key]?.flights?.[0];
-      if (!fA || !fB) continue;
-
-      const diff = toMin(fB.dep) - toMin(fA.arr);
-      const label = `${cityName(legA.to)}（${legA.to}）`;
-      const diffStr = diff >= 0 ? `+${diff}分` : `${diff}分`;
-
-      let cls, icon, msg;
-      if (diff >= 90) {
-        cls = 'check-ok';   icon = '✅';
-        msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎOK`;
-      } else if (diff >= 60) {
-        cls = 'check-warn'; icon = '⚠️';
-        msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）やや短い（90分以上推奨）`;
-      } else if (diff >= 0) {
-        cls = 'check-ng';   icon = '❌';
-        msg = `${label}: 着${fA.arr} → 発${fB.dep}（${diffStr}）乗り継ぎ時間不足`;
-      } else {
-        cls = 'check-ng';   icon = '❌';
-        msg = `${label}: 着${fA.arr} → 発${fB.dep} 接続不可`;
-      }
-      checks.push(`<div class="connection-row ${cls}">${icon} ${msg}</div>`);
-    }
-  }
-
-  document.getElementById('flight-connections').innerHTML = checks.length
-    ? `<div class="connection-block"><div class="card-title">乗り継ぎ確認（トランジット区間）</div>${checks.join('')}</div>`
-    : '';
+  // 乗り継ぎ時間チェックは廃止（静的路線データは時刻を持たないため）。
+  // 区間ごとの「運航している提携航空会社」の有無で可否を判断する。
+  document.getElementById('flight-connections').innerHTML = '';
 }
 
 // ===== 保存ルート機能（最大5件） =====
@@ -2757,7 +2696,8 @@ const MAX_SAVED = 5;
 let _routesCache = null;
 
 function _workersAvailable() {
-  return localStorage.getItem('m8f_mode') === 'api';
+  // 保存ルート同期は「同期トークンあり」のときだけ有効（フライト確認とは独立）
+  return !!localStorage.getItem('m8f_token');
 }
 
 function _authHeader() {
@@ -2926,18 +2866,11 @@ async function renderSavedRoutes() {
       }).join('');
 }
 
-// モード変更時はキャッシュをクリアして再取得
-const _origOnModeChange = onModeChange;
-onModeChange = function() {
-  _routesCache = null;
-  _origOnModeChange.call(this);
-  renderSavedRoutes();
-};
-
 // ===== 初期化 =====
 updateAllDots();
 initSettings();
 renderSavedRoutes();
+ensureRouteDB(); // 路線辞書を先読み（チェック時の待ちを無くす）
 </script>
 </body>
 </html>

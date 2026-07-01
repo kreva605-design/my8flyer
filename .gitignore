@@ -1,2 +1,6 @@
 # Wrangler ローカルキャッシュ（コミット不要）
 workers/**/.wrangler/
+
+# macOS
+.DS_Store
+**/.DS_Store

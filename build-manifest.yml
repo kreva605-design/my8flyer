@@ -1,0 +1,195 @@
+project: my8flyer
+schema_version: 1
+updated_at: 2026-07-01
+sources:
+  design:
+    path: /Users/tanakahiroyuki/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
+    sha256: a9fa7b7dc811e7f4ba02728c98ba094c49da961141b29763d64ab3e87ac01a50
+  test_report:
+    path: /Users/tanakahiroyuki/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/test_report_2026-05-20_phase11.md
+    sha256: 7d049575b537d667ba7f2aa51a6bb5332b19f9a80a1c5fca2397cd429dd6173f
+requirements:
+- id: REQ-01
+  text: 第1条 必要マイル数最高地点を目的地として判定（両モード・ZONE_RANK比較）
+  design_ref: architecture.md#8-2
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-01
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-02
+  text: 第2条 最初/最後の都市を経由不可（往路・復路それぞれ・両モード）
+  design_ref: architecture.md#8-2
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-02
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-03
+  text: 第3条 乗り換えエリア制限（提携のみ・FORBIDDEN_TRANSIT_AREAS 3×3行列で判定）
+  design_ref: architecture.md#8-2,8-5
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-03
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-04
+  text: 第4条 ゾーン昇順制限・乗継→目的地マイル ≤ 出発地→目的地マイル（後半未実装=B7）
+  design_ref: architecture.md#8-2
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-04
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: yellow
+- id: REQ-05
+  text: 第5条 出発地≠帰着地なら同一国（特例規定はB7未実装）
+  design_ref: architecture.md#8-2
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-05
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-06
+  text: 第6条 異エリア間オープンジョー不可（両モード・ZONE_TO_AREA でエリア判定）
+  design_ref: architecture.md#8-2,8-4
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-06
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-07
+  text: 第7条 異ゾーンオープンジョー 各ゾーン必要マイルの1/2合算（両モード）
+  design_ref: architecture.md#8-2
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-07
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-08
+  text: ストップオーバー 1箇所まで・ANA国際線特典航空券では日本発不可
+  design_ref: architecture.md#8-2,8-3
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-08
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-09
+  text: 乗り換え上限（提携:国内1+海外2 / ANA:国内1のみ・2025/6/24以降の予約発券分）
+  design_ref: architecture.md#8-2,8-3,8-8
+  impl_ref: index.html::AWARD_RULES,validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-09
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-10
+  text: 特典航空券タイプ切替UI（提携航空会社全7条 / ANA便のみ全5条）
+  design_ref: architecture.md#8-1
+  impl_ref: index.html::onAwardTypeChange()
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-11
+  text: 【廃止 2026-07-01】2モード切替。静的路線データ化に伴いフライト確認を常時利用可能に一本化（動作モードUI撤去）
+  design_ref: architecture.md#14
+  impl_ref: index.html（onModeChange/toggleTokenRow/m8f_mode 削除）
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-07-01
+  status: deprecated
+- id: REQ-12
+  text: 飛行機SVGビジュアルUI（タップで都市選択・選択即確定）
+  design_ref: architecture.md#5
+  impl_ref: index.html::openModal(),node-departure/destination/arrival
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-13
+  text: オープンジョー対応（復路出発地選択・SVG紫ノード視覚化・モーダル連動）
+  design_ref: architecture.md#8-6
+  impl_ref: index.html::applyOpenJawUI(),node-returnDep
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-14
+  text: フライト確認（静的路線データ routes.json ローカル参照・スターアライアンス/コネクティング/提携3色バッジ）※AviationStack廃止・便時刻/乗継時間チェックは廃止
+  design_ref: architecture.md#14
+  impl_ref: index.html::fetchLeg(),loadRouteDB(),ensureRouteDB()
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-07-01
+  status: green
+- id: REQ-15
+  text: 保存ルート最大5件（Cloudflare Workers KV クロスデバイス共有・localStorage はフォールバック）
+  design_ref: architecture.md#6-2,6-4
+  impl_ref: index.html::SAVED_ROUTES,workers/my8flyer-proxy/index.js
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-16
+  text: 【廃止 2026-07-01】7日TTLキャッシュ（API消費削減目的）。静的路線データ化でAPI消費が消滅し不要に（ローカル参照が即時）
+  design_ref: architecture.md#14
+  impl_ref: index.html::FLIGHT_CACHE（未使用・残置）
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-07-01
+  status: deprecated
+- id: REQ-17
+  text: ツール制限の明示（日本発着前提・海外発は警告表示）
+  design_ref: architecture.md#8-9
+  impl_ref: index.html::validate()
+  test_ref: test_report_2026-05-20_phase11.md#TC-17
+  verify_mode: auto
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-18
+  text: ルール参照カード（モード別出し分け・公式注釈3つ：目的地除外/地上移動/SO計数）
+  design_ref: architecture.md#8-7
+  impl_ref: index.html::rule-card
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-19
+  text: 乗り換えカウンタ（モード連動・上限超過で赤字・ANA時は海外セル非表示）
+  design_ref: architecture.md#8-6
+  impl_ref: index.html::updateTransitCounter()
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-05-20
+  status: green
+- id: REQ-20
+  text: 単体テスト 20件全PASS（Playwright・STATE直接書き換え注入方式）
+  design_ref: architecture.md#8-9
+  impl_ref: tests/playwright (Phase 11 で実施・恒久化はB)
+  test_ref: test_report_2026-05-20_phase11.md
+  verify_mode: manual
+  last_verified: 2026-05-20
+  status: yellow
+- id: REQ-21
+  text: 非公表ルール 同一区間 (A→B) の旅程内2回利用検出（PSS実装制約・WARN扱い）
+  design_ref: architecture.md#12
+  impl_ref: index.html::validate()
+  test_ref: /tmp/test_dup_segments.mjs,/tmp/test_my8flyer_dup_e2e.py
+  verify_mode: auto
+  last_verified: 2026-05-26
+  status: green
+- id: REQ-22
+  text: グループ空港は代表空港のみ表示（設定トグル・既定ON・直積展開を抑制／東京=HND・大阪=KIX）※旧「API節約」は静的化で目的消滅、表示整頓トグルに意味変更
+  design_ref: architecture.md#13,14
+  impl_ref: index.html::isGroupPrimaryOnly(),expandIata(),onGroupPrimaryToggle()
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-07-01
+  status: green
+- id: REQ-23
+  text: 路線データ生成（Jonty/airline-route-data → コンパクト routes.json 58,089区間・週次更新・アプリ同梱）
+  design_ref: architecture.md#14
+  impl_ref: scripts/my8flyer/build_routes.py,projects/my8flyer/routes.json
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-07-01
+  status: green
