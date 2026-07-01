@@ -455,6 +455,8 @@
       margin-bottom: 4px;
     }
     .flight-time { font-weight: bold; color: #0057a8; margin-left: 18px; }
+    .gf-link { font-size: 0.72rem; font-weight: normal; color: #1a73e8; text-decoration: none; margin-left: 8px; white-space: nowrap; }
+    .gf-link:hover { text-decoration: underline; }
     .star-badge {
       display: inline-block;
       background: #ffd700;
@@ -2587,13 +2589,20 @@ function renderFlightCard(legArr, results, soIatas) {
     return '';
   };
 
+  // Googleフライト深リンク（便名・時刻はGoogle側で確認する）
+  // アプリは外部リンクを開くだけなのでCORS・APIキー・費用は不要。
+  const gfLink = (from, to) => {
+    const q = encodeURIComponent(`flights from ${from} to ${to}`);
+    return `<a class="gf-link" href="https://www.google.com/travel/flights?q=${q}" target="_blank" rel="noopener">🔍 Googleフライトで便名を見る</a>`;
+  };
+
   // 1区間分のレンダリング（フル表示）
   const renderLegFull = (leg, data, opts = {}) => {
     const { from, to } = leg;
     const isAlt = opts.asAlternative === true;
     const header = isAlt
-      ? `<div class="leg-sub-header">└ ${from} 〜 ${to} 経由</div>`
-      : `<div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}）</div>`;
+      ? `<div class="leg-sub-header">└ ${from} 〜 ${to} 経由 ${gfLink(from, to)}</div>`
+      : `<div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}） ${gfLink(from, to)}</div>`;
 
     if (data.error === 'auth') return `${header}<div class="check-item check-ng">❌ アクセストークンが無効です。設定を確認してください。</div>`;
     if (data.error === 'network') return `${header}<div class="check-item check-ng">❌ 通信エラー。ネットワーク・Workers URLを確認してください。</div>`;
