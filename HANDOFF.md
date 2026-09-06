@@ -1,21 +1,28 @@
 # My 8flyer 立て直し — HANDOFF
 
-> **更新セッション**：`7bacf35d` ／ **2026-09-06 14:20**
+> **更新セッション**：`7bacf35d` ／ **2026-09-06 16:40**
 > **計画の正本**：`~/.claude/plans/noble-swimming-blossom.md`（ユーザー承認済み）
 
 ---
 
 ## ① 何をしていたか
 
-**My 8flyer（ANA特典航空券の旅程チェッカー）が一度も実利用されていない**ため、提案型へ作り直している。承認済み計画の **S-0（空席スパイク）・S-1（データ基盤）・S-2（rules-core の抽出）まで完了**、次は **S-3（proposer）**。
+**My 8flyer（ANA特典航空券の旅程チェッカー）が一度も実利用されていない**ため、提案型へ作り直している。承認済み計画の **S-0（空席スパイク）・S-1（データ基盤）・S-2（rules-core の抽出）・S-3（proposer）まで完了**、次は **S-4（実便の裏どり）** または **S-5（UI 作り直し）**。
 
 S-2 でやったこと：
 
 - ルール判定を [src/rules-core.js](src/rules-core.js) へ純粋関数として切り出した（`STATE`・`alert()`・DOM 依存を除去）
 - 規約の数値の正本を [data/award-rules.json](data/award-rules.json) 1箇所にし、[index.html](index.html) から写しを撤去した
-- 未実装だった条文のうち「地上移動区間は両端で乗り換え1回」を実装（UI 導線は S-5）
-- 「途中降機も乗り換え1回に数える」は**もともと満たしていた**ことを確認し、テストで固定した
-- [tests/rules-core.test.mjs](tests/rules-core.test.mjs) 27件・[tests/browser_smoke.py](tests/browser_smoke.py) 8件を新設（全PASS）
+- 「地上移動区間は両端で乗り換え1回」を実装（UI 導線は S-5）／「途中降機も乗り換え1回」は元から満たしていたためテストで固定
+- **公開ページへ反映済み**（承認を得て push・実測 6/6 PASS）
+
+S-3 でやったこと：
+
+- [src/miles-core.js](src/miles-core.js)：公式チャート2本から必要マイルを出す。日本の **Zone 1-A / 1-B** を判定（周遊は原則 1-B＝+7,000マイル）
+- [src/proposer.js](src/proposer.js)：路線グラフを辿って候補を列挙 →**判定は必ず rules-core へ委ねる**→ マイル順に並べる
+- 「必要マイル × 寄り道先」で集約。**広島→パリ 420,234通り → 28本**にした
+- [tests/proposer.test.mjs](tests/proposer.test.mjs) 20件を新設（単体は計47件・全PASS）
+- ⚠️ **proposer / miles-core はまだ画面から呼ばれていない**（S-5 で接続）
 
 ---
 
@@ -35,21 +42,32 @@ S-2 でやったこと：
 
 ## ③ 次の一手（最初の15分）
 
-**S-3：proposer。** `src/proposer.js` を作る。
+**まず提案の中身を自分の目で見る。** これが次の判断の材料になる。
 
-1. 入力 `{origin, destination, awardType, cabin, season, maxTransits, wantStopover}`
-2. [routes.json](routes.json) を**スターアライアンス運航区間のみ**辿って往路・復路の経由候補を列挙（深さ上限＝往路3・復路3）
-3. 探索中に第1条（目的地が旅程内で最高ゾーン）で枝刈りする
-4. **候補は必ず [rules-core.js](src/rules-core.js) の `validateItinerary()` を通す**（判定を提案側に二重実装しない）
-5. 検証は件数でなく**出力された旅程を1本ずつ目視**して第1〜7条を人手で検算する
+```bash
+cd projects/my8flyer
+node tests/propose_cli.mjs HIJ CDG --stopover --top 20     # 広島→パリ・寄り道あり
+node tests/propose_cli.mjs HND CMN --stopover              # 東京→カサブランカ（Zone8）
+node tests/propose_cli.mjs HIJ CDG --ana                   # ANA自社便（1本しか出ない）
+```
 
-呼び出し方（S-2 で確定した契約）：
+そのうえで **S-4（実便の裏どり）** と **S-5（UI 作り直し）** のどちらを先にやるかを決める。
+**S-5 を先にする案を推す。** 提案そのものは実便が無くても成立しており（L1 で自立）、
+いま足りないのは「28本をどう見せて1本を選ばせるか」のほうであるため。
+S-5 は `/ui-flow` → **★PoC是非判定（ユーザー承認）** が必須。
+
+呼び出し方（S-2・S-3 で確定した契約）：
 
 ```js
 import { buildAwardRules, validateItinerary } from './rules-core.js';
+import { buildGraph, propose } from './proposer.js';
+
 const rules = buildAwardRules(await (await fetch('data/award-rules.json')).json());
-const res = validateItinerary(itinerary, { awardType:'partner', rules, cities: CITIES });
-// res.ok / res.checks[].code（'rule1' / 'transit.out.dom' / 'stopover.japan' …）
+const graph = buildGraph(routesJson, CITIES, { carriers: STAR_ALLIANCE });
+const { proposals, stats } = propose(
+  { origin:'HIJ', destination:'CDG', awardType:'partner', cabin:'eco', wantStopover:true },
+  { rules, charts:{partner, ana}, cities: CITIES, graph });
+// proposals[] = { itinerary, miles, milesNote, transits, stopover, stopoverName, route[], variants, warnings[] }
 ```
 
 ---
@@ -60,14 +78,17 @@ const res = validateItinerary(itinerary, { awardType:'partner', rules, cities: C
 |---|---|
 | 計画の正本 | `~/.claude/plans/noble-swimming-blossom.md` |
 | **判定ロジックの正本** | [src/rules-core.js](src/rules-core.js) |
+| **必要マイルの正本** | [src/miles-core.js](src/miles-core.js)（1-A/1-B 判定・オープンジョー合算） |
+| **提案エンジン** | [src/proposer.js](src/proposer.js) |
+| 提案の目視CLI | [tests/propose_cli.mjs](tests/propose_cli.mjs)（`node tests/propose_cli.mjs HIJ CDG --stopover`） |
 | **規約値の正本** | [data/award-rules.json](data/award-rules.json)（15値・出典と原文つき・旧版併記） |
-| 単体テスト | [tests/rules-core.test.mjs](tests/rules-core.test.mjs)（`node --test tests/rules-core.test.mjs`） |
+| 単体テスト | [tests/rules-core.test.mjs](tests/rules-core.test.mjs) 27件／[tests/proposer.test.mjs](tests/proposer.test.mjs) 20件 |
 | ブラウザ疎通 | [tests/browser_smoke.py](tests/browser_smoke.py)（`.venv/bin/python tests/browser_smoke.py`・ポート8791） |
 | マイルチャート | [data/mile-chart-partner.json](data/mile-chart-partner.json)（99ペア）／[data/mile-chart-ana.json](data/mile-chart-ana.json)（24ペア） |
 | 取得スクリプト | `scripts/my8flyer/fetch_mile_charts.py`／`parse_award_calendar.py` |
 | 空席スパイク拡張 | [spike-ana-calendar/](spike-ana-calendar/)（読み取り専用・調査用） |
 | 再発防止基盤 | `scripts/scrape_guard/guard.py`／`~/.claude/commands/scrape-guard.md` |
-| 設計書 | Vault `projects/my8flyer/architecture.md` **§15（S-2 の記録）** |
+| 設計書 | Vault `projects/my8flyer/architecture.md` **§15（S-2）・§16（S-3）** |
 | 公開ページ | https://kreva605-design.github.io/my8flyer/ |
 
 ---
@@ -92,16 +113,17 @@ const res = validateItinerary(itinerary, { awardType:'partner', rules, cities: C
 
 ### 残作業
 
-残作業 6件 — **あなたが動く必要はありません**（内訳：1番=Claudeがやる 3件 / 2番=Claudeがやる（今は待ち） 1件 / 5番=放置でよい 2件）。
+残作業 7件 — **あなたの判断が1件あります**（内訳：1番=Claudeがやる 3件 / 2番=Claudeがやる（今は待ち） 1件 / **4番=決めてほしい 1件** / 5番=放置でよい 2件）。
 
 | # | 判定 | やるか | 内容 | 放置するとどうなるか |
 |---|---|---|---|---|
-| 1 | `REQ-未達` | ✅ Claudeがやる | S-3 proposer が未着手（計画の実施順序どおり・次の一手） | 提案型にならず、白紙入力のままになる |
-| 1 | `REQ-未達` | ✅ Claudeがやる | 地上移動フラグを画面から立てる導線が無い（判定側は実装済み・S-5 の画面作り直しで追加） | 羽田着→成田発のような旅程を、乗り換え2回として過剰に不合格にし続ける |
-| 1 | `REQ-未達` | ✅ Claudeがやる | `MILE_CHART`（旧チャート）が index.html に残置。S-1 で取得した Zone 1-A/1-B の2チャートに差し替えるのは S-5 | 周遊旅程に対して必要マイルを過小表示し続ける（1-B が正・最大 +17,000 マイル） |
-| 2 | `REQ-待ち` | ⏸ Claudeがやる（今は待ち） | `build-manifest.yml` の `sources.design.sha256` を確定できない。`hash_sources.py` が**参照欠損46件**で停止するが、これは既知の誤検出（**TASK-DF-09**・Vault のファイルを bare filename で参照している／カンマ区切りの複数パスを1パスとして解決する）。**解除条件＝TASK-DF-09 の完了** | 設計書を更新するたび `/verify` が drift を出し続ける（検知は生きているので実害は「毎回同じ差分が出る」だけ） |
-| 5 | `要件外-任意` | 💤 放置でよい | `data/award-rules.json` は片道旅程の値も持つが、アプリは往復しか組めないため未使用（要件に無い・Claudeの気づき） | **何も起きない** |
-| 5 | `要件外-任意` | 💤 放置でよい | 都市マスタが66都市で、経由候補7都市が未登録（SFO・EWR・IAD・IAH・AKL・YYZ・MAJ）（要件に無い・Claudeの気づき） | 提案の経由候補が少し狭いままになる。S-3 の実測後に必要なら足せばよい |
+| 4 | `要件外-リスク` | ❓ 決めてほしい | **S-4（実便の裏どり）と S-5（UI 作り直し）のどちらを先にやるか。** 計画の順序は S-4 → S-5 だが、提案は実便が無くても成立しており、いま足りないのは「28本をどう見せて1本を選ばせるか」のほう。**Claude の推奨は S-5 を先**（要件に無い順序変更・Claudeの気づき） | 計画どおり S-4 を先に進める。実便は付くが、28本を選べる画面が無いままなので実利用にはまだ届かない |
+| 1 | `REQ-未達` | ✅ Claudeがやる | proposer / miles-core が画面から呼ばれていない（S-5 で接続） | 提案エンジンはあるがCLIからしか使えない＝実利用できない |
+| 1 | `REQ-未達` | ✅ Claudeがやる | 地上移動フラグを画面から立てる導線が無い（判定側は実装済み・S-5） | 羽田着→成田発を乗り換え2回として過剰に不合格にし続ける |
+| 1 | `REQ-未達` | ✅ Claudeがやる | 旧 `MILE_CHART` が index.html に残置。表示を miles-core へ差し替えるのは S-5 | 画面の必要マイル表示だけが公式と46セル中22セル不一致のまま（提案側は新チャートを使用） |
+| 2 | `REQ-待ち` | ⏸ Claudeがやる（今は待ち） | `build-manifest.yml` の `sources.design.sha256` を確定できない。`hash_sources.py` が参照欠損46件で停止するが、これは既知の誤検出（**TASK-DF-09**）。**解除条件＝TASK-DF-09 の完了** | 設計書を更新するたび `/verify` が同じ drift を出す（検知は生きている） |
+| 5 | `要件外-任意` | 💤 放置でよい | 路線グラフが 2026-05-03 で凍結（上流の flightsfrom.com が403で17週連続失敗）（要件に無い・Claudeの気づき） | 新規就航・運休が提案に反映されない。**当面は何も起きない**（既存路線は変わらないため） |
+| 5 | `要件外-任意` | 💤 放置でよい | 都市マスタが66都市で、経由候補7都市が未登録（SFO・EWR・IAD・IAH・AKL・YYZ・MAJ）（要件に無い・Claudeの気づき） | 提案の経由候補が少し狭いまま。S-5 の実利用後に必要なら足せばよい |
 
 ### そのほか未解決（S-3 以降の判断材料）
 

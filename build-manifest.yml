@@ -233,3 +233,59 @@ requirements:
   verify_mode: auto
   last_verified: 2026-09-06
   status: green
+- id: REQ-29
+  text: 必要マイルは公式チャート2本（提携=ゾーンペア / ANA自社便=ゾーンペア×シーズン×4クラス）から引く。旧 MILE_CHART（1本・公式と46セル中22セル不一致）は使わない
+  design_ref: architecture.md#16
+  impl_ref: src/miles-core.js::requiredMiles()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: yellow  # proposer は使用。index.html の表示は S-5 で差し替え
+- id: REQ-30
+  text: 日本のゾーンを 1-A / 1-B で判定する。海外乗り継ぎ・途中降機・オープンジョーを含む旅程は 1-B。判断できない場合は必要マイルが多い 1-B へ倒す
+  design_ref: architecture.md#16
+  impl_ref: src/miles-core.js::japanZoneKey()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-31
+  text: オープンジョーは往路・復路の各ゾーンの必要マイルの1/2を合算する（第7条・ANA自社便は第5条）
+  design_ref: architecture.md#16
+  impl_ref: src/miles-core.js::requiredMiles()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-32
+  text: チャートに値が無い組み合わせ（例 ANA自社便×Zone8）は推定で埋めず miles=null と理由を返し、並びの末尾へ置く
+  design_ref: architecture.md#16
+  impl_ref: src/miles-core.js::requiredMiles(),src/proposer.js::propose()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-33
+  text: 路線グラフは routes.json から ANA・提携航空会社が運航する区間だけを残し、都市マスタに無い空港はグループ空港へ寄せるか落とす
+  design_ref: architecture.md#16
+  impl_ref: src/proposer.js::buildGraph()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-34
+  text: 目的地と出発地からルート候補を列挙する。合否は必ず rules-core の validateItinerary() が決め、提案側に判定を写さない（探索中の枝刈りは高速化であって判定ではない）
+  design_ref: architecture.md#16
+  impl_ref: src/proposer.js::propose(),enumeratePaths()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-35
+  text: 提案は「必要マイル×寄り道先」で集約し、まとめた組み合わせ数を variants に残す。並びは必要マイル昇順→乗継数昇順→海外乗継の少ない順
+  design_ref: architecture.md#16
+  impl_ref: src/proposer.js::dedupeByExperience()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
