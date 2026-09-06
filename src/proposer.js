@@ -68,7 +68,7 @@ export function buildGraph(routesJson, cities, opts = {}) {
 // 復路の終点は日本（Zone 1・順位0）なので、終点で枝刈りすると海外の
 // 経由地がすべて落ち、復路が「日本国内で乗り継ぐだけ」の1通りに縮む。
 // 2026-09-06 に実際にこれで復路が1通りしか出ていなかった。
-function enumeratePaths(adj, cities, from, to, limits, cap, pruneRank, allowed) {
+function enumeratePaths(adj, cities, from, to, limits, cap, pruneRank, allowed, domesticAnaOnly) {
   const cityOf = new Map(cities.map((c) => [c.iata, c]));
   const out = [];
   // その特典で乗れる社が1社も飛んでいない区間は、そもそも経路に使えない。
@@ -77,7 +77,13 @@ function enumeratePaths(adj, cities, from, to, limits, cap, pruneRank, allowed) 
   //   （2026-09-06 に実際に28本中4本で発生していた）
   const usable = (from2, to2) => {
     const air = adj.get(from2)?.get(to2);
-    return !!air && (!allowed || air.some((a) => allowed.has(a)));
+    if (!air) return false;
+    // 2026年5月19日搭乗分より、日本国内線への乗り継ぎはANA運航便のみ。
+    // 提携社のコードシェア便は使えない（data/award-rules.json に原文つきで記録）
+    if (domesticAnaOnly &&
+        cityOf.get(from2)?.type === 'domestic' && cityOf.get(to2)?.type === 'domestic' &&
+        !air.includes('NH')) return false;
+    return !allowed || air.some((a) => allowed.has(a));
   };
 
   const walk = (cur, visited, conns, domCnt, ovsCnt) => {
@@ -164,6 +170,32 @@ export function allowedCarriers(awardType, airlines) {
   return new Set([...(airlines.star_alliance ?? []), ...(airlines.ana_partners ?? [])]);
 }
 
+// =====================================================================
+// carrierPlans — 1つの旅程の中で組み合わせてよい社のまとまり
+// =====================================================================
+// 提携航空会社特典には**2つの形**があり、混ぜられない（規約の原文）：
+//   「スターアライアンス加盟航空会社運航便とスター アライアンス コネクティング
+//     パートナーであれば、各航空会社を自由に組み合わせた旅程もご利用になれます。」
+//   「単一の提携航空会社運航便での旅程のみご利用になれます。」（非加盟の提携社）
+//
+// つまり non-alliance の提携社（EN/NX/EY/EW/OA/PR/VS/VN/VA）は
+// **その1社だけで旅程を組む場合にしか使えない**。
+// 2026-09-06 にこれを見落とし、スタアラ便とベトナム航空便を混ぜた提案を
+// 114本出していた。旅程ごとに1つの plan を選び、その中だけで経路を作る。
+// =====================================================================
+export function carrierPlans(awardType, airlines) {
+  if (!airlines) return [{ id: 'any', carriers: null }];
+  if (awardType === 'ana') {
+    return [{ id: 'ana', carriers: new Set(airlines.ana_own ?? ['NH']) }];
+  }
+  const plans = [{ id: 'star', carriers: new Set(airlines.star_alliance ?? []) }];
+  for (const a of airlines.ana_partners ?? []) {
+    if ((airlines.star_alliance ?? []).includes(a)) continue;  // 加盟社なら star 側で扱う
+    plans.push({ id: `single:${a}`, carriers: new Set([a]) });
+  }
+  return plans;
+}
+
 // 空港の「大きさ」は、特典で乗れる社が何路線飛ばしているかで測る。
 // 設備としての規模（OurAirports の large/medium）とは別物で、
 // 岡山も高知も large になってしまい乗り継ぎの実力を表さない
@@ -212,53 +244,72 @@ export function propose(req, ctx) {
     ovsMax: cfg.transitOvsMax,
   };
 
-  // 特典の種類で乗れる社が変わる。data/airlines.json が正本
-  const allowed = allowedCarriers(awardType, ctx.airlines);
+  // 1つの旅程の中で組み合わせてよい社のまとまり。
+  // 提携特典は「スタアラを自由に混ぜる」か「非加盟の提携社1社だけ」の二択で、
+  // 両者を混ぜられない。plan ごとに別々に経路を作り、最後に束ねる
+  const plans = carrierPlans(awardType, ctx.airlines);
+  const allowed = allowedCarriers(awardType, ctx.airlines);   // 表示・集計用
+
+  // 2026年5月19日搭乗分より、日本国内線への乗り継ぎはANA運航便のみ
+  const domesticAnaOnly = (rules.common?.japanDomesticAnaOnly ?? true)
+    && (req.asOf ?? '2026-09-07') >= '2026-05-19';
 
   // 枝刈りの基準は旅程の目的地（オープンジョーなら両端の高いほう）。
   // 往路・復路のどちらも同じ基準を使う
   const rankOf = (iata) => ZONE_RANK[cities.find((c) => c.iata === iata)?.zone] ?? 0;
   const pruneRank = Math.max(rankOf(destination), rankOf(retFrom));
-
-  const allOut = enumeratePaths(graph.adj, cities, origin,  destination, limits, cap, pruneRank, allowed);
-  const allRet = enumeratePaths(graph.adj, cities, retFrom, arrival,     limits, cap, pruneRank, allowed);
-
   const coords = ctx.coords ?? null;
-  const repOut = pickRepresentativePaths(allOut, origin,  destination, coords);
-  const repRet = pickRepresentativePaths(allRet, retFrom, arrival,     coords);
-  const outPaths = repOut.paths;
-
-  // 帰着地を出発地と変える案（国内オープンジョー）も既定で混ぜる。
-  // 「羽田発 → パリ → 沖縄着」のように、国内枠を使って
-  // もう1都市に降りられる形（2026-09-06 ユーザー決定）。
-  // ★海外オープンジョー（復路の出発地を目的地と変える）はやらない。
-  //   選択肢が増えすぎるため、こちらもユーザーの決定。
-  const retSets = [{ arrival, paths: repRet.paths }];
-  if (req.domesticOpenJaw !== false && arrival === origin) {
-    const airportsFor = ctx.airports ?? null;
-    for (const c of cities) {
-      if (c.type !== 'domestic' || c.iata === origin) continue;
-      // 帰着地は就航路線が多い空港だけ。
-      // 特典で乗れる社の就航先が少ない空港を帰着地にすると、
-      // 実際には便が取れず提案として役に立たない
-      if (hubScore(graph, c.iata, allowed) < (req.minHubRoutes ?? 8)) continue;
-      const alt = enumeratePaths(graph.adj, cities, retFrom, c.iata, limits, cap, pruneRank, allowed);
-      if (!alt.length) continue;
-      const rep = pickRepresentativePaths(alt, retFrom, c.iata, coords);
-      retSets.push({ arrival: c.iata, paths: rep.paths });
-    }
-  }
 
   const stats = {
-    outPathsFound: repOut.enumerated, retPathsFound: repRet.enumerated,
-    outPaths: outPaths.length, retPaths: repRet.paths.length,
+    outPathsFound: 0, retPathsFound: 0, outPaths: 0, retPaths: 0,
     combinations: 0, validated: 0, passed: 0, milesUnknown: 0,
-    truncated: allOut.length >= cap || allRet.length >= cap,
-    carriers: allowed ? allowed.size : null,
+    truncated: false, carriers: allowed ? allowed.size : null,
+    plans: plans.map((p) => p.id), plansUsed: [],
   };
+
+  // plan ごとに「往路の経路」「帰着地ごとの復路の経路」を作る
+  const routeSets = [];
+  for (const plan of plans) {
+    const ac = plan.carriers;
+    const allOut = enumeratePaths(graph.adj, cities, origin, destination, limits, cap, pruneRank, ac, domesticAnaOnly);
+    if (!allOut.length) continue;
+    const allRet = enumeratePaths(graph.adj, cities, retFrom, arrival, limits, cap, pruneRank, ac, domesticAnaOnly);
+    if (!allRet.length) continue;
+
+    const repOut = pickRepresentativePaths(allOut, origin, destination, coords);
+    const repRet = pickRepresentativePaths(allRet, retFrom, arrival, coords);
+    stats.outPathsFound += repOut.enumerated; stats.retPathsFound += repRet.enumerated;
+    stats.outPaths += repOut.paths.length;    stats.retPaths += repRet.paths.length;
+    stats.truncated = stats.truncated || allOut.length >= cap || allRet.length >= cap;
+    stats.plansUsed.push(plan.id);
+
+    // 帰着地を出発地と変える案（国内オープンジョー）も既定で混ぜる。
+    // 「羽田発 → パリ → 沖縄着」のように、国内枠を使ってもう1都市に降りる形。
+    // ★海外オープンジョー（復路の出発地を目的地と変える）はやらない（ユーザー決定）
+    const retSets = [{ arrival, paths: repRet.paths }];
+    if (req.domesticOpenJaw !== false && arrival === origin) {
+      for (const c of cities) {
+        if (c.type !== 'domestic' || c.iata === origin) continue;
+        // 帰着地は就航路線が多い空港だけ。就航先が少ない空港へ降ろしても
+        // 実際には便が取れず提案として役に立たない
+        if (hubScore(graph, c.iata, ac) < (req.minHubRoutes ?? 8)) continue;
+        const alt = enumeratePaths(graph.adj, cities, retFrom, c.iata, limits, cap, pruneRank, ac, domesticAnaOnly);
+        if (!alt.length) continue;
+        const rep = pickRepresentativePaths(alt, retFrom, c.iata, coords);
+        retSets.push({ arrival: c.iata, paths: rep.paths });
+      }
+    }
+    routeSets.push({ plan: plan.id, outPaths: repOut.paths, retSets });
+  }
 
   const cityName = (iata) => cities.find((c) => c.iata === iata)?.name ?? iata;
   const typeOfCity = new Map(cities.map((c) => [c.iata, c.type]));
+
+  // 同じ街の別空港（羽田と成田、関空と伊丹と神戸）は「もう1都市」に数えない。
+  // 羽田発の旅程で成田に降りても、増えるのは都市ではなく空港でしかない
+  const sameCity = new Map();
+  cities.forEach((c) => (c.group ?? []).forEach((m) => sameCity.set(m, c.iata)));
+  const cityKey = (iata) => sameCity.get(iata) ?? iata;
   const ovsCountOf = (it) => [...it.outbound, ...it.return]
     .filter(Boolean).filter((i) => typeOfCity.get(i) === 'overseas').length;
 
@@ -275,9 +326,10 @@ export function propose(req, ctx) {
                                  //   +0km になって並べられなくなる（実測で確認）。
                                  //   「まっすぐ帰るより何km多く飛ぶか」で統一する
 
-  for (const op of outPaths) {
-   for (const { arrival: arv, paths: rps } of retSets) {
-    for (const rp of rps) {
+  for (const rs of routeSets) {
+   for (const op of rs.outPaths) {
+    for (const { arrival: arv, paths: rps } of rs.retSets) {
+     for (const rp of rps) {
       stats.combinations++;
       const soPlacements = [null];
       if (req.wantStopover) {
@@ -324,12 +376,17 @@ export function propose(req, ctx) {
         // この2つは**別の軸ではなく同じ軸**（どちらも「もう1都市」）。
         // 掛け合わせるとパリ行きだけで560本になり選べなくなった（2026-09-06 実測）。
         // 出発地・目的地は元から行く場所なので「増える都市」に数えない。
-        const already = new Set([origin, destination, retFrom]);
-        const extras = [...new Set([soIata, arv].filter((x) => x && !already.has(x)))];
+        const already = new Set([origin, destination, retFrom].map(cityKey));
+        const extras = [...new Map(
+          [soIata, arv].filter(Boolean)
+            .filter((x) => !already.has(cityKey(x)))
+            .map((x) => [cityKey(x), x])
+        ).values()];
         if (extras.length > (req.maxExtraCities ?? 1)) continue;
         const extra = extras[0] ?? null;
 
-        const key = `${m.miles}|${extra ?? '-'}`;
+        // 畳むときも街単位。関空と伊丹を別の「もう1都市」として2行出さない
+        const key = `${m.miles}|${extra ? cityKey(extra) : '-'}`;
         const cand = {
           itinerary,
           miles: m.miles,
@@ -363,7 +420,8 @@ export function propose(req, ctx) {
           : cand.transits !== cur.transits ? cand.transits < cur.transits
           : ovsCountOf(cand.itinerary) < ovsCountOf(cur.itinerary);
         if (better) { cand.variants = cur.variants; keep.set(key, cand); }
-      }
+       }
+     }
     }
    }
   }

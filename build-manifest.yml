@@ -345,3 +345,43 @@ requirements:
   verify_mode: auto
   last_verified: 2026-09-07
   status: green
+- id: REQ-43
+  text: 提携特典の旅程は「スターアライアンス加盟社を自由に組み合わせる」か「非加盟の提携社1社だけ」のどちらかで、両者を混ぜない
+  design_ref: architecture.md#18-1
+  impl_ref: src/proposer.js::carrierPlans(),propose()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-44
+  text: 日本国内線への乗り継ぎは ANA 運航便のみ（2026-05-19 搭乗分〜）。提携社のコードシェア便は使わない
+  design_ref: architecture.md#18-2
+  impl_ref: src/proposer.js::enumeratePaths(),data/award-rules.json
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-45
+  text: 同じ街の別空港（羽田と成田・関空と伊丹と神戸）は「もう1都市」に数えず、一覧を畳むキーも街の単位にする
+  design_ref: architecture.md#18-3
+  impl_ref: src/proposer.js::propose()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-46
+  text: 外部サイトから取った規約値は /scrape-guard を通し、出典URL・原文引用・locator・有効期間・確認日を揃えてから前提にする
+  design_ref: architecture.md#18-4
+  impl_ref: data/award-rules.json,scripts/scrape_guard/guard.py
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-47
+  text: スターアライアンス加盟社の一覧を一次情報と突合する（現在は index.html から移設したまま verified=false）
+  design_ref: architecture.md#18-5
+  impl_ref: data/airlines.json
+  test_ref: ''
+  verify_mode: manual
+  last_verified: ''
+  status: red  # 公式ページが画像/動的描画のため機械取得できず未突合

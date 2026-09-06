@@ -169,6 +169,45 @@
    "verified_by": "user+claude"
   },
 
+  "partner.carriers.star_alliance_combinable@2025-06-24": {
+   "rule": "partner.carriers.star_alliance_combinable",
+   "value": true,
+   "quote": "スターアライアンス加盟航空会社運航便とスター アライアンス コネクティングパートナーであれば、各航空会社を自由に組み合わせた旅程もご利用になれます。",
+   "source_url": "https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/",
+   "locator": "パネル『2025年6月24日以降の予約・発券分』> 対象便 > スター アライアンス加盟航空会社（2026年4月現在）",
+   "effective_from": "2025-06-24",
+   "effective_to": null,
+   "fetched_at": "2026-09-07",
+   "verified_at": "2026-09-07",
+   "verified_by": "claude",
+   "note": "スターアライアンス側は複数社を混ぜてよい。★2026-09-07 に一次情報から取得。"
+  },
+  "partner.carriers.non_alliance_single_only@2025-06-24": {
+   "rule": "partner.carriers.non_alliance_single_only",
+   "value": true,
+   "quote": "単一の提携航空会社運航便での旅程のみご利用になれます。",
+   "source_url": "https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/",
+   "locator": "パネル『2025年6月24日以降の予約・発券分』> 提携航空会社（#a12）",
+   "effective_from": "2025-06-24",
+   "effective_to": null,
+   "fetched_at": "2026-09-07",
+   "verified_at": "2026-09-07",
+   "verified_by": "claude",
+   "note": "★重要。スターアライアンス加盟社以外の提携社（EN/NX/EY/EW/OA/PR/VS/VN/VA）は、その1社だけで旅程を組む場合にしか使えない。スタアラ便と混ぜられない。2026-09-06 にこれを見落として114本の不正な提案を出していた。"
+  },
+  "common.transit.japan_domestic_ana_only@2026-05-19": {
+   "rule": "common.transit.japan_domestic_ana_only",
+   "value": true,
+   "quote": "2026年5月19日搭乗分より、日本国内線への乗り継ぎはANA運航便のみご利用になれます。提携航空会社が運航するコードシェア便はご利用になれません。",
+   "source_url": "https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/",
+   "locator": "パネル『2025年6月24日以降の予約・発券分』> 対象便 > 注記",
+   "effective_from": "2026-05-19",
+   "effective_to": null,
+   "fetched_at": "2026-09-07",
+   "verified_at": "2026-09-07",
+   "verified_by": "claude",
+   "note": "★日付は静的HTMLに入っておらず（『年月日（後）』というテンプレートのまま）、描画後のDOMからしか読めない。再取得時は必ずレンダリング後を見ること。"
+  },
   "common.transit.destination_not_counted@2025-06-24": {
    "rule": "common.transit.destination_not_counted",
    "value": true,

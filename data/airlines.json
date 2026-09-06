@@ -4,8 +4,13 @@
   "rule": "ANA国際線特典航空券（自社便）は NH 運航便のみ。提携航空会社特典航空券は star_alliance と ana_partners の和集合。",
   "source": "index.html の STAR_ALLIANCE / PARTNER_AIRLINES（2026-09-06 に data/ へ移設）",
   "verified": false,
-  "note": "★一次情報（ANA公式の提携航空会社ページ）との突合が未実施。/scrape-guard を通して確認すること。VN（ベトナム航空）はスターアライアンス加盟だが、移設前は提携社側に置かれていた。和集合を使うため提案結果には影響しない。",
-  "updated": "2026-09-06"
+  "note": "2026-09-07 に ANA公式（award/tk/usage/）と突合。★ana_partners は公式の記載と一致することを確認した（EN/NX/EY/EW/OA/PR/VS/VN/VA の9社）。index.html にあった AZ・VL は公式の一覧に無いため落とした。★star_alliance（25社）は未突合。公式ページの加盟社一覧が画像または動的描画で、静的HTMLにも描画後DOMにも社名コードがテキストで現れないため機械取得できなかった（REQ-47）。",
+  "updated": "2026-09-06",
+  "rules": {
+   "star_alliance": "加盟社どうしは自由に組み合わせてよい",
+   "ana_partners": "★単一の提携航空会社運航便での旅程のみ。スタアラ便と混ぜられない",
+   "japan_domestic": "★2026-05-19 搭乗分より、日本国内線への乗り継ぎは ANA 運航便のみ"
+  }
  },
  "ana_own": [
   "NH"
@@ -46,9 +51,7 @@
   "PR",
   "VS",
   "VN",
-  "VA",
-  "AZ",
-  "VL"
+  "VA"
  ],
  "names": {
   "EN": "エアドロミティ",
@@ -62,5 +65,18 @@
   "VA": "ヴァージン・オーストラリア航空",
   "AZ": "ITAエアウェイズ（2026年4月1日より）",
   "VL": "ルフトハンザ シティ航空（2025年11月12日より）"
- }
+ },
+ "ana_partners_before_2026-09-07": [
+  "EN",
+  "NX",
+  "EY",
+  "EW",
+  "OA",
+  "PR",
+  "VS",
+  "VN",
+  "VA",
+  "AZ",
+  "VL"
+ ]
 }

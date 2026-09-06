@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 
 import { CITIES, ALL_CARRIERS, AIRLINES, CHARTS, buildRules, loadRoutes, readJson } from './_load.mjs';
 import { requiredMiles, japanZoneKey } from '../src/miles-core.js';
-import { buildGraph, propose, allowedCarriers, hubScore } from '../src/proposer.js';
+import { buildGraph, propose, allowedCarriers, hubScore, carrierPlans } from '../src/proposer.js';
 import { validateItinerary, ZONE_RANK } from '../src/rules-core.js';
 
 const rules = buildRules();
@@ -17,7 +17,13 @@ const COORDS = readJson('data/airports.json').airports;
 const ctx    = { rules, charts: CHARTS, cities: CITIES, graph, airlines: AIRLINES };
 // 既定では帰着地を変える案（国内オープンジョー）を列挙しない。
 // 目的の絞れたテストを速く回すため。必要なテストだけ明示的に有効にする
-const NO_OJ = { domesticOpenJaw: false };          // 座標なし（従来の並び）
+const NO_OJ = { domesticOpenJaw: false };
+
+// 同じ街の別空港（羽田と成田、関空と伊丹と神戸）は同じ都市として扱う。
+// 提案側と同じ数え方でないと、テストだけが別の結論を出す
+const SAME_CITY = new Map();
+CITIES.forEach((c) => (c.group ?? []).forEach((m) => SAME_CITY.set(m, c.iata)));
+const cityKey = (iata) => SAME_CITY.get(iata) ?? iata;          // 座標なし（従来の並び）
 const ctxGeo = { ...ctx, coords: COORDS };                                 // 座標あり（遠回りで並べる）
 
 function itin(o = {}) {
@@ -275,7 +281,8 @@ test('代表経路の選抜で寄り道先の顔ぶれが減らない（黙っ�
   const req = { origin: 'HND', destination: 'CDG', wantStopover: true, ...NO_OJ };
   const before = propose(req, ctx);      // 選抜なし（座標を渡さない）
   const after  = propose(req, ctxGeo);   // 選抜あり
-  const set = (r) => new Set(r.proposals.map((p) => p.stopoverName ?? '-'));
+  // 空港ではなく街の単位で比べる（代表に選ばれる空港は入れ替わりうる）
+  const set = (r) => new Set(r.proposals.map((p) => p.extraCity ? cityKey(p.extraCity) : '-'));
   assert.deepEqual([...set(after)].sort(), [...set(before)].sort());
 });
 
@@ -309,9 +316,11 @@ test('増える都市は1旅程に1つまで（寄り道と帰着地を掛け算
   assert.equal(new Set(keys).size, keys.length, '同じ「増える都市」が2本出ている');
   assert.ok(proposals.length < 60, `一覧が長すぎる（${proposals.length}本）`);
   for (const p of proposals) {
-    const already = new Set(['HND', 'CDG']);
-    const extras = new Set([p.stopover, p.arrival].filter((x) => x && !already.has(x)));
-    assert.ok(extras.size <= 1, `増える都市が ${extras.size} 都市ある`);
+    const already = new Set(['HND', 'CDG'].map(cityKey));
+    const extras = new Set([p.stopover, p.arrival]
+      .filter(Boolean).map(cityKey).filter((x) => !already.has(x)));
+    assert.ok(extras.size <= 1,
+      `増える都市が ${extras.size} 都市ある: ${p.route.join(' / ')}`);
   }
 });
 
@@ -335,4 +344,81 @@ test('遠回りの基準は「まっすぐ帰る旅程」（帰着地ごとに�
   const zero = proposals.filter((p) => p.detourKm === 0);
   assert.ok(zero.length < 5, `+0km の案が多すぎる（${zero.length}本）＝基準が取り直されている`);
   assert.equal(stats.baseKm, Math.min(...home.map((p) => p.km)));
+});
+
+// =====================================================================
+// 8. 1つの旅程の中で組み合わせてよい航空会社（2026-09-07 一次情報から是正）
+// =====================================================================
+// 公式原文：
+//  「スターアライアンス加盟航空会社運航便とスター アライアンス コネクティング
+//    パートナーであれば、各航空会社を自由に組み合わせた旅程もご利用になれます。」
+//  「単一の提携航空会社運航便での旅程のみご利用になれます。」（非加盟の提携社）
+// =====================================================================
+
+test('提携社を「1社だけの旅程」として扱う計画が立つ', () => {
+  const plans = carrierPlans('partner', AIRLINES);
+  assert.equal(plans[0].id, 'star');
+  const singles = plans.filter((p) => p.id.startsWith('single:'));
+  assert.ok(singles.length > 0, '単一提携社の計画が1つも無い');
+  singles.forEach((p) => assert.equal(p.carriers.size, 1, '単一社の計画に2社以上入っている'));
+  assert.deepEqual(carrierPlans('ana', AIRLINES).map((p) => p.id), ['ana']);
+});
+
+test('提案は「スタアラ全体」か「提携社1社」のどちらかで全区間を通せる', () => {
+  // 2026-09-06 の欠陥：両者を混ぜたグラフで探索し、スタアラ便とベトナム航空便を
+  // 同じ旅程に入れた提案を114本出していた
+  const SA = new Set(AIRLINES.star_alliance);
+  const singles = AIRLINES.ana_partners.filter((a) => !SA.has(a));
+  let checked = 0;
+  for (const d of ['CDG', 'BKK', 'SYD', 'SIN', 'HNL']) {
+    const { proposals } = propose({ origin: 'HND', destination: d, wantStopover: true }, ctxGeo);
+    for (const p of proposals) {
+      checked++;
+      const segs = [];
+      for (const leg of [['HND', ...p.itinerary.outbound.filter(Boolean), d],
+                         [d, ...p.itinerary.return.filter(Boolean), p.arrival]]) {
+        for (let i = 0; i < leg.length - 1; i++) segs.push(ROUTES[`${leg[i]}-${leg[i + 1]}`] ?? []);
+      }
+      const okSA = segs.every((a) => a.some((x) => SA.has(x)));
+      const okOne = singles.some((c) => segs.every((a) => a.includes(c)));
+      assert.ok(okSA || okOne,
+        `どの社のまとまりでも通せない旅程: ${p.route.join(' / ')}`);
+    }
+  }
+  assert.ok(checked > 50, `検査した提案が少なすぎる（${checked}本）`);
+});
+
+test('日本国内線の乗り継ぎは ANA 運航便のみ（2026-05-19 搭乗分〜）', () => {
+  const dom = new Set(CITIES.filter((c) => c.type === 'domestic').map((c) => c.iata));
+  let checked = 0;
+  for (const [o, d] of [['HIJ', 'CDG'], ['HND', 'SIN'], ['HIJ', 'HNL']]) {
+    const { proposals } = propose({ origin: o, destination: d, wantStopover: true }, ctxGeo);
+    for (const p of proposals) {
+      for (const leg of [[o, ...p.itinerary.outbound.filter(Boolean), d],
+                         [d, ...p.itinerary.return.filter(Boolean), p.arrival]]) {
+        for (let i = 0; i < leg.length - 1; i++) {
+          if (!dom.has(leg[i]) || !dom.has(leg[i + 1])) continue;
+          checked++;
+          const air = ROUTES[`${leg[i]}-${leg[i + 1]}`] ?? [];
+          assert.ok(air.includes('NH'),
+            `国内区間 ${leg[i]}-${leg[i + 1]} が ANA 運航でない（運航 ${air.join(',')}）`);
+        }
+      }
+    }
+  }
+  assert.ok(checked > 0, '国内区間を含む提案が1本も無い＝検査になっていない');
+});
+
+test('同じ街の別空港は「もう1都市」に数えない（羽田と成田・関空と伊丹）', () => {
+  // 羽田発の旅程で成田に降りても、増えるのは都市ではなく空港でしかない
+  for (const o of ['HND', 'KIX']) {
+    const { proposals } = propose({ origin: o, destination: 'CDG', wantStopover: true }, ctxGeo);
+    const keys = proposals.map((p) => `${p.miles}|${p.extraCity ? cityKey(p.extraCity) : '-'}`);
+    assert.equal(new Set(keys).size, keys.length, `${o}発で同じ街が2行出ている`);
+    for (const p of proposals) {
+      if (!p.extraCity) continue;
+      assert.notEqual(cityKey(p.extraCity), cityKey(o), `出発地と同じ街（${p.extraCityName}）を増える都市にしている`);
+      assert.notEqual(cityKey(p.extraCity), 'CDG', '目的地を増える都市にしている');
+    }
+  }
 });
