@@ -1,6 +1,6 @@
 project: my8flyer
 schema_version: 1
-updated_at: 2026-07-01
+updated_at: 2026-09-06
 sources:
   design:
     path: /Users/tanakahiroyuki/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
@@ -12,55 +12,55 @@ requirements:
 - id: REQ-01
   text: 第1条 必要マイル数最高地点を目的地として判定（両モード・ZONE_RANK比較）
   design_ref: architecture.md#8-2
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-01
+  impl_ref: src/rules-core.js::validateItinerary()[rule1]
+  test_ref: test_report_2026-05-20_phase11.md#TC-01,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-02
   text: 第2条 最初/最後の都市を経由不可（往路・復路それぞれ・両モード）
   design_ref: architecture.md#8-2
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-02
+  impl_ref: src/rules-core.js::validateItinerary()[rule2]
+  test_ref: test_report_2026-05-20_phase11.md#TC-02,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-03
   text: 第3条 乗り換えエリア制限（提携のみ・FORBIDDEN_TRANSIT_AREAS 3×3行列で判定）
   design_ref: architecture.md#8-2,8-5
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-03
+  impl_ref: src/rules-core.js::validateItinerary()[rule3]
+  test_ref: test_report_2026-05-20_phase11.md#TC-03,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-04
   text: 第4条 ゾーン昇順制限・乗継→目的地マイル ≤ 出発地→目的地マイル（後半未実装=B7）
   design_ref: architecture.md#8-2
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-04
+  impl_ref: src/rules-core.js::validateItinerary()[rule4]
+  test_ref: test_report_2026-05-20_phase11.md#TC-04,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: yellow
 - id: REQ-05
   text: 第5条 出発地≠帰着地なら同一国（特例規定はB7未実装）
   design_ref: architecture.md#8-2
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-05
+  impl_ref: src/rules-core.js::validateItinerary()[rule5]
+  test_ref: test_report_2026-05-20_phase11.md#TC-05,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-06
   text: 第6条 異エリア間オープンジョー不可（両モード・ZONE_TO_AREA でエリア判定）
   design_ref: architecture.md#8-2,8-4
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-06
+  impl_ref: src/rules-core.js::validateItinerary()[rule6]
+  test_ref: test_report_2026-05-20_phase11.md#TC-06,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-07
   text: 第7条 異ゾーンオープンジョー 各ゾーン必要マイルの1/2合算（両モード）
   design_ref: architecture.md#8-2
-  impl_ref: index.html::validate()
+  impl_ref: index.html::validate()  # 第7条のマイル計算のみ index.html に残置（MILE_CHART 差し替えは S-5）
   test_ref: test_report_2026-05-20_phase11.md#TC-07
   verify_mode: auto
   last_verified: 2026-05-20
@@ -68,18 +68,18 @@ requirements:
 - id: REQ-08
   text: ストップオーバー 1箇所まで・ANA国際線特典航空券では日本発不可
   design_ref: architecture.md#8-2,8-3
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-08
+  impl_ref: src/rules-core.js::validateItinerary()[stopover]
+  test_ref: test_report_2026-05-20_phase11.md#TC-08,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-09
   text: 乗り換え上限（提携:国内1+海外2 / ANA:国内1のみ・2025/6/24以降の予約発券分）
   design_ref: architecture.md#8-2,8-3,8-8
-  impl_ref: index.html::AWARD_RULES,validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-09
+  impl_ref: data/award-rules.json,src/rules-core.js::validateItinerary()[transit]
+  test_ref: test_report_2026-05-20_phase11.md#TC-09,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-10
   text: 特典航空券タイプ切替UI（提携航空会社全7条 / ANA便のみ全5条）
@@ -140,10 +140,10 @@ requirements:
 - id: REQ-17
   text: ツール制限の明示（日本発着前提・海外発は警告表示）
   design_ref: architecture.md#8-9
-  impl_ref: index.html::validate()
-  test_ref: test_report_2026-05-20_phase11.md#TC-17
+  impl_ref: src/rules-core.js::validateItinerary()[tool.japan_only]
+  test_ref: test_report_2026-05-20_phase11.md#TC-17,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-20
+  last_verified: 2026-09-06
   status: green
 - id: REQ-18
   text: ルール参照カード（モード別出し分け・公式注釈3つ：目的地除外/地上移動/SO計数）
@@ -156,10 +156,10 @@ requirements:
 - id: REQ-19
   text: 乗り換えカウンタ（モード連動・上限超過で赤字・ANA時は海外セル非表示）
   design_ref: architecture.md#8-6
-  impl_ref: index.html::updateTransitCounter()
-  test_ref: ''
-  verify_mode: manual
-  last_verified: 2026-05-20
+  impl_ref: index.html::updateTransitCounter(),src/rules-core.js::countTransitsFor()
+  test_ref: tests/browser_smoke.py
+  verify_mode: auto
+  last_verified: 2026-09-06
   status: green
 - id: REQ-20
   text: 単体テスト 20件全PASS（Playwright・STATE直接書き換え注入方式）
@@ -172,10 +172,10 @@ requirements:
 - id: REQ-21
   text: 非公表ルール 同一区間 (A→B) の旅程内2回利用検出（PSS実装制約・WARN扱い）
   design_ref: architecture.md#12
-  impl_ref: index.html::validate()
-  test_ref: /tmp/test_dup_segments.mjs,/tmp/test_my8flyer_dup_e2e.py
+  impl_ref: src/rules-core.js::validateItinerary()[unofficial.dup_segment]
+  test_ref: /tmp/test_dup_segments.mjs,/tmp/test_my8flyer_dup_e2e.py,tests/rules-core.test.mjs
   verify_mode: auto
-  last_verified: 2026-05-26
+  last_verified: 2026-09-06
   status: green
 - id: REQ-22
   text: グループ空港は代表空港のみ表示（設定トグル・既定ON・直積展開を抑制／東京=HND・大阪=KIX）※旧「API節約」は静的化で目的消滅、表示整頓トグルに意味変更
@@ -192,4 +192,44 @@ requirements:
   test_ref: ''
   verify_mode: manual
   last_verified: 2026-07-01
+  status: green
+- id: REQ-24
+  text: 規約値（乗り換え・途中降機の上限）を data/award-rules.json 1箇所に置き、コードに写しを持たない。適用日で新旧の版を選び分ける
+  design_ref: architecture.md#8-2
+  impl_ref: src/rules-core.js::selectEffectiveValues(),buildAwardRules()
+  test_ref: tests/rules-core.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-25
+  text: 規約データを読めないときは既定値で判定を続けず、判定を止めて理由を表示する（不明な上限で「問題ありません」を出さない）
+  design_ref: architecture.md#8-2
+  impl_ref: src/rules-core.js::buildAwardRules(),index.html::validate()
+  test_ref: tests/rules-core.test.mjs,tests/browser_smoke.py
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-26
+  text: 地上移動区間は両端の都市を合わせて乗り換え1回として数える（飛行区間の重複判定にも数えない）
+  design_ref: architecture.md#8-2
+  impl_ref: src/rules-core.js::groupBySurface(),countTransits(),flightSegments()
+  test_ref: tests/rules-core.test.mjs,tests/browser_smoke.py
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: yellow  # 判定は実装済み。UI からフラグを立てる導線は S-5 で追加
+- id: REQ-27
+  text: 途中降機の地点も乗り換え回数に1回として数える
+  design_ref: architecture.md#8-2
+  impl_ref: src/rules-core.js::countTransits()
+  test_ref: tests/rules-core.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-06
+  status: green
+- id: REQ-28
+  text: 乗り換え回数の画面表示（カウンタ）と判定は同じ実装を使う（UI 側で数え直さない）
+  design_ref: architecture.md#8-3
+  impl_ref: src/rules-core.js::countTransitsFor(),index.html::updateTransitCounter()
+  test_ref: tests/browser_smoke.py
+  verify_mode: auto
+  last_verified: 2026-09-06
   status: green

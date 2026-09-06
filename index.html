@@ -1221,44 +1221,52 @@ const MILE_CHART = {
         low:{eco:40000,biz:80000}, high:{eco:60000,biz:135000} },
 };
 
-// ===== ゾーン必要マイル順位（Rule4の判定用） =====
-// 低い数字 = 出発地に近い（マイル少）、高い数字 = 遠い（マイル多）
-const ZONE_RANK = { 1:0, 2:1, 3:2, 4:3, 5:4, 10:5, 6:6, 7:7, 8:8, 9:9 };
+// ===== 規約値・判定ロジックは src/rules-core.js が正本 =====
+// ゾーン順位・エリア対応・エリア間の乗り換え制限、および
+// 乗り換え回数・途中降機の上限は index.html に書かない。
+//  - 判定ロジック : src/rules-core.js
+//  - 規約の数値   : data/award-rules.json（出典URL・原文・有効期間つき）
+// ここに写しを置くと、片方だけ直したときに画面と判定がずれる。
+let RULES_CORE = null;   // src/rules-core.js のモジュール
+let RULES_CFG  = null;   // buildAwardRules() の戻り値
+let RULES_LOAD_ERROR = null;
 
-// ===== ゾーン → エリア対応（ANA公式 提携航空会社 ご利用条件 第6条 準拠） =====
-// エリア1: 北米・中米・南米・ハワイ（Zone 5,6,9）
-// エリア2: 欧州・中東・アフリカ・ロシア（ウラル以西）（Zone 7,8）
-// エリア3: 日本・韓国・中国・東南アジア・南アジア・南西太平洋・ロシア（ウラル以東）（Zone 1,2,3,4,10）
-const ZONE_TO_AREA = {
-  1: 3,  2: 3,  3: 3,  4: 3,  10: 3,
-  5: 1,  6: 1,  9: 1,
-  7: 2,  8: 2,
-};
-const zoneToArea = (zone) => ZONE_TO_AREA[zone] ?? null;
+const rulesReady = (async () => {
+  try {
+    const [mod, res] = await Promise.all([
+      import('./src/rules-core.js'),
+      fetch('data/award-rules.json', { cache: 'default' }),
+    ]);
+    if (!res.ok) throw new Error('award-rules.json HTTP ' + res.status);
+    RULES_CORE = mod;
+    RULES_CFG  = mod.buildAwardRules(await res.json());
+    return true;
+  } catch (e) {
+    // 読めなかったときに既定値で判定を続けない（不明な上限で「問題なし」を出さない）
+    RULES_LOAD_ERROR = e;
+    console.error('規約データの読み込みに失敗:', e);
+    return false;
+  }
+})();
 
-// ===== 各エリアごとの乗り換え制限（提携航空会社・第3条） =====
-// FORBIDDEN_TRANSIT_AREAS[出発地エリア][目的地エリア] = 乗り換えに使えないエリア配列
-const FORBIDDEN_TRANSIT_AREAS = {
-  1: { 1: [2,3], 2: [3],   3: [2]   },
-  2: { 1: [3],   2: [1,3], 3: [1]   },
-  3: { 1: [2],   2: [1],   3: [1,2] },
-};
+const getAwardCfg = () => RULES_CFG ? (RULES_CFG[STATE.awardType] ?? RULES_CFG.partner) : null;
 
-// ===== 特典航空券タイプ別の有効ルール定義 =====
-const AWARD_RULES = {
-  partner: {
-    label: '提携航空会社特典航空券',
-    rules: [1,2,3,4,5,6,7],         // 適用するルール番号
-    stopoverJapanAllowed: true,     // 日本発の途中降機可
-    transitDomMax: 1, transitOvsMax: 2,  // 乗り換え上限/方向（2025/6/24以降: 国内1+海外2）
-  },
-  ana: {
-    label: 'ANA国際線特典航空券',
-    rules: [1,2,5,6,7],             // 第3条・第4条は非適用
-    stopoverJapanAllowed: false,    // 日本発の途中降機不可
-    transitDomMax: 1, transitOvsMax: 0,  // ANAは日本国内のみ・各1回（2025/6/24以降）
-  },
-};
+// 現在の画面状態を rules-core に渡す旅程オブジェクトへ変換する
+function currentItinerary() {
+  return {
+    departure:   STATE.departure,
+    destination: STATE.destination,
+    arrival:     STATE.arrival,
+    returnDep:   STATE.returnDep,
+    outbound:    STATE.outbound,
+    return:      STATE.return,
+    outboundSO:  STATE.outboundSO,
+    returnSO:    STATE.returnSO,
+    // 地上移動区間（例: 羽田着→成田発）。UI からの指定は S-5 で追加する
+    outboundSurfaceAfter: STATE.outboundSurface,
+    returnSurfaceAfter:   STATE.returnSurface,
+  };
+}
 
 // ===== スロット定義 =====
 const SLOT_META = {
@@ -1285,9 +1293,13 @@ const STATE = {
   return:      [null, null, null],
   outboundSO:  [false, false, false],  // true = ストップオーバー
   returnSO:    [false, false, false],
+  // true = その乗り継ぎ地から次の地点までを飛行機ではなく地上移動する
+  // （規約上、両端の都市を合わせて乗り換え1回と数える）。UI は S-5 で追加
+  outboundSurface: [false, false, false],
+  returnSurface:   [false, false, false],
 };
 
-const getAwardCfg = () => AWARD_RULES[STATE.awardType] ?? AWARD_RULES.partner;
+
 
 // ===== スロット値の読み書き =====
 function getVal(slot) {
@@ -1366,20 +1378,10 @@ function updateAllDots() {
 // ===== 乗り継ぎ回数カウンター =====
 function updateTransitCounter() {
   const cfg = getAwardCfg();
-  const domMax = cfg.transitDomMax ?? 2;
-  const ovsMax = cfg.transitOvsMax ?? 2;
-
-  const count = (slots) => {
-    let dom = 0, ovs = 0;
-    slots.forEach(iata => {
-      if (!iata) return;
-      const city = CITIES.find(c => c.iata === iata);
-      if (!city) return;
-      if (city.type === 'domestic') dom++;
-      else ovs++;
-    });
-    return { dom, ovs };
-  };
+  // 規約データがまだ読めていない間は上限を出さない（既定値で判定しない）
+  if (!cfg || !RULES_CORE) return;
+  const domMax = cfg.transitDomMax;
+  const ovsMax = cfg.transitOvsMax;
 
   const setCell = (id, val, max) => {
     const el = document.getElementById(id);
@@ -1393,8 +1395,9 @@ function updateTransitCounter() {
     if (el) el.textContent = max;
   };
 
-  const out = count(STATE.outbound);
-  const ret = count(STATE.return);
+  const cnt = RULES_CORE.countTransitsFor(currentItinerary(), { rules: RULES_CFG, cities: CITIES });
+  const out = cnt.out;
+  const ret = cnt.ret;
   setCell('tc-out-dom', out.dom, domMax);
   setCell('tc-out-ovs', out.ovs, ovsMax);
   setCell('tc-ret-dom', ret.dom, domMax);
@@ -1552,248 +1555,55 @@ document.getElementById('modal-select').addEventListener('change', function() {
 });
 
 // ===== 検証 =====
-function validate() {
-  const depIata    = STATE.departure;
-  const destIata   = STATE.destination;
-  const arrIata    = STATE.arrival ?? STATE.departure;
-  // オープンジョー: 復路出発地（未設定 or 目的地と同じなら通常往復）
-  const retDepIata = STATE.returnDep ?? destIata;
-  const isOpenJaw  = !!(STATE.returnDep && STATE.returnDep !== destIata);
-  const cfg        = getAwardCfg();
-  const ruleOn     = (n) => cfg.rules.includes(n);
+async function validate() {
+  // ルール判定は src/rules-core.js（純粋関数）が行う。
+  // ここは「画面の状態を旅程に変換して渡し、戻ってきた結果を描く」だけにする。
+  await rulesReady;
+  if (!RULES_CORE || !RULES_CFG) {
+    document.getElementById('result-summary').innerHTML =
+      `<div class="check-item check-ng" style="border-bottom:none">` +
+      `❌ 規約データ（data/award-rules.json）を読み込めませんでした。判定できません` +
+      `<div style="font-size:0.74rem;color:#aa8;margin-top:3px">${RULES_LOAD_ERROR ?? ''}</div></div>`;
+    document.getElementById('check-results').innerHTML = '';
+    document.getElementById('mile-info').classList.add('hidden');
+    document.getElementById('result-card').classList.remove('hidden');
+    return;
+  }
 
-  if (!depIata || !destIata) {
+  if (!STATE.departure || !STATE.destination) {
     alert('出発地（赤）と目的地（オレンジ）を設定してください');
     return;
   }
 
-  const depCity    = CITIES.find(c => c.iata === depIata);
-  const destCity   = CITIES.find(c => c.iata === destIata);
-  const arrCity    = CITIES.find(c => c.iata === arrIata);
-  const retDepCity = CITIES.find(c => c.iata === retDepIata);
-  const outConns   = STATE.outbound.filter(Boolean);
-  const retConns   = STATE.return.filter(Boolean);
-
-  // 目的地とオープンジョー復路出発地のうち高い方のゾーン順位
-  const maxDestRank = Math.max(
-    ZONE_RANK[destCity.zone] ?? 0,
-    retDepCity ? (ZONE_RANK[retDepCity.zone] ?? 0) : 0
-  );
-
-  const checks = [];
-
-  // 旅程モード表示（先頭に1行）
-  checks.push({ ok:'info', msg:`旅程タイプ: ${cfg.label}` });
-
-  // [ツール制限] 日本発着前提（海外発 or 海外帰着の場合は警告）
-  if (depCity.type === 'overseas' || (arrCity && arrCity.type === 'overseas')) {
-    checks.push({ ok:'warn', msg:'※本ツールは日本発着の旅程専用です。海外発の場合は未対応です。' });
-  }
-
-  // [第1条] 目的地は旅程内で最もマイルが高い地点
-  if (ruleOn(1)) {
-    if (depCity.type === 'domestic' && destCity.type === 'domestic') {
-      // 国内発・国内目的地: 国内のみの旅程は対象外
-      checks.push({ ok:false, msg:`[第1条] 国内のみの旅程は本ツール対象外です（国際線特典航空券用）` });
-    } else if (depCity.type === 'overseas' && destCity.type === 'domestic') {
-      // 海外発・国内目的地: ツール制限警告で既に表示済。第1条判定はスキップ
-      // （注: 公式ルールでは合法な可能性あり）
-    } else {
-      // 標準ケース: 国内発・海外目的地 または 海外発・海外目的地
-      const r1Viol = [...outConns, ...retConns]
-        .map(ic => CITIES.find(c => c.iata === ic))
-        .filter(c => c && c.type === 'overseas' && (ZONE_RANK[c.zone] ?? 0) > maxDestRank);
-      if (r1Viol.length > 0) {
-        const ns = r1Viol.map(c => `${c.name}（Zone${c.zone}）`).join('、');
-        checks.push({ ok:false, msg:`[第1条] 「${ns}」が目的地より高いゾーン — 目的地は旅程内最高マイル地点である必要があります` });
-      } else {
-        const destLabel = isOpenJaw
-          ? `${destCity.name}（Zone ${destCity.zone}） / ${retDepCity?.name ?? retDepIata}（Zone ${retDepCity?.zone}）`
-          : `${destCity.name}（${destCity.iata}） — Zone ${destCity.zone}`;
-        checks.push({ ok:true, msg:`[第1条] 目的地: ${destLabel} ✓` });
-      }
-    }
-  }
-
-  // [第2条] 往路: 最初（出発地）・最後（目的地）を乗り継ぎに使えない
-  if (ruleOn(2)) {
-    const outBanned = new Set([depIata, destIata]);
-    const outOvlp   = outConns.filter(ic => outBanned.has(ic));
-    if (outOvlp.length > 0) {
-      const ns = outOvlp.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
-      checks.push({ ok:false, msg:`[第2条] 往路乗り継ぎ違反: 「${ns}」は出発地または目的地と同じです` });
-    } else {
-      checks.push({ ok:true, msg:'[第2条] 往路の乗り継ぎ: 重複なし ✓' });
-    }
-
-    // [第2条] 復路: 最初（復路出発地）・最後（帰着地）を乗り継ぎに使えない
-    const retBanned = new Set([retDepIata, arrIata]);
-    const retOvlp   = retConns.filter(ic => retBanned.has(ic));
-    if (retOvlp.length > 0) {
-      const ns = retOvlp.map(ic => CITIES.find(c=>c.iata===ic)?.name ?? ic).join('、');
-      checks.push({ ok:false, msg:`[第2条] 復路乗り継ぎ違反: 「${ns}」は復路出発地または帰着地と同じです` });
-    } else {
-      checks.push({ ok:true, msg:'[第2条] 復路の乗り継ぎ: 重複なし ✓' });
-    }
-  }
-
-  // [第3条] 乗り換えエリア制限（提携航空会社のみ）
-  if (ruleOn(3) && destCity.type !== 'domestic') {
-    const depArea  = zoneToArea(depCity.zone);
-    const destArea = Math.max(
-      zoneToArea(destCity.zone) ?? 0,
-      retDepCity ? (zoneToArea(retDepCity.zone) ?? 0) : 0
-    );
-    // 目的地エリアは「往路到着地」「復路出発地」のうち高いゾーンの都市を採用
-    const destAreaCity = (retDepCity && (ZONE_RANK[retDepCity.zone] ?? 0) > (ZONE_RANK[destCity.zone] ?? 0))
-      ? retDepCity : destCity;
-    const destAreaResolved = zoneToArea(destAreaCity.zone);
-    const forbidden = (FORBIDDEN_TRANSIT_AREAS[depArea]?.[destAreaResolved]) ?? [];
-    if (forbidden.length > 0) {
-      const r3Viol = [...outConns, ...retConns]
-        .map(ic => CITIES.find(c => c.iata === ic))
-        .filter(c => c && c.type === 'overseas' && forbidden.includes(zoneToArea(c.zone)));
-      if (r3Viol.length > 0) {
-        const ns = r3Viol.map(c => `${c.name}（エリア${zoneToArea(c.zone)}）`).join('、');
-        checks.push({ ok:false, msg:`[第3条] 乗り換えエリア違反: 出発地エリア${depArea}→目的地エリア${destAreaResolved}の場合、エリア${forbidden.join('・')}は乗り換え不可。違反: 「${ns}」` });
-      } else {
-        checks.push({ ok:true, msg:`[第3条] 乗り換えエリア: 許可エリアのみ ✓（出発地エリア${depArea}→目的地エリア${destAreaResolved}）` });
-      }
-    } else {
-      checks.push({ ok:true, msg:`[第3条] 乗り換えエリア: 制限なし ✓（出発地エリア${depArea}→目的地エリア${destAreaResolved}）` });
-    }
-  }
-
-  // [第4条] 乗り換えゾーン ≤ 目的地ゾーン（オープンジョーは両端の高い方）
-  // ANA便のみモードでは適用しない（公式ルールにないため）
-  if (ruleOn(4) && destCity.type !== 'domestic') {
-    const zoneViol = [...outConns, ...retConns]
-      .map(ic => CITIES.find(c => c.iata === ic))
-      .filter(c => c && c.type === 'overseas' && (ZONE_RANK[c.zone] ?? 0) > maxDestRank);
-    if (zoneViol.length > 0) {
-      const ns = zoneViol.map(c => `${c.name}（Zone${c.zone}）`).join('、');
-      checks.push({ ok:false, msg:`[第4条] 乗り換えゾーン違反: 「${ns}」は目的地 Zone${destCity.zone} より高いゾーンのため不可` });
-    } else {
-      checks.push({ ok:true, msg:`[第4条] 乗り換えゾーン: すべて目的地 Zone${destCity.zone} 以下 ✓` });
-    }
-  }
-
-  // [第5条] 出発地と最終帰着地が異なる場合、同一国内（日本国内）
-  // 米=カナダ、欧州=同一国などの特例は本ツール対象外（出発地は日本のみのため）
-  if (ruleOn(5) && STATE.arrival && STATE.arrival !== STATE.departure) {
-    if (depCity.type !== arrCity.type) {
-      checks.push({ ok:false, msg:`[第5条] 出発地（${depCity.name}）と帰着地（${arrCity.name}）は同一国（日本国内）である必要があります` });
-    } else {
-      checks.push({ ok:true, msg:`[第5条] 出発地・帰着地: 同一国（日本国内）✓` });
-    }
-  }
-
-  // [第6条] 出発地≠帰着地 or 往路到着地≠復路出発地の場合、同一エリア内
-  if (ruleOn(6)) {
-    // (a) 出発地と帰着地のエリア（出発地=日本=エリア3、帰着地=日本=エリア3 のためほぼ自動OK）
-    if (STATE.arrival && STATE.arrival !== STATE.departure) {
-      const aDep = zoneToArea(depCity.zone);
-      const aArr = zoneToArea(arrCity.zone);
-      if (aDep !== aArr) {
-        checks.push({ ok:false, msg:`[第6条] 出発地（${depCity.name}・エリア${aDep}）と帰着地（${arrCity.name}・エリア${aArr}）は同一エリア内である必要があります` });
-      }
-    }
-    // (b) オープンジョー時: 往路到着地と復路出発地は同一エリア（同一ゾーンである必要はない）
-    if (isOpenJaw) {
-      if (!retDepCity || retDepCity.type === 'domestic') {
-        checks.push({ ok:false, msg:`[第6条] 復路出発地は海外都市を選択してください` });
-      } else {
-        const aDest   = zoneToArea(destCity.zone);
-        const aRetDep = zoneToArea(retDepCity.zone);
-        if (aDest !== aRetDep) {
-          checks.push({ ok:false, msg:`[第6条] 往路到着地（${destCity.name}・エリア${aDest}）と復路出発地（${retDepCity.name}・エリア${aRetDep}）は同一エリア内である必要があります` });
-        } else if (destCity.zone !== retDepCity.zone) {
-          checks.push({ ok:true, msg:`[第6条] 往路到着地・復路出発地: 同一エリア${aDest}（${destCity.name}・Zone${destCity.zone} / ${retDepCity.name}・Zone${retDepCity.zone}）✓ — 異なるゾーンのため第7条のマイル計算が適用されます` });
-        } else {
-          checks.push({ ok:true, msg:`[第6条] 往路到着地・復路出発地: 同一Zone${destCity.zone}（${destCity.name} / ${retDepCity.name}）✓` });
-        }
-      }
-    }
-  }
-
-  // ストップオーバー上限（旅程全体で1箇所）
-  const soSlots = [
-    ...STATE.outbound.map((v,i) => (v && STATE.outboundSO[i]) ? STATE.outbound[i] : null),
-    ...STATE.return.map((v,i)   => (v && STATE.returnSO[i])   ? STATE.return[i]   : null),
-  ].filter(Boolean);
-
-  if (soSlots.length > 1) {
-    checks.push({ ok:false, msg:`ストップオーバーは旅程全体で1箇所まで（現在${soSlots.length}箇所）` });
-  } else if (soSlots.length === 1) {
-    const soCity = CITIES.find(c => c.iata === soSlots[0]);
-    // ANA便モード: 日本発の途中降機は不可
-    if (!cfg.stopoverJapanAllowed && depCity.type === 'domestic') {
-      checks.push({ ok:false, msg:`[途中降機] ANA国際線特典航空券では日本発の途中降機はできません（${soCity?.name ?? soSlots[0]}）。提携航空会社モードに変更するか、ストップオーバーを解除してください` });
-    } else {
-      checks.push({ ok:true, msg:`[途中降機] ${soCity?.name ?? soSlots[0]} — 1箇所 ✓` });
-    }
-  }
-
-  // [乗り換え] 上限チェック（提携: 国内2+海外2 / ANA: 国内2のみ）
-  const countByType = (slots) => {
-    let dom = 0, ovs = 0;
-    slots.forEach(iata => {
-      if (!iata) return;
-      const c = CITIES.find(x => x.iata === iata);
-      if (!c) return;
-      if (c.type === 'domestic') dom++; else ovs++;
-    });
-    return { dom, ovs };
-  };
-  const outCnt = countByType(STATE.outbound);
-  const retCnt = countByType(STATE.return);
-  const domMax = cfg.transitDomMax ?? 2;
-  const ovsMax = cfg.transitOvsMax ?? 2;
-
-  const transitCheck = (label, cnt) => {
-    if (cnt.dom > domMax) {
-      checks.push({ ok:false, msg:`[乗り換え] ${label} 日本国内 ${cnt.dom}/${domMax} — 日本国内の乗り換えは${domMax}回までです` });
-    }
-    if (cnt.ovs > ovsMax) {
-      const reason = ovsMax === 0
-        ? 'ANA国際線特典航空券では日本以外の乗り換えはできません'
-        : `日本以外の乗り換えは${ovsMax}回までです`;
-      checks.push({ ok:false, msg:`[乗り換え] ${label} 日本以外 ${cnt.ovs}/${ovsMax} — ${reason}` });
-    }
-  };
-  transitCheck('往路', outCnt);
-  transitCheck('復路', retCnt);
-
-  // [非公表ルール] 同一区間 (A→B) の2回利用検出
-  // ANA公式7条には明記なし、ただし予約システム（Amadeus Altea PSS）が弾く
-  // 出典: 「お得トラベル / ANAマイル講座」YouTube動画（uReA7HRWmos） 05:06〜
-  // 回避策: 経由地を別都市にする、オープンジョーで分割する 等
-  const outSeq = [depIata, ...outConns, destIata];
-  const retSeq = [isOpenJaw ? retDepIata : destIata, ...retConns, arrIata];
-  const pairs = arr => arr.slice(0, -1).map((a, i) => [a, arr[i + 1]]);
-  const allSegs = [...pairs(outSeq), ...pairs(retSeq)];
-  const segCount = {};
-  allSegs.forEach(([a, b]) => {
-    const key = `${a}→${b}`;
-    segCount[key] = (segCount[key] || 0) + 1;
+  const result = RULES_CORE.validateItinerary(currentItinerary(), {
+    awardType: STATE.awardType,
+    rules: RULES_CFG,
+    cities: CITIES,
   });
-  const dupSegs = Object.entries(segCount).filter(([, c]) => c >= 2);
-  if (dupSegs.length > 0) {
-    const ns = dupSegs.map(([k, c]) => {
-      const [a, b] = k.split('→');
-      const na = CITIES.find(x => x.iata === a)?.name ?? a;
-      const nb = CITIES.find(x => x.iata === b)?.name ?? b;
-      return `${na}→${nb}（${c}回）`;
-    }).join('、');
-    checks.push({
-      ok: 'warn',
-      msg: `[非公表ルール] 同じ区間を旅程内で2回飛ぶ予約は予約システム上エラーになります: ${ns} — 経由地を別都市に変える、オープンジョーで分割する等で回避可能（ANA公式7条には記載なし）`
-    });
+  const checks = result.checks;
+
+  // 都市マスタに無い空港など、判定に進めなかった場合はその理由だけ出す
+  if (result.incomplete) {
+    document.getElementById('result-summary').innerHTML =
+      `<div class="check-item check-ng" style="border-bottom:none">❌ ${checks[0]?.msg ?? '判定できません'}</div>`;
+    document.getElementById('check-results').innerHTML = '';
+    document.getElementById('mile-info').classList.add('hidden');
+    document.getElementById('result-card').classList.remove('hidden');
+    return;
   }
 
-  // 総合判定
-  const hasNg = checks.some(c => c.ok === false);
-  const warnCount = checks.filter(c => c.ok === 'warn').length;
+  const depIata    = STATE.departure;
+  const destIata   = STATE.destination;
+  const arrIata    = STATE.arrival ?? STATE.departure;
+  const retDepIata = result.resolved?.retDepIata ?? destIata;
+  const isOpenJaw  = !!result.resolved?.isOpenJaw;
+  const destCity   = result.resolved?.destCity;
+  const retDepCity = result.resolved?.retDepCity;
+  const soSlots    = result.resolved?.soIatas ?? [];
+
+  // 総合判定（判定そのものは rules-core が出した結果を使う）
+  const hasNg     = result.hasNg;
+  const warnCount = result.warnCount;
 
   // 旅程テキスト生成
   const cityName = iata => CITIES.find(c=>c.iata===iata)?.name ?? iata;
@@ -2171,7 +1981,6 @@ function onAwardTypeChange() {
 }
 
 function applyAwardTypeUI() {
-  const cfg = getAwardCfg();
   // ルール参照カードの表示切替
   const titleEl   = document.getElementById('rules-card-title');
   const partEl    = document.getElementById('rules-partner');
@@ -2806,6 +2615,9 @@ async function loadRoute(id) {
   const routes = await getSavedRoutes();
   const route  = routes.find(r => r.id === id);
   if (!route) return;
+  // 保存時点に無かったキーは前のルートの値が残るので、代入前に既定へ戻す
+  STATE.outboundSurface = [false, false, false];
+  STATE.returnSurface   = [false, false, false];
   Object.assign(STATE, route.state);
   (route.flightData ?? []).forEach(({ leg, data }) => { if (data) FLIGHT_CACHE.set(leg, data); });
   updateAllDots();
@@ -2878,6 +2690,9 @@ async function renderSavedRoutes() {
 // ===== 初期化 =====
 updateAllDots();
 initSettings();
+// 規約データ（data/award-rules.json）は非同期に読む。
+// 届いてから乗り換え上限カウンタを描き直す（それまで上限は表示しない）
+rulesReady.then(() => updateTransitCounter());
 renderSavedRoutes();
 ensureRouteDB(); // 路線辞書を先読み（チェック時の待ちを無くす）
 </script>

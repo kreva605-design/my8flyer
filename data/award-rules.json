@@ -2,7 +2,7 @@
  "_meta": {
   "project": "my8flyer",
   "schema": "scrape-guard/values@1",
-  "purpose": "特典航空券の乗り換え・途中降機の回数制限の正本。index.html の AWARD_RULES はここから読むこと（ハードコード禁止）。",
+  "purpose": "特典航空券の乗り換え・途中降機の回数制限の正本。読み手は src/rules-core.js の buildAwardRules() だけ。index.html にも proposer にも数値を写さないこと（2026-09-06 に index.html 側の写しを撤去済み）。",
   "trap": "ANAの『ご利用条件』ページは1つのURLに新旧2版がタブで同居し、aria-selected='true' が付くのは古い版のほう。上から読むと旧版を拾う。2026-09-06 に実際に2回誤読した。locator のパネル名を必ず確認すること。",
   "guard": "scripts/scrape_guard/guard.py（/scrape-guard スキル）。更新時は verify で正本と突き合わせてから書き換える。"
  },
@@ -192,7 +192,7 @@
    "fetched_at": "2026-09-06",
    "verified_at": "2026-09-06",
    "verified_by": "user+claude",
-   "note": "★未実装。羽田⇄成田のような地上移動を含む旅程で数え方がずれる。S-2 で rules-core に実装すること。"
+   "note": "2026-09-06 実装（src/rules-core.js の groupBySurface）。旅程側で outboundSurfaceAfter / returnSurfaceAfter を立てた区間の両端を1回として数える。★UI からこのフラグを立てる導線は未実装（S-5 の画面作り直しで追加する）ため、現状は常に false＝従来どおりの数え方になる。"
   },
   "common.stopover.counts_toward_transit@2025-06-24": {
    "rule": "common.stopover.counts_toward_transit",
@@ -205,7 +205,7 @@
    "fetched_at": "2026-09-06",
    "verified_at": "2026-09-06",
    "verified_by": "user+claude",
-   "note": "★未実装。途中降機を1つ置くと、その方向で使える乗り換え枠が1つ減る。S-2 で rules-core に実装すること。"
+   "note": "2026-09-06 検証。抽出前の index.html でも途中降機の地点は乗り継ぎスロットを占めるため既に1回として数えられていた（未実装ではなかった）。src/rules-core.js へ移した際にテストで固定した（tests/rules-core.test.mjs『途中降機は乗り換え回数に含まれる』）。"
   }
  }
 }
