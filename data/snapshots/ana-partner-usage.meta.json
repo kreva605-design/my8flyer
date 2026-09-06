@@ -1,0 +1,21 @@
+{
+ "url": "https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/",
+ "label": "ana-partner-usage",
+ "fetched_at": "2026-09-06T11:14:25",
+ "http_status": 200,
+ "bytes": 715967,
+ "sha256": "dede28c07794fde7dea3d5952052c7e447b4a3aeca84b79d6ef52d57910aca3e",
+ "changed_from_previous": true,
+ "lint": [
+  {
+   "id": "H1_multi_version",
+   "severity": "high",
+   "message": "有効期間の異なる版が同じページに 2 種類あります。どのパネルから値を取ったかを locator に記録しないと、旧版を現行版と誤認します。",
+   "detail": [
+    "2025年6月23日までの予約・発券分",
+    "2025年6月24日以降の予約・発券分"
+   ],
+   "source": "ana-partner-usage"
+  }
+ ]
+}

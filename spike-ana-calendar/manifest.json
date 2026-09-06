@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "My 8flyer — 特典カレンダー調査（読み取り専用）",
+  "version": "0.1.0",
+  "description": "ANA特典カレンダーの画面HTMLを手元に保存するだけの調査用拡張。フォームへの書き込み・自動遷移・外部送信は一切行いません。",
+  "permissions": ["scripting"],
+  "host_permissions": [
+    "https://aswbe-i.ana.co.jp/*",
+    "https://cam.ana.co.jp/*",
+    "https://www.ana.co.jp/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://aswbe-i.ana.co.jp/*",
+        "https://cam.ana.co.jp/*",
+        "https://www.ana.co.jp/*"
+      ],
+      "js": ["content.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

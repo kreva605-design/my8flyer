@@ -4,3 +4,9 @@ workers/**/.wrangler/
 # macOS
 .DS_Store
 **/.DS_Store
+
+# --- scrape-guard のスナップショット ---
+# 取得元サイトのHTML全文。差分比較のためにローカルには残すが、
+# このリポジトリは GitHub Pages で公開されるため、他社ページの再公開を避けて追跡しない。
+# 変更検知に必要なハッシュと罠検査の結果は .meta.json 側に入っており、そちらは追跡する。
+data/snapshots/*.html

@@ -1,0 +1,21 @@
+{
+ "url": "https://www.ana.co.jp/ja/jp/guide/amc/award/international/usage/",
+ "label": "ana-intl-usage",
+ "fetched_at": "2026-09-06T11:14:39",
+ "http_status": 200,
+ "bytes": 637185,
+ "sha256": "9fd2211ceec70a13fac1fbd1ddd0eb93f327806ecc62d895bae9e3d879625a81",
+ "changed_from_previous": true,
+ "lint": [
+  {
+   "id": "H1_multi_version",
+   "severity": "high",
+   "message": "有効期間の異なる版が同じページに 2 種類あります。どのパネルから値を取ったかを locator に記録しないと、旧版を現行版と誤認します。",
+   "detail": [
+    "2025年6月23日までの予約・発券分",
+    "2025年6月24日以降の予約・発券分"
+   ],
+   "source": "ana-intl-usage"
+  }
+ ]
+}

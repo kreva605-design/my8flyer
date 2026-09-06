@@ -1,0 +1,2701 @@
+{
+ "_meta": {
+  "source": "https://www.ana.co.jp/ja/jp/guide/amc/award/international/terms/",
+  "fetched": "2026-09-04",
+  "award_type": "ana",
+  "note": "ANA国際線特典航空券（ANA自社便）。ゾーンペア×シーズン（ロー/レギュラー/ハイ）×クラス（Y/PY/C/F）で必要マイルが決まる。日本は Zone 1 のみで 1-A/1-B の区別はない。before/after は 2026-05-19 搭乗分からの改定前/改定後。",
+  "pairs_roundtrip": 24,
+  "pairs_oneway": 24,
+  "halving_check_mismatches": []
+ },
+ "roundtrip": {
+  "1|2": {
+   "eco": {
+    "low": {
+     "before": 12000,
+     "after": 12000
+    },
+    "regular": {
+     "before": 15000,
+     "after": 15000
+    },
+    "high": {
+     "before": 18000,
+     "after": 24000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": null,
+     "after": null
+    },
+    "regular": {
+     "before": null,
+     "after": null
+    },
+    "high": {
+     "before": null,
+     "after": null
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 25000,
+     "after": 36000
+    },
+    "regular": {
+     "before": 30000,
+     "after": 41000
+    },
+    "high": {
+     "before": 33000,
+     "after": 50000
+    }
+   },
+   "first": {
+    "low": {
+     "before": null,
+     "after": null
+    },
+    "regular": {
+     "before": null,
+     "after": null
+    },
+    "high": {
+     "before": null,
+     "after": null
+    }
+   }
+  },
+  "1|3": {
+   "eco": {
+    "low": {
+     "before": 17000,
+     "after": 17000
+    },
+    "regular": {
+     "before": 20000,
+     "after": 20000
+    },
+    "high": {
+     "before": 23000,
+     "after": 30000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 30000,
+     "after": 30000
+    },
+    "regular": {
+     "before": 33000,
+     "after": 33000
+    },
+    "high": {
+     "before": 36000,
+     "after": 47000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 35000,
+     "after": 48000
+    },
+    "regular": {
+     "before": 40000,
+     "after": 53000
+    },
+    "high": {
+     "before": 43000,
+     "after": 65000
+    }
+   },
+   "first": {
+    "low": {
+     "before": null,
+     "after": null
+    },
+    "regular": {
+     "before": null,
+     "after": null
+    },
+    "high": {
+     "before": null,
+     "after": null
+    }
+   }
+  },
+  "1|4": {
+   "eco": {
+    "low": {
+     "before": 30000,
+     "after": 30000
+    },
+    "regular": {
+     "before": 35000,
+     "after": 35000
+    },
+    "high": {
+     "before": 38000,
+     "after": 50000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 46000,
+     "after": 46000
+    },
+    "regular": {
+     "before": 51000,
+     "after": 51000
+    },
+    "high": {
+     "before": 54000,
+     "after": 71000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 55000,
+     "after": 80000
+    },
+    "regular": {
+     "before": 60000,
+     "after": 85000
+    },
+    "high": {
+     "before": 63000,
+     "after": 95000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 105000,
+     "after": 115000
+    },
+    "regular": {
+     "before": 105000,
+     "after": 120000
+    },
+    "high": {
+     "before": 114000,
+     "after": 171000
+    }
+   }
+  },
+  "1|5": {
+   "eco": {
+    "low": {
+     "before": 35000,
+     "after": 35000
+    },
+    "regular": {
+     "before": 40000,
+     "after": 40000
+    },
+    "high": {
+     "before": 43000,
+     "after": 65000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 53000,
+     "after": 53000
+    },
+    "regular": {
+     "before": 58000,
+     "after": 58000
+    },
+    "high": {
+     "before": 61000,
+     "after": 88000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 80000,
+     "after": 80000
+    },
+    "regular": {
+     "before": 85000,
+     "after": 85000
+    },
+    "high": {
+     "before": 90000,
+     "after": 135000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 120000,
+     "after": 120000
+    },
+    "regular": {
+     "before": 140000,
+     "after": 140000
+    },
+    "high": {
+     "before": 160000,
+     "after": 240000
+    }
+   }
+  },
+  "1|6": {
+   "eco": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 50000,
+     "after": 50000
+    },
+    "high": {
+     "before": 55000,
+     "after": 72000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 62000,
+     "after": 62000
+    },
+    "regular": {
+     "before": 72000,
+     "after": 72000
+    },
+    "high": {
+     "before": 77000,
+     "after": 101000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 100000,
+     "after": 100000
+    },
+    "regular": {
+     "before": 105000,
+     "after": 105000
+    },
+    "high": {
+     "before": 110000,
+     "after": 165000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 150000,
+     "after": 150000
+    },
+    "regular": {
+     "before": 170000,
+     "after": 170000
+    },
+    "high": {
+     "before": 200000,
+     "after": 300000
+    }
+   }
+  },
+  "1|7": {
+   "eco": {
+    "low": {
+     "before": 45000,
+     "after": 45000
+    },
+    "regular": {
+     "before": 55000,
+     "after": 55000
+    },
+    "high": {
+     "before": 60000,
+     "after": 78000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 67000,
+     "after": 67000
+    },
+    "regular": {
+     "before": 77000,
+     "after": 77000
+    },
+    "high": {
+     "before": 82000,
+     "after": 107000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 110000,
+     "after": 110000
+    },
+    "regular": {
+     "before": 115000,
+     "after": 115000
+    },
+    "high": {
+     "before": 120000,
+     "after": 180000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 165000,
+     "after": 165000
+    },
+    "regular": {
+     "before": 190000,
+     "after": 190000
+    },
+    "high": {
+     "before": 220000,
+     "after": 330000
+    }
+   }
+  },
+  "1|10": {
+   "eco": {
+    "low": {
+     "before": 37000,
+     "after": 37000
+    },
+    "regular": {
+     "before": 45000,
+     "after": 45000
+    },
+    "high": {
+     "before": 50000,
+     "after": 65000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 54000,
+     "after": 54000
+    },
+    "regular": {
+     "before": 62000,
+     "after": 62000
+    },
+    "high": {
+     "before": 67000,
+     "after": 88000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 65000,
+     "after": 80000
+    },
+    "regular": {
+     "before": 75000,
+     "after": 90000
+    },
+    "high": {
+     "before": 80000,
+     "after": 135000
+    }
+   },
+   "first": {
+    "low": {
+     "before": null,
+     "after": null
+    },
+    "regular": {
+     "before": null,
+     "after": null
+    },
+    "high": {
+     "before": null,
+     "after": null
+    }
+   }
+  },
+  "2|3": {
+   "eco": {
+    "low": {
+     "before": 27000,
+     "after": 27000
+    },
+    "regular": {
+     "before": 30000,
+     "after": 30000
+    },
+    "high": {
+     "before": 33000,
+     "after": 44000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 39000,
+     "after": 39000
+    },
+    "regular": {
+     "before": 42000,
+     "after": 42000
+    },
+    "high": {
+     "before": 45000,
+     "after": 56000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 45000,
+     "after": 63000
+    },
+    "regular": {
+     "before": 50000,
+     "after": 67000
+    },
+    "high": {
+     "before": 53000,
+     "after": 81000
+    }
+   },
+   "first": {
+    "low": {
+     "before": null,
+     "after": null
+    },
+    "regular": {
+     "before": null,
+     "after": null
+    },
+    "high": {
+     "before": null,
+     "after": null
+    }
+   }
+  },
+  "2|4": {
+   "eco": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 45000,
+     "after": 45000
+    },
+    "high": {
+     "before": 48000,
+     "after": 64000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 55000,
+     "after": 55000
+    },
+    "regular": {
+     "before": 60000,
+     "after": 60000
+    },
+    "high": {
+     "before": 63000,
+     "after": 80000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 65000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 99000
+    },
+    "high": {
+     "before": 73000,
+     "after": 111000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 135000,
+     "after": 145000
+    },
+    "regular": {
+     "before": 135000,
+     "after": 150000
+    },
+    "high": {
+     "before": 144000,
+     "after": 201000
+    }
+   }
+  },
+  "2|5": {
+   "eco": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 50000,
+     "after": 50000
+    },
+    "high": {
+     "before": 55000,
+     "after": 81000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 60000,
+     "after": 60000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 70000
+    },
+    "high": {
+     "before": 75000,
+     "after": 102000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 90000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 101000,
+     "after": 107000
+    },
+    "high": {
+     "before": 107000,
+     "after": 161000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 150000,
+     "after": 150000
+    },
+    "regular": {
+     "before": 189000,
+     "after": 189000
+    },
+    "high": {
+     "before": 196000,
+     "after": 276000
+    }
+   }
+  },
+  "2|6": {
+   "eco": {
+    "low": {
+     "before": 45000,
+     "after": 45000
+    },
+    "regular": {
+     "before": 55000,
+     "after": 55000
+    },
+    "high": {
+     "before": 60000,
+     "after": 79000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 66000,
+     "after": 66000
+    },
+    "regular": {
+     "before": 76000,
+     "after": 76000
+    },
+    "high": {
+     "before": 81000,
+     "after": 105000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 105000,
+     "after": 108000
+    },
+    "regular": {
+     "before": 112000,
+     "after": 114000
+    },
+    "high": {
+     "before": 115000,
+     "after": 173000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 165000,
+     "after": 165000
+    },
+    "regular": {
+     "before": 185000,
+     "after": 185000
+    },
+    "high": {
+     "before": 215000,
+     "after": 315000
+    }
+   }
+  },
+  "2|7": {
+   "eco": {
+    "low": {
+     "before": 50000,
+     "after": 50000
+    },
+    "regular": {
+     "before": 60000,
+     "after": 60000
+    },
+    "high": {
+     "before": 65000,
+     "after": 85000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 71000,
+     "after": 71000
+    },
+    "regular": {
+     "before": 81000,
+     "after": 81000
+    },
+    "high": {
+     "before": 86000,
+     "after": 111000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 116000,
+     "after": 119000
+    },
+    "regular": {
+     "before": 121000,
+     "after": 123000
+    },
+    "high": {
+     "before": 125000,
+     "after": 188000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 180000,
+     "after": 180000
+    },
+    "regular": {
+     "before": 205000,
+     "after": 205000
+    },
+    "high": {
+     "before": 235000,
+     "after": 345000
+    }
+   }
+  },
+  "2|10": {
+   "eco": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 50000,
+     "after": 50000
+    },
+    "high": {
+     "before": 55000,
+     "after": 72000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 62000,
+     "after": 62000
+    },
+    "regular": {
+     "before": 72000,
+     "after": 72000
+    },
+    "high": {
+     "before": 77000,
+     "after": 98000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 75000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 83000,
+     "after": 101000
+    },
+    "high": {
+     "before": 88000,
+     "after": 148000
+    }
+   },
+   "first": {
+    "low": {
+     "before": null,
+     "after": null
+    },
+    "regular": {
+     "before": null,
+     "after": null
+    },
+    "high": {
+     "before": null,
+     "after": null
+    }
+   }
+  },
+  "3|4": {
+   "eco": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 45000,
+     "after": 45000
+    },
+    "high": {
+     "before": 48000,
+     "after": 64000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 55000,
+     "after": 55000
+    },
+    "regular": {
+     "before": 60000,
+     "after": 60000
+    },
+    "high": {
+     "before": 63000,
+     "after": 80000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 65000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 99000
+    },
+    "high": {
+     "before": 73000,
+     "after": 111000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 135000,
+     "after": 145000
+    },
+    "regular": {
+     "before": 135000,
+     "after": 150000
+    },
+    "high": {
+     "before": 144000,
+     "after": 201000
+    }
+   }
+  },
+  "3|5": {
+   "eco": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 50000,
+     "after": 50000
+    },
+    "high": {
+     "before": 55000,
+     "after": 81000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 60000,
+     "after": 60000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 70000
+    },
+    "high": {
+     "before": 75000,
+     "after": 102000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 90000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 101000,
+     "after": 107000
+    },
+    "high": {
+     "before": 107000,
+     "after": 161000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 150000,
+     "after": 150000
+    },
+    "regular": {
+     "before": 189000,
+     "after": 189000
+    },
+    "high": {
+     "before": 196000,
+     "after": 276000
+    }
+   }
+  },
+  "3|6": {
+   "eco": {
+    "low": {
+     "before": 45000,
+     "after": 45000
+    },
+    "regular": {
+     "before": 55000,
+     "after": 55000
+    },
+    "high": {
+     "before": 60000,
+     "after": 79000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 66000,
+     "after": 66000
+    },
+    "regular": {
+     "before": 76000,
+     "after": 76000
+    },
+    "high": {
+     "before": 81000,
+     "after": 105000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 105000,
+     "after": 108000
+    },
+    "regular": {
+     "before": 112000,
+     "after": 114000
+    },
+    "high": {
+     "before": 115000,
+     "after": 173000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 165000,
+     "after": 165000
+    },
+    "regular": {
+     "before": 185000,
+     "after": 185000
+    },
+    "high": {
+     "before": 215000,
+     "after": 315000
+    }
+   }
+  },
+  "3|10": {
+   "eco": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 50000,
+     "after": 50000
+    },
+    "high": {
+     "before": 55000,
+     "after": 72000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 62000,
+     "after": 62000
+    },
+    "regular": {
+     "before": 72000,
+     "after": 72000
+    },
+    "high": {
+     "before": 77000,
+     "after": 98000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 75000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 83000,
+     "after": 101000
+    },
+    "high": {
+     "before": 88000,
+     "after": 148000
+    }
+   },
+   "first": {
+    "low": {
+     "before": null,
+     "after": null
+    },
+    "regular": {
+     "before": null,
+     "after": null
+    },
+    "high": {
+     "before": null,
+     "after": null
+    }
+   }
+  },
+  "4|5": {
+   "eco": {
+    "low": {
+     "before": 50000,
+     "after": 50000
+    },
+    "regular": {
+     "before": 60000,
+     "after": 60000
+    },
+    "high": {
+     "before": 65000,
+     "after": 94000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 75000,
+     "after": 75000
+    },
+    "regular": {
+     "before": 85000,
+     "after": 85000
+    },
+    "high": {
+     "before": 90000,
+     "after": 127000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 110000,
+     "after": 124000
+    },
+    "regular": {
+     "before": 121000,
+     "after": 136000
+    },
+    "high": {
+     "before": 127000,
+     "after": 191000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 180000,
+     "after": 186000
+    },
+    "regular": {
+     "before": 219000,
+     "after": 228000
+    },
+    "high": {
+     "before": 226000,
+     "after": 339000
+    }
+   }
+  },
+  "4|6": {
+   "eco": {
+    "low": {
+     "before": 55000,
+     "after": 55000
+    },
+    "regular": {
+     "before": 65000,
+     "after": 65000
+    },
+    "high": {
+     "before": 70000,
+     "after": 92000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 84000,
+     "after": 84000
+    },
+    "regular": {
+     "before": 94000,
+     "after": 94000
+    },
+    "high": {
+     "before": 99000,
+     "after": 130000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 125000,
+     "after": 137000
+    },
+    "regular": {
+     "before": 132000,
+     "after": 143000
+    },
+    "high": {
+     "before": 135000,
+     "after": 204000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 195000,
+     "after": 200000
+    },
+    "regular": {
+     "before": 215000,
+     "after": 222000
+    },
+    "high": {
+     "before": 245000,
+     "after": 368000
+    }
+   }
+  },
+  "4|7": {
+   "eco": {
+    "low": {
+     "before": 60000,
+     "after": 60000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 70000
+    },
+    "high": {
+     "before": 75000,
+     "after": 98000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 88000,
+     "after": 88000
+    },
+    "regular": {
+     "before": 98000,
+     "after": 98000
+    },
+    "high": {
+     "before": 103000,
+     "after": 135000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 136000,
+     "after": 148000
+    },
+    "regular": {
+     "before": 141000,
+     "after": 152000
+    },
+    "high": {
+     "before": 145000,
+     "after": 218000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 210000,
+     "after": 215000
+    },
+    "regular": {
+     "before": 235000,
+     "after": 242000
+    },
+    "high": {
+     "before": 265000,
+     "after": 398000
+    }
+   }
+  },
+  "4|10": {
+   "eco": {
+    "low": {
+     "before": 50000,
+     "after": 50000
+    },
+    "regular": {
+     "before": 60000,
+     "after": 60000
+    },
+    "high": {
+     "before": 65000,
+     "after": 85000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 78000,
+     "after": 78000
+    },
+    "regular": {
+     "before": 88000,
+     "after": 88000
+    },
+    "high": {
+     "before": 93000,
+     "after": 123000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 95000,
+     "after": 124000
+    },
+    "regular": {
+     "before": 105000,
+     "after": 133000
+    },
+    "high": {
+     "before": 110000,
+     "after": 181000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 180000,
+     "after": 190000
+    },
+    "regular": {
+     "before": 180000,
+     "after": 195000
+    },
+    "high": {
+     "before": 195000,
+     "after": 252000
+    }
+   }
+  },
+  "5|10": {
+   "eco": {
+    "low": {
+     "before": 50000,
+     "after": 50000
+    },
+    "regular": {
+     "before": 60000,
+     "after": 60000
+    },
+    "high": {
+     "before": 65000,
+     "after": 88000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 84000,
+     "after": 84000
+    },
+    "regular": {
+     "before": 94000,
+     "after": 94000
+    },
+    "high": {
+     "before": 99000,
+     "after": 135000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 120000,
+     "after": 130000
+    },
+    "regular": {
+     "before": 131000,
+     "after": 140000
+    },
+    "high": {
+     "before": 137000,
+     "after": 215000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 180000,
+     "after": 180000
+    },
+    "regular": {
+     "before": 219000,
+     "after": 219000
+    },
+    "high": {
+     "before": 226000,
+     "after": 275000
+    }
+   }
+  },
+  "6|10": {
+   "eco": {
+    "low": {
+     "before": 60000,
+     "after": 60000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 70000
+    },
+    "high": {
+     "before": 75000,
+     "after": 98000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 88000,
+     "after": 88000
+    },
+    "regular": {
+     "before": 98000,
+     "after": 98000
+    },
+    "high": {
+     "before": 103000,
+     "after": 136000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 130000,
+     "after": 137000
+    },
+    "regular": {
+     "before": 137000,
+     "after": 153000
+    },
+    "high": {
+     "before": 140000,
+     "after": 216000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 210000,
+     "after": 210000
+    },
+    "regular": {
+     "before": 230000,
+     "after": 230000
+    },
+    "high": {
+     "before": 260000,
+     "after": 360000
+    }
+   }
+  },
+  "7|10": {
+   "eco": {
+    "low": {
+     "before": 65000,
+     "after": 65000
+    },
+    "regular": {
+     "before": 75000,
+     "after": 75000
+    },
+    "high": {
+     "before": 80000,
+     "after": 104000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 95000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 105000,
+     "after": 105000
+    },
+    "high": {
+     "before": 110000,
+     "after": 144000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 151000,
+     "after": 161000
+    },
+    "regular": {
+     "before": 156000,
+     "after": 164000
+    },
+    "high": {
+     "before": 161000,
+     "after": 250000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 225000,
+     "after": 225000
+    },
+    "regular": {
+     "before": 250000,
+     "after": 250000
+    },
+    "high": {
+     "before": 280000,
+     "after": 390000
+    }
+   }
+  }
+ },
+ "oneway": {
+  "1|2": {
+   "eco": {
+    "low": {
+     "before": 6000,
+     "after": 6000
+    },
+    "regular": {
+     "before": 7500,
+     "after": 7500
+    },
+    "high": {
+     "before": 12000,
+     "after": 12000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 18000,
+     "after": 18000
+    },
+    "regular": {
+     "before": 20500,
+     "after": 20500
+    },
+    "high": {
+     "before": 25000,
+     "after": 25000
+    }
+   }
+  },
+  "1|3": {
+   "eco": {
+    "low": {
+     "before": 8500,
+     "after": 8500
+    },
+    "regular": {
+     "before": 10000,
+     "after": 10000
+    },
+    "high": {
+     "before": 15000,
+     "after": 15000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 15000,
+     "after": 15000
+    },
+    "regular": {
+     "before": 16500,
+     "after": 16500
+    },
+    "high": {
+     "before": 23500,
+     "after": 23500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 24000,
+     "after": 24000
+    },
+    "regular": {
+     "before": 26500,
+     "after": 26500
+    },
+    "high": {
+     "before": 32500,
+     "after": 32500
+    }
+   }
+  },
+  "1|4": {
+   "eco": {
+    "low": {
+     "before": 15000,
+     "after": 15000
+    },
+    "regular": {
+     "before": 17500,
+     "after": 17500
+    },
+    "high": {
+     "before": 25000,
+     "after": 25000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 23000,
+     "after": 23000
+    },
+    "regular": {
+     "before": 25500,
+     "after": 25500
+    },
+    "high": {
+     "before": 35500,
+     "after": 35500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 42500,
+     "after": 42500
+    },
+    "high": {
+     "before": 47500,
+     "after": 47500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 57500,
+     "after": 57500
+    },
+    "regular": {
+     "before": 60000,
+     "after": 60000
+    },
+    "high": {
+     "before": 85500,
+     "after": 85500
+    }
+   }
+  },
+  "1|5": {
+   "eco": {
+    "low": {
+     "before": 17500,
+     "after": 17500
+    },
+    "regular": {
+     "before": 20000,
+     "after": 20000
+    },
+    "high": {
+     "before": 32500,
+     "after": 32500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 26500,
+     "after": 26500
+    },
+    "regular": {
+     "before": 29000,
+     "after": 29000
+    },
+    "high": {
+     "before": 44000,
+     "after": 44000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 42500,
+     "after": 42500
+    },
+    "high": {
+     "before": 67500,
+     "after": 67500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 60000,
+     "after": 60000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 70000
+    },
+    "high": {
+     "before": 120000,
+     "after": 120000
+    }
+   }
+  },
+  "1|6": {
+   "eco": {
+    "low": {
+     "before": 20000,
+     "after": 20000
+    },
+    "regular": {
+     "before": 25000,
+     "after": 25000
+    },
+    "high": {
+     "before": 36000,
+     "after": 36000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 31000,
+     "after": 31000
+    },
+    "regular": {
+     "before": 36000,
+     "after": 36000
+    },
+    "high": {
+     "before": 50500,
+     "after": 50500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 50000,
+     "after": 50000
+    },
+    "regular": {
+     "before": 52500,
+     "after": 52500
+    },
+    "high": {
+     "before": 82500,
+     "after": 82500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 75000,
+     "after": 75000
+    },
+    "regular": {
+     "before": 85000,
+     "after": 85000
+    },
+    "high": {
+     "before": 150000,
+     "after": 150000
+    }
+   }
+  },
+  "1|7": {
+   "eco": {
+    "low": {
+     "before": 22500,
+     "after": 22500
+    },
+    "regular": {
+     "before": 27500,
+     "after": 27500
+    },
+    "high": {
+     "before": 39000,
+     "after": 39000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 33500,
+     "after": 33500
+    },
+    "regular": {
+     "before": 38500,
+     "after": 38500
+    },
+    "high": {
+     "before": 53500,
+     "after": 53500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 55000,
+     "after": 55000
+    },
+    "regular": {
+     "before": 57500,
+     "after": 57500
+    },
+    "high": {
+     "before": 90000,
+     "after": 90000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 82500,
+     "after": 82500
+    },
+    "regular": {
+     "before": 95000,
+     "after": 95000
+    },
+    "high": {
+     "before": 165000,
+     "after": 165000
+    }
+   }
+  },
+  "1|10": {
+   "eco": {
+    "low": {
+     "before": 18500,
+     "after": 18500
+    },
+    "regular": {
+     "before": 22500,
+     "after": 22500
+    },
+    "high": {
+     "before": 32500,
+     "after": 32500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 27000,
+     "after": 27000
+    },
+    "regular": {
+     "before": 31000,
+     "after": 31000
+    },
+    "high": {
+     "before": 44000,
+     "after": 44000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 40000,
+     "after": 40000
+    },
+    "regular": {
+     "before": 45000,
+     "after": 45000
+    },
+    "high": {
+     "before": 67500,
+     "after": 67500
+    }
+   }
+  },
+  "2|3": {
+   "eco": {
+    "low": {
+     "before": 13500,
+     "after": 13500
+    },
+    "regular": {
+     "before": 15000,
+     "after": 15000
+    },
+    "high": {
+     "before": 22000,
+     "after": 22000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 19500,
+     "after": 19500
+    },
+    "regular": {
+     "before": 21000,
+     "after": 21000
+    },
+    "high": {
+     "before": 28000,
+     "after": 28000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 31500,
+     "after": 31500
+    },
+    "regular": {
+     "before": 33500,
+     "after": 33500
+    },
+    "high": {
+     "before": 40500,
+     "after": 40500
+    }
+   }
+  },
+  "2|4": {
+   "eco": {
+    "low": {
+     "before": 20000,
+     "after": 20000
+    },
+    "regular": {
+     "before": 22500,
+     "after": 22500
+    },
+    "high": {
+     "before": 32000,
+     "after": 32000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 27500,
+     "after": 27500
+    },
+    "regular": {
+     "before": 30000,
+     "after": 30000
+    },
+    "high": {
+     "before": 40000,
+     "after": 40000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 47500,
+     "after": 47500
+    },
+    "regular": {
+     "before": 49500,
+     "after": 49500
+    },
+    "high": {
+     "before": 55500,
+     "after": 55500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 72500,
+     "after": 72500
+    },
+    "regular": {
+     "before": 75000,
+     "after": 75000
+    },
+    "high": {
+     "before": 100500,
+     "after": 100500
+    }
+   }
+  },
+  "2|5": {
+   "eco": {
+    "low": {
+     "before": 20000,
+     "after": 20000
+    },
+    "regular": {
+     "before": 25000,
+     "after": 25000
+    },
+    "high": {
+     "before": 40500,
+     "after": 40500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 30000,
+     "after": 30000
+    },
+    "regular": {
+     "before": 35000,
+     "after": 35000
+    },
+    "high": {
+     "before": 51000,
+     "after": 51000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 47500,
+     "after": 47500
+    },
+    "regular": {
+     "before": 53500,
+     "after": 53500
+    },
+    "high": {
+     "before": 80500,
+     "after": 80500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 75000,
+     "after": 75000
+    },
+    "regular": {
+     "before": 94500,
+     "after": 94500
+    },
+    "high": {
+     "before": 138000,
+     "after": 138000
+    }
+   }
+  },
+  "2|6": {
+   "eco": {
+    "low": {
+     "before": 22500,
+     "after": 22500
+    },
+    "regular": {
+     "before": 27500,
+     "after": 27500
+    },
+    "high": {
+     "before": 39500,
+     "after": 39500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 33000,
+     "after": 33000
+    },
+    "regular": {
+     "before": 38000,
+     "after": 38000
+    },
+    "high": {
+     "before": 52500,
+     "after": 52500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 54000,
+     "after": 54000
+    },
+    "regular": {
+     "before": 57000,
+     "after": 57000
+    },
+    "high": {
+     "before": 86500,
+     "after": 86500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 82500,
+     "after": 82500
+    },
+    "regular": {
+     "before": 92500,
+     "after": 92500
+    },
+    "high": {
+     "before": 157500,
+     "after": 157500
+    }
+   }
+  },
+  "2|7": {
+   "eco": {
+    "low": {
+     "before": 25000,
+     "after": 25000
+    },
+    "regular": {
+     "before": 30000,
+     "after": 30000
+    },
+    "high": {
+     "before": 42500,
+     "after": 42500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 35500,
+     "after": 35500
+    },
+    "regular": {
+     "before": 40500,
+     "after": 40500
+    },
+    "high": {
+     "before": 55500,
+     "after": 55500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 59500,
+     "after": 59500
+    },
+    "regular": {
+     "before": 61500,
+     "after": 61500
+    },
+    "high": {
+     "before": 94000,
+     "after": 94000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 90000,
+     "after": 90000
+    },
+    "regular": {
+     "before": 102500,
+     "after": 102500
+    },
+    "high": {
+     "before": 172500,
+     "after": 172500
+    }
+   }
+  },
+  "2|10": {
+   "eco": {
+    "low": {
+     "before": 20000,
+     "after": 20000
+    },
+    "regular": {
+     "before": 25000,
+     "after": 25000
+    },
+    "high": {
+     "before": 36000,
+     "after": 36000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 31000,
+     "after": 31000
+    },
+    "regular": {
+     "before": 36000,
+     "after": 36000
+    },
+    "high": {
+     "before": 49000,
+     "after": 49000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 47500,
+     "after": 47500
+    },
+    "regular": {
+     "before": 50500,
+     "after": 50500
+    },
+    "high": {
+     "before": 74000,
+     "after": 74000
+    }
+   }
+  },
+  "3|4": {
+   "eco": {
+    "low": {
+     "before": 20000,
+     "after": 20000
+    },
+    "regular": {
+     "before": 22500,
+     "after": 22500
+    },
+    "high": {
+     "before": 32000,
+     "after": 32000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 27500,
+     "after": 27500
+    },
+    "regular": {
+     "before": 30000,
+     "after": 30000
+    },
+    "high": {
+     "before": 40000,
+     "after": 40000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 47500,
+     "after": 47500
+    },
+    "regular": {
+     "before": 49500,
+     "after": 49500
+    },
+    "high": {
+     "before": 55500,
+     "after": 55500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 72500,
+     "after": 72500
+    },
+    "regular": {
+     "before": 75000,
+     "after": 75000
+    },
+    "high": {
+     "before": 100500,
+     "after": 100500
+    }
+   }
+  },
+  "3|5": {
+   "eco": {
+    "low": {
+     "before": 20000,
+     "after": 20000
+    },
+    "regular": {
+     "before": 25000,
+     "after": 25000
+    },
+    "high": {
+     "before": 40500,
+     "after": 40500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 30000,
+     "after": 30000
+    },
+    "regular": {
+     "before": 35000,
+     "after": 35000
+    },
+    "high": {
+     "before": 51000,
+     "after": 51000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 47500,
+     "after": 47500
+    },
+    "regular": {
+     "before": 53500,
+     "after": 53500
+    },
+    "high": {
+     "before": 80500,
+     "after": 80500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 75000,
+     "after": 75000
+    },
+    "regular": {
+     "before": 94500,
+     "after": 94500
+    },
+    "high": {
+     "before": 138000,
+     "after": 138000
+    }
+   }
+  },
+  "3|6": {
+   "eco": {
+    "low": {
+     "before": 22500,
+     "after": 22500
+    },
+    "regular": {
+     "before": 27500,
+     "after": 27500
+    },
+    "high": {
+     "before": 39500,
+     "after": 39500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 33000,
+     "after": 33000
+    },
+    "regular": {
+     "before": 38000,
+     "after": 38000
+    },
+    "high": {
+     "before": 52500,
+     "after": 52500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 54000,
+     "after": 54000
+    },
+    "regular": {
+     "before": 57000,
+     "after": 57000
+    },
+    "high": {
+     "before": 86500,
+     "after": 86500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 82500,
+     "after": 82500
+    },
+    "regular": {
+     "before": 92500,
+     "after": 92500
+    },
+    "high": {
+     "before": 157500,
+     "after": 157500
+    }
+   }
+  },
+  "3|10": {
+   "eco": {
+    "low": {
+     "before": 20000,
+     "after": 20000
+    },
+    "regular": {
+     "before": 25000,
+     "after": 25000
+    },
+    "high": {
+     "before": 36000,
+     "after": 36000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 31000,
+     "after": 31000
+    },
+    "regular": {
+     "before": 36000,
+     "after": 36000
+    },
+    "high": {
+     "before": 49000,
+     "after": 49000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 47500,
+     "after": 47500
+    },
+    "regular": {
+     "before": 50500,
+     "after": 50500
+    },
+    "high": {
+     "before": 74000,
+     "after": 74000
+    }
+   }
+  },
+  "4|5": {
+   "eco": {
+    "low": {
+     "before": 25000,
+     "after": 25000
+    },
+    "regular": {
+     "before": 30000,
+     "after": 30000
+    },
+    "high": {
+     "before": 47000,
+     "after": 47000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 37500,
+     "after": 37500
+    },
+    "regular": {
+     "before": 42500,
+     "after": 42500
+    },
+    "high": {
+     "before": 63500,
+     "after": 63500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 62000,
+     "after": 62000
+    },
+    "regular": {
+     "before": 68000,
+     "after": 68000
+    },
+    "high": {
+     "before": 95500,
+     "after": 95500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 93000,
+     "after": 93000
+    },
+    "regular": {
+     "before": 114000,
+     "after": 114000
+    },
+    "high": {
+     "before": 169500,
+     "after": 169500
+    }
+   }
+  },
+  "4|6": {
+   "eco": {
+    "low": {
+     "before": 27500,
+     "after": 27500
+    },
+    "regular": {
+     "before": 32500,
+     "after": 32500
+    },
+    "high": {
+     "before": 46000,
+     "after": 46000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 42000,
+     "after": 42000
+    },
+    "regular": {
+     "before": 47000,
+     "after": 47000
+    },
+    "high": {
+     "before": 65000,
+     "after": 65000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 68500,
+     "after": 68500
+    },
+    "regular": {
+     "before": 71500,
+     "after": 71500
+    },
+    "high": {
+     "before": 102000,
+     "after": 102000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 100000,
+     "after": 100000
+    },
+    "regular": {
+     "before": 111000,
+     "after": 111000
+    },
+    "high": {
+     "before": 184000,
+     "after": 184000
+    }
+   }
+  },
+  "4|7": {
+   "eco": {
+    "low": {
+     "before": 30000,
+     "after": 30000
+    },
+    "regular": {
+     "before": 35000,
+     "after": 35000
+    },
+    "high": {
+     "before": 49000,
+     "after": 49000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 44000,
+     "after": 44000
+    },
+    "regular": {
+     "before": 49000,
+     "after": 49000
+    },
+    "high": {
+     "before": 67500,
+     "after": 67500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 74000,
+     "after": 74000
+    },
+    "regular": {
+     "before": 76000,
+     "after": 76000
+    },
+    "high": {
+     "before": 109000,
+     "after": 109000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 107500,
+     "after": 107500
+    },
+    "regular": {
+     "before": 121000,
+     "after": 121000
+    },
+    "high": {
+     "before": 199000,
+     "after": 199000
+    }
+   }
+  },
+  "4|10": {
+   "eco": {
+    "low": {
+     "before": 25000,
+     "after": 25000
+    },
+    "regular": {
+     "before": 30000,
+     "after": 30000
+    },
+    "high": {
+     "before": 42500,
+     "after": 42500
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 39000,
+     "after": 39000
+    },
+    "regular": {
+     "before": 44000,
+     "after": 44000
+    },
+    "high": {
+     "before": 61500,
+     "after": 61500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 62000,
+     "after": 62000
+    },
+    "regular": {
+     "before": 66500,
+     "after": 66500
+    },
+    "high": {
+     "before": 90500,
+     "after": 90500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 95000,
+     "after": 95000
+    },
+    "regular": {
+     "before": 97500,
+     "after": 97500
+    },
+    "high": {
+     "before": 126000,
+     "after": 126000
+    }
+   }
+  },
+  "5|10": {
+   "eco": {
+    "low": {
+     "before": 25000,
+     "after": 25000
+    },
+    "regular": {
+     "before": 30000,
+     "after": 30000
+    },
+    "high": {
+     "before": 44000,
+     "after": 44000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 42000,
+     "after": 42000
+    },
+    "regular": {
+     "before": 47000,
+     "after": 47000
+    },
+    "high": {
+     "before": 67500,
+     "after": 67500
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 65000,
+     "after": 65000
+    },
+    "regular": {
+     "before": 70000,
+     "after": 70000
+    },
+    "high": {
+     "before": 107500,
+     "after": 107500
+    }
+   },
+   "first": {
+    "low": {
+     "before": 90000,
+     "after": 90000
+    },
+    "regular": {
+     "before": 109500,
+     "after": 109500
+    },
+    "high": {
+     "before": 137500,
+     "after": 137500
+    }
+   }
+  },
+  "6|10": {
+   "eco": {
+    "low": {
+     "before": 30000,
+     "after": 30000
+    },
+    "regular": {
+     "before": 35000,
+     "after": 35000
+    },
+    "high": {
+     "before": 49000,
+     "after": 49000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 44000,
+     "after": 44000
+    },
+    "regular": {
+     "before": 49000,
+     "after": 49000
+    },
+    "high": {
+     "before": 68000,
+     "after": 68000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 68500,
+     "after": 68500
+    },
+    "regular": {
+     "before": 76500,
+     "after": 76500
+    },
+    "high": {
+     "before": 108000,
+     "after": 108000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 105000,
+     "after": 105000
+    },
+    "regular": {
+     "before": 115000,
+     "after": 115000
+    },
+    "high": {
+     "before": 180000,
+     "after": 180000
+    }
+   }
+  },
+  "7|10": {
+   "eco": {
+    "low": {
+     "before": 32500,
+     "after": 32500
+    },
+    "regular": {
+     "before": 37500,
+     "after": 37500
+    },
+    "high": {
+     "before": 52000,
+     "after": 52000
+    }
+   },
+   "premium_eco": {
+    "low": {
+     "before": 47500,
+     "after": 47500
+    },
+    "regular": {
+     "before": 52500,
+     "after": 52500
+    },
+    "high": {
+     "before": 72000,
+     "after": 72000
+    }
+   },
+   "biz": {
+    "low": {
+     "before": 80500,
+     "after": 80500
+    },
+    "regular": {
+     "before": 82000,
+     "after": 82000
+    },
+    "high": {
+     "before": 125000,
+     "after": 125000
+    }
+   },
+   "first": {
+    "low": {
+     "before": 112500,
+     "after": 112500
+    },
+    "regular": {
+     "before": 125000,
+     "after": 125000
+    },
+    "high": {
+     "before": 195000,
+     "after": 195000
+    }
+   }
+  }
+ }
+}

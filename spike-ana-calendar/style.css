@@ -1,0 +1,66 @@
+/* 調査用スパイクのUI。ANA側の見た目を壊さないよう、
+   すべて #m8f-spike-* の固有IDに限定し、継承も遮断する。 */
+
+#m8f-spike-fab {
+  all: initial;
+  position: fixed;
+  right: 16px;
+  /* 既存の ana-bridge 拡張のFAB（右下 16px）と重ならないよう1段上に出す */
+  bottom: 76px;
+  z-index: 2147483647;
+  display: block;
+  padding: 12px 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+    "Yu Gothic UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  background: #1a56db;
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+
+#m8f-spike-fab:hover {
+  background: #1e40af;
+}
+
+#m8f-spike-fab:disabled {
+  background: #94a3b8;
+  cursor: default;
+}
+
+#m8f-spike-msg {
+  all: initial;
+  position: fixed;
+  right: 16px;
+  bottom: 122px;
+  z-index: 2147483647;
+  display: block;
+  max-width: 340px;
+  padding: 10px 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+    "Yu Gothic UI", sans-serif;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #0f172a;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+#m8f-spike-msg[hidden] {
+  display: none !important;
+}
+
+#m8f-spike-msg[data-tone="ok"] {
+  border-color: #16a34a;
+}
+
+#m8f-spike-msg[data-tone="error"] {
+  border-color: #dc2626;
+  color: #991b1b;
+}
