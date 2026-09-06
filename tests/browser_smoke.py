@@ -1,8 +1,10 @@
 # index.html を実際にブラウザで開き、規約データの読み込みと判定を実測する
-import subprocess, time, json, sys
+import subprocess, time, json, sys, os
 from playwright.sync_api import sync_playwright
 
-ROOT = "/Users/tanakahiroyuki/Documents/claude-workspace-local/projects/my8flyer"
+# このファイル（tests/）の1つ上＝プロジェクト直下を配信する。
+# 絶対パスを書かない（このリポジトリは GitHub Pages で公開されるため）
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = 8791  # 8787/8788 は司令室が使用中（infra-inventory）
 
 srv = subprocess.Popen(
