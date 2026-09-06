@@ -1,13 +1,17 @@
 # My 8flyer 立て直し — HANDOFF
 
-> **更新セッション**：`7bacf35d` ／ **2026-09-06 16:40**
+> **更新セッション**：`7bacf35d` ／ **2026-09-07**
 > **計画の正本**：`~/.claude/plans/noble-swimming-blossom.md`（ユーザー承認済み）
 
 ---
 
 ## ① 何をしていたか
 
-**My 8flyer（ANA特典航空券の旅程チェッカー）が一度も実利用されていない**ため、提案型へ作り直している。承認済み計画の **S-0（空席スパイク）・S-1（データ基盤）・S-2（rules-core の抽出）・S-3（proposer）まで完了**、次は **S-4（実便の裏どり）** または **S-5（UI 作り直し）**。
+**My 8flyer（ANA特典航空券の旅程チェッカー）が一度も実利用されていない**ため、提案型へ作り直している。承認済み計画の **S-0・S-1・S-2・S-3 完了**。**順序を変更し、S-5（UI）→ S-4（実便）の順で進める**（2026-09-06 ユーザー決定）。
+
+**いまは S-5 の画面設計をユーザーとレビュー中。第3版まで提出済み。設計承認が実装の必須ゲートなので、承認が出るまで画面の実装に入らない。**
+
+> 📄 画面設計（第3版）：https://claude.ai/code/artifact/580d31c6-d0c5-42ea-aaaa-9f3b8b64578a
 
 S-2 でやったこと：
 
@@ -23,6 +27,14 @@ S-3 でやったこと：
 - 「必要マイル × 寄り道先」で集約。**広島→パリ 420,234通り → 28本**にした
 - [tests/proposer.test.mjs](tests/proposer.test.mjs) 20件を新設（単体は計47件・全PASS）
 - ⚠️ **proposer / miles-core はまだ画面から呼ばれていない**（S-5 で接続）
+
+S-5 のレビューで見つけて直したこと（2026-09-06〜07）：
+
+- 🔴 **【欠陥】特典の種類で運航会社を絞っていなかった。** ANA自社便の提案28本中4本に、ANAが飛ばない区間が入っていた（羽田→グアムはUAのみ運航）。`data/airlines.json` を正本にして是正。副産物として提携社の114区間が候補に加わり、羽田→ハノイの基準が 38,000→**35,000** に
+- **必要マイルの説明を訂正。** 「一律+7,000」はパリ限定だった。正しくは**目的地のゾーンで +3,000〜+7,000**、寄り道先のゾーンは無関係。**ANA自社便は 1-A/1-B が無いので追加0**（ただし日本発の途中降機は不可＝帰着地変更のみ）
+- **順位付けを距離で行う。** `data/airports.json`（OurAirports）＋ `src/geo.js`。「まっすぐ帰る旅程との飛行距離の差」で並べる
+- **「増える都市」を1本の軸に。** 寄り道と帰着地変更を掛け算すると560行になる
+- **総当たりをやめた。** 24.6秒 → 0.4〜0.7秒（メモリ枯渇で落ちてもいた）
 
 ---
 
@@ -42,19 +54,24 @@ S-3 でやったこと：
 
 ## ③ 次の一手（最初の15分）
 
-**まず提案の中身を自分の目で見る。** これが次の判断の材料になる。
+**ユーザーの回答待ち。3問が未回答で、うち Q5 は編集導線の設計に直結する。**
+
+| | 未回答の質問 |
+|---|---|
+| **Q5** | S2・S3・S4 の画面から「直したい」と思う値はあるか（配置ポリシー §5 の必須ヒアリング） |
+| Q9 | 国内の帰着地は就航8路線以上に限定。絞る／広げる希望はあるか |
+| Q10 | 「その国の都市をできるだけ選ぶ」の意味（①同じ国は1都市に畳む ②各国の代表都市を優先） |
+
+**回答が来たら、画面設計を第4版に更新 → 承認 → 実装（`/build`）。**
+
+提案の中身を自分の目で見るには：
 
 ```bash
 cd projects/my8flyer
-node tests/propose_cli.mjs HIJ CDG --stopover --top 20     # 広島→パリ・寄り道あり
-node tests/propose_cli.mjs HND CMN --stopover              # 東京→カサブランカ（Zone8）
-node tests/propose_cli.mjs HIJ CDG --ana                   # ANA自社便（1本しか出ない）
+node tests/propose_cli.mjs HND CDG --stopover --top 12   # 羽田→パリ（34本）
+node tests/propose_cli.mjs HND HAN --stopover            # 羽田→ハノイ（+3,000で1都市）
+node tests/propose_cli.mjs HND CDG --ana --stopover      # ANA自社便（帰着地変更のみ・追加0）
 ```
-
-そのうえで **S-4（実便の裏どり）** と **S-5（UI 作り直し）** のどちらを先にやるかを決める。
-**S-5 を先にする案を推す。** 提案そのものは実便が無くても成立しており（L1 で自立）、
-いま足りないのは「28本をどう見せて1本を選ばせるか」のほうであるため。
-S-5 は `/ui-flow` → **★PoC是非判定（ユーザー承認）** が必須。
 
 呼び出し方（S-2・S-3 で確定した契約）：
 
@@ -80,15 +97,17 @@ const { proposals, stats } = propose(
 | **判定ロジックの正本** | [src/rules-core.js](src/rules-core.js) |
 | **必要マイルの正本** | [src/miles-core.js](src/miles-core.js)（1-A/1-B 判定・オープンジョー合算） |
 | **提案エンジン** | [src/proposer.js](src/proposer.js) |
+| 距離（しんどさ） | [src/geo.js](src/geo.js)／[data/airports.json](data/airports.json)（OurAirports・public domain） |
+| **乗れる航空会社の正本** | [data/airlines.json](data/airlines.json)（自社便=NH／提携=スタアラ∪ANA提携社）★一次情報との突合は未実施 |
 | 提案の目視CLI | [tests/propose_cli.mjs](tests/propose_cli.mjs)（`node tests/propose_cli.mjs HIJ CDG --stopover`） |
 | **規約値の正本** | [data/award-rules.json](data/award-rules.json)（15値・出典と原文つき・旧版併記） |
-| 単体テスト | [tests/rules-core.test.mjs](tests/rules-core.test.mjs) 27件／[tests/proposer.test.mjs](tests/proposer.test.mjs) 20件 |
+| 単体テスト | [tests/rules-core.test.mjs](tests/rules-core.test.mjs) 27件／[tests/proposer.test.mjs](tests/proposer.test.mjs) 31件 |
 | ブラウザ疎通 | [tests/browser_smoke.py](tests/browser_smoke.py)（`.venv/bin/python tests/browser_smoke.py`・ポート8791） |
 | マイルチャート | [data/mile-chart-partner.json](data/mile-chart-partner.json)（99ペア）／[data/mile-chart-ana.json](data/mile-chart-ana.json)（24ペア） |
 | 取得スクリプト | `scripts/my8flyer/fetch_mile_charts.py`／`parse_award_calendar.py` |
 | 空席スパイク拡張 | [spike-ana-calendar/](spike-ana-calendar/)（読み取り専用・調査用） |
 | 再発防止基盤 | `scripts/scrape_guard/guard.py`／`~/.claude/commands/scrape-guard.md` |
-| 設計書 | Vault `projects/my8flyer/architecture.md` **§15（S-2）・§16（S-3）** |
+| 設計書 | Vault `projects/my8flyer/architecture.md` **§15（S-2）・§16（S-3）・§17（S-5設計と是正）** |
 | 公開ページ | https://kreva605-design.github.io/my8flyer/ |
 
 ---
@@ -113,17 +132,18 @@ const { proposals, stats } = propose(
 
 ### 残作業
 
-残作業 7件 — **あなたの判断が1件あります**（内訳：1番=Claudeがやる 3件 / 2番=Claudeがやる（今は待ち） 1件 / **4番=決めてほしい 1件** / 5番=放置でよい 2件）。
+残作業 8件 — **あなたの回答が3件あります**（内訳：**3番=あなたがやる 3件** / 1番=Claudeがやる 3件 / 2番=Claudeがやる（今は待ち） 1件 / 5番=放置でよい 1件）。
 
 | # | 判定 | やるか | 内容 | 放置するとどうなるか |
 |---|---|---|---|---|
-| 4 | `要件外-リスク` | ❓ 決めてほしい | **S-4（実便の裏どり）と S-5（UI 作り直し）のどちらを先にやるか。** 計画の順序は S-4 → S-5 だが、提案は実便が無くても成立しており、いま足りないのは「28本をどう見せて1本を選ばせるか」のほう。**Claude の推奨は S-5 を先**（要件に無い順序変更・Claudeの気づき） | 計画どおり S-4 を先に進める。実便は付くが、28本を選べる画面が無いままなので実利用にはまだ届かない |
-| 1 | `REQ-未達` | ✅ Claudeがやる | proposer / miles-core が画面から呼ばれていない（S-5 で接続） | 提案エンジンはあるがCLIからしか使えない＝実利用できない |
-| 1 | `REQ-未達` | ✅ Claudeがやる | 地上移動フラグを画面から立てる導線が無い（判定側は実装済み・S-5） | 羽田着→成田発を乗り換え2回として過剰に不合格にし続ける |
-| 1 | `REQ-未達` | ✅ Claudeがやる | 旧 `MILE_CHART` が index.html に残置。表示を miles-core へ差し替えるのは S-5 | 画面の必要マイル表示だけが公式と46セル中22セル不一致のまま（提案側は新チャートを使用） |
-| 2 | `REQ-待ち` | ⏸ Claudeがやる（今は待ち） | `build-manifest.yml` の `sources.design.sha256` を確定できない。`hash_sources.py` が参照欠損46件で停止するが、これは既知の誤検出（**TASK-DF-09**）。**解除条件＝TASK-DF-09 の完了** | 設計書を更新するたび `/verify` が同じ drift を出す（検知は生きている） |
-| 5 | `要件外-任意` | 💤 放置でよい | 路線グラフが 2026-05-03 で凍結（上流の flightsfrom.com が403で17週連続失敗）（要件に無い・Claudeの気づき） | 新規就航・運休が提案に反映されない。**当面は何も起きない**（既存路線は変わらないため） |
-| 5 | `要件外-任意` | 💤 放置でよい | 都市マスタが66都市で、経由候補7都市が未登録（SFO・EWR・IAD・IAH・AKL・YYZ・MAJ）（要件に無い・Claudeの気づき） | 提案の経由候補が少し狭いまま。S-5 の実利用後に必要なら足せばよい |
+| 3 | `REQ-人手` | 👤 **あなたがやる** | **Q5：各画面から「直したい」値はあるか。** 配置ポリシー §5 で必須のヒアリング | 編集導線が決められず、S-5 の実装に入れない |
+| 3 | `REQ-人手` | 👤 **あなたがやる** | **Q9：国内の帰着地の範囲**（いま就航8路線以上） | 現状の設定のまま実装する |
+| 3 | `REQ-人手` | 👤 **あなたがやる** | **Q10：「その国の都市」の意味**（同国を1都市に畳む／代表都市を優先） | 就航路線数の多い順のまま実装する |
+| 1 | `REQ-未達` | ✅ Claudeがやる | S-5 の実装（proposer / miles-core を画面へ接続）。**設計承認が必須ゲート**なので着手していない | 提案エンジンはCLIからしか使えず、実利用に届かない |
+| 1 | `REQ-未達` | ✅ Claudeがやる | 陸路移動フラグを画面から立てる導線（判定側は実装済み・S-5） | 羽田着→成田発を乗り換え2回として過剰に不合格にし続ける |
+| 1 | `REQ-未達` | ✅ Claudeがやる | 旧 `MILE_CHART` の残置。画面表示を miles-core へ差し替え（S-5） | 画面のマイル表示だけが公式と46セル中22セル食い違ったまま |
+| 2 | `REQ-待ち` | ⏸ Claudeがやる（今は待ち） | manifest の `sources.design.sha256` 確定。**解除条件＝TASK-DF-09 の完了**（参照欠損の誤検出） | 設計書を更新するたび `/verify` が同じ drift を出す |
+| 4 | `要件外-リスク` | ❓ 決めてほしい | **`data/airlines.json` が一次情報と未突合。** index.html から移設しただけで、ANA公式の提携航空会社ページと照合していない（要件に無い・Claudeの気づき） | 提携社が増減したときに、乗れない便を提案する／乗れる便を落とす。**費用¥0・所要30分程度。`/scrape-guard` を通して突合する。Claude の推奨は「実装前にやる」** |
 
 ### そのほか未解決（S-3 以降の判断材料）
 

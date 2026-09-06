@@ -1,6 +1,6 @@
 project: my8flyer
 schema_version: 1
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 sources:
   design:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
@@ -288,4 +288,60 @@ requirements:
   test_ref: tests/proposer.test.mjs
   verify_mode: auto
   last_verified: 2026-09-06
+  status: green
+- id: REQ-36
+  text: 特典の種類で乗れる航空会社を切り替える。ANA国際線特典（自社便）は NH 運航区間のみ、提携特典はスターアライアンス加盟社とANA提携社の和集合
+  design_ref: architecture.md#17-2
+  impl_ref: src/proposer.js::allowedCarriers(),enumeratePaths(),data/airlines.json
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-37
+  text: 提案の順位は「まっすぐ帰る旅程との飛行距離の差」で決める。必要マイルは同じ目的地なら寄り道先によらず一定のため、マイルでは魅力のないルートを落とせない
+  design_ref: architecture.md#17-3
+  impl_ref: src/geo.js,src/proposer.js::propose(),data/airports.json
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-38
+  text: 遠回りの基準は「帰着地＝出発地」の最短旅程1つに固定する。帰着地ごとに基準を取り直すとどの案も差0になり並べられない
+  design_ref: architecture.md#17-3
+  impl_ref: src/proposer.js::propose()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-39
+  text: 立ち寄れる空港の判定は、空港設備の等級ではなく「特典で乗れる社の就航路線数」で行う。帰着地は8路線以上に限る
+  design_ref: architecture.md#17-3
+  impl_ref: src/proposer.js::hubScore()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-40
+  text: 「増える都市」は1旅程につき1つ。途中降機と帰着地変更を掛け合わせない（掛けると羽田→パリだけで560行になる）。出発地・目的地は増える都市に数えない
+  design_ref: architecture.md#17-4
+  impl_ref: src/proposer.js::propose()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-41
+  text: 海外オープンジョー（復路の出発地を目的地と変える形）は提案しない。手動編集では従来どおり可能
+  design_ref: architecture.md#17-4
+  impl_ref: src/proposer.js::propose()
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-42
+  text: 候補を全件ためず「必要マイル×増える都市」で畳みながら進め、経路は都市ごとの最短1本に絞る。絞り込みで寄り道先の顔ぶれが減らないことを検査する
+  design_ref: architecture.md#17-5
+  impl_ref: src/proposer.js::pickRepresentativePaths(),propose()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
   status: green

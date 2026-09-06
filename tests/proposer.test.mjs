@@ -5,14 +5,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CITIES, STAR_ALLIANCE, CHARTS, buildRules, loadRoutes } from './_load.mjs';
+import { CITIES, ALL_CARRIERS, AIRLINES, CHARTS, buildRules, loadRoutes, readJson } from './_load.mjs';
 import { requiredMiles, japanZoneKey } from '../src/miles-core.js';
-import { buildGraph, propose } from '../src/proposer.js';
+import { buildGraph, propose, allowedCarriers, hubScore } from '../src/proposer.js';
 import { validateItinerary, ZONE_RANK } from '../src/rules-core.js';
 
 const rules = buildRules();
-const graph = buildGraph(loadRoutes(), CITIES, { carriers: STAR_ALLIANCE });
-const ctx   = { rules, charts: CHARTS, cities: CITIES, graph };
+const ROUTES = loadRoutes();
+const graph = buildGraph(ROUTES, CITIES, { carriers: ALL_CARRIERS });
+const COORDS = readJson('data/airports.json').airports;
+const ctx    = { rules, charts: CHARTS, cities: CITIES, graph, airlines: AIRLINES };
+// 既定では帰着地を変える案（国内オープンジョー）を列挙しない。
+// 目的の絞れたテストを速く回すため。必要なテストだけ明示的に有効にする
+const NO_OJ = { domesticOpenJaw: false };          // 座標なし（従来の並び）
+const ctxGeo = { ...ctx, coords: COORDS };                                 // 座標あり（遠回りで並べる）
 
 function itin(o = {}) {
   return {
@@ -110,13 +116,53 @@ test('特典で乗れない航空会社しか飛ばない区間は落とす', ()
   assert.ok(graph.stats.kept > 500, `残った区間 ${graph.stats.kept}`);
   assert.ok(graph.stats.dropped > graph.stats.kept * 10, '大半の区間は対象外のはず');
   // JL(日本航空)だけが飛ぶ区間は特典では使えない
-  const routes = loadRoutes();
-  const jlOnly = Object.entries(routes).find(([k, v]) =>
+  const jlOnly = Object.entries(ROUTES).find(([k, v]) =>
     !k.startsWith('_') && v.length === 1 && v[0] === 'JL');
   if (jlOnly) {
     const [from, to] = jlOnly[0].split('-');
     assert.equal(graph.adj.get(from)?.has(to) ?? false, false);
   }
+});
+
+// =====================================================================
+// 6. 特典の種類ごとに乗れる航空会社が違う（ANA自社便 と 提携 の使い分け）
+// =====================================================================
+
+test('ANA自社便の提案に、ANAが飛ばない区間が1つも混ざらない', () => {
+  // 2026-09-06 の欠陥：運航会社を絞っておらず、羽田→グアム（UAのみ運航）を
+  // ANA自社便の提案として出していた（28本中4本）
+  const dests = CITIES.filter((c) => c.type === 'overseas').map((c) => c.iata);
+  let checked = 0;
+  for (const d of dests) {
+    const { proposals } = propose({ origin: 'HND', destination: d, awardType: 'ana', ...NO_OJ }, ctxGeo);
+    for (const p of proposals) {
+      checked++;
+      const legs = [['HND', ...p.itinerary.outbound.filter(Boolean), d],
+                    [d, ...p.itinerary.return.filter(Boolean), 'HND']];
+      for (const leg of legs) {
+        for (let i = 0; i < leg.length - 1; i++) {
+          const air = ROUTES[`${leg[i]}-${leg[i + 1]}`] ?? [];
+          assert.ok(air.includes('NH'),
+            `ANA自社便なのに ${leg[i]}-${leg[i + 1]} を使っている（運航 ${air.join(',')}）`);
+        }
+      }
+    }
+  }
+  assert.ok(checked > 10, `検査した提案が少なすぎる（${checked}本）`);
+});
+
+test('ANAが飛んでいない行き先は、自社便モードでは0本になる', () => {
+  const ana = propose({ origin: 'HND', destination: 'GUM', awardType: 'ana', ...NO_OJ }, ctxGeo);
+  assert.equal(ana.proposals.length, 0, '羽田→グアムはUA運航のみ');
+  const partner = propose({ origin: 'HND', destination: 'GUM', ...NO_OJ }, ctxGeo);
+  assert.ok(partner.proposals.length > 0, '提携特典なら成立する');
+});
+
+test('提携特典では、スターアライアンス以外のANA提携社の区間も使える', () => {
+  const set = allowedCarriers('partner', AIRLINES);
+  assert.ok(set.size > AIRLINES.star_alliance.length, 'スタアラだけになっていない');
+  AIRLINES.ana_partners.forEach((a) => assert.ok(set.has(a), `${a} が漏れている`));
+  assert.deepEqual([...allowedCarriers('ana', AIRLINES)], ['NH']);
 });
 
 // =====================================================================
@@ -127,18 +173,18 @@ test('復路の候補が1通りに縮まない（枝刈りの基準は旅程の�
   // 復路の終点（日本・Zone1）を基準に枝刈りすると、海外の経由地が
   // すべて落ちて復路が「国内で乗り継ぐだけ」の1通りになる。
   // 2026-09-06 に実際にこの欠陥を出した
-  const { stats } = propose({ origin: 'HIJ', destination: 'CDG', maxTransits: 2 }, ctx);
+  const { stats } = propose({ origin: 'HIJ', destination: 'CDG', maxTransits: 2, ...NO_OJ }, ctx);
   assert.ok(stats.retPaths > 1, `復路の候補が ${stats.retPaths} 通りしかない`);
   assert.ok(stats.outPaths > 1);
 });
 
 test('広島→パリで提案が5本以上出る（完了の定義）', () => {
-  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2 }, ctx);
+  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2, ...NO_OJ }, ctx);
   assert.ok(proposals.length >= 5, `提案 ${proposals.length} 本`);
 });
 
 test('出力された提案は全件が規約判定に合格している（提案側で判定を作らない）', () => {
-  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2 }, ctx);
+  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2, ...NO_OJ }, ctx);
   for (const p of proposals) {
     const res = validateItinerary(p.itinerary, { awardType: 'partner', rules, cities: CITIES });
     assert.equal(res.ok, true, `不合格が混ざっている: ${p.route.join(' / ')}`);
@@ -146,7 +192,7 @@ test('出力された提案は全件が規約判定に合格している（提�
 });
 
 test('必要マイルの少ない順に並ぶ（不明は末尾）', () => {
-  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2 }, ctx);
+  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2, ...NO_OJ }, ctx);
   const known = proposals.filter((p) => p.miles != null).map((p) => p.miles);
   assert.deepEqual(known, [...known].sort((a, b) => a - b));
   const firstUnknown = proposals.findIndex((p) => p.miles == null);
@@ -156,7 +202,7 @@ test('必要マイルの少ない順に並ぶ（不明は末尾）', () => {
 });
 
 test('目的地より必要マイルの高いゾーンは経由地に現れない（第1条・第4条）', () => {
-  const { proposals } = propose({ origin: 'HND', destination: 'BKK', wantStopover: true, maxTransits: 2 }, ctx);
+  const { proposals } = propose({ origin: 'HND', destination: 'BKK', wantStopover: true, maxTransits: 2, ...NO_OJ }, ctx);
   const destRank = ZONE_RANK[CITIES.find((c) => c.iata === 'BKK').zone];
   for (const p of proposals) {
     for (const iata of [...p.itinerary.outbound, ...p.itinerary.return].filter(Boolean)) {
@@ -169,7 +215,7 @@ test('目的地より必要マイルの高いゾーンは経由地に現れな�
 });
 
 test('ANA自社便モードでは海外の経由地が1つも出ない', () => {
-  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', awardType: 'ana', wantStopover: true }, ctx);
+  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', awardType: 'ana', wantStopover: true, ...NO_OJ }, ctx);
   assert.ok(proposals.length >= 1);
   for (const p of proposals) {
     const ovs = [...p.itinerary.outbound, ...p.itinerary.return].filter(Boolean)
@@ -180,25 +226,113 @@ test('ANA自社便モードでは海外の経由地が1つも出ない', () => {
 });
 
 test('寄り道は1旅程に1つまで', () => {
-  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2 }, ctx);
+  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2, ...NO_OJ }, ctx);
   for (const p of proposals) {
     const n = [...p.itinerary.outboundSO, ...p.itinerary.returnSO].filter(Boolean).length;
     assert.ok(n <= 1, `途中降機が ${n} 箇所ある`);
   }
 });
 
-test('同じ（必要マイル・寄り道先）の案は1本にまとめ、まとめた数を残す', () => {
-  const req = { origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2 };
-  const merged = propose(req, ctx);
-  const raw    = propose({ ...req, dedupe: 'none' }, ctx);
-  assert.ok(merged.proposals.length < raw.proposals.length);
-  const keys = merged.proposals.map((p) => `${p.miles}|${p.stopover ?? '-'}`);
+test('同じ（必要マイル・増える都市）の案は1本にまとめ、まとめた数を残す', () => {
+  const { proposals, stats } = propose(
+    { origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2, ...NO_OJ }, ctx);
+  const keys = proposals.map((p) => `${p.miles}|${p.extraCity ?? '-'}`);
   assert.equal(new Set(keys).size, keys.length, '同じ組み合わせが2本出ている');
-  assert.equal(merged.proposals.reduce((a, p) => a + p.variants, 0), raw.proposals.length,
-    'まとめた本数の合計が元の本数と合わない');
+  assert.equal(proposals.reduce((a, p) => a + p.variants, 0), stats.passed,
+    'まとめた本数の合計が、合格した組み合わせの数と合わない');
+  assert.ok(proposals.length < stats.passed, '畳めていない');
 });
 
 test('寄り道を求めなければ寄り道つきの案は作らない', () => {
-  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', maxTransits: 2 }, ctx);
+  const { proposals } = propose({ origin: 'HIJ', destination: 'CDG', maxTransits: 2, ...NO_OJ }, ctx);
   assert.ok(proposals.every((p) => p.stopover === null));
+});
+
+// =====================================================================
+// 5. 遠回り（しんどさ）の測定と、代表経路の選抜
+// =====================================================================
+
+test('必要マイルが同じなら遠回りの少ない順に並ぶ', () => {
+  const { proposals } = propose({ origin: 'HND', destination: 'CDG', wantStopover: true, ...NO_OJ }, ctxGeo);
+  const g = proposals.filter((p) => p.miles === 62000).map((p) => p.detourKm);
+  assert.ok(g.length > 5);
+  assert.deepEqual(g, [...g].sort((a, b) => a - b));
+});
+
+test('明らかな大回りは下位に落ちる（シドニー経由がフランクフルトより上に来ない）', () => {
+  const { proposals } = propose({ origin: 'HND', destination: 'CDG', wantStopover: true, ...NO_OJ }, ctxGeo);
+  const idx = (name) => proposals.findIndex((p) => p.stopoverName === name);
+  const fra = idx('フランクフルト'), syd = idx('シドニー');
+  assert.ok(fra >= 0 && syd >= 0, 'どちらの案も出ていること');
+  assert.ok(fra < syd, `フランクフルト(${fra}) がシドニー(${syd}) より上にあること`);
+  assert.equal(proposals[fra].effort, 'ほぼ通り道');
+  assert.equal(proposals[syd].effort, '大回り');
+});
+
+test('代表経路の選抜で寄り道先の顔ぶれが減らない（黙って痩せないこと）', () => {
+  // 都市ごとに最短の1本だけ残す高速化を入れた。速くなっても
+  // 「行ける寄り道先」が減っていたら、それは静かな機能欠落になる
+  const req = { origin: 'HND', destination: 'CDG', wantStopover: true, ...NO_OJ };
+  const before = propose(req, ctx);      // 選抜なし（座標を渡さない）
+  const after  = propose(req, ctxGeo);   // 選抜あり
+  const set = (r) => new Set(r.proposals.map((p) => p.stopoverName ?? '-'));
+  assert.deepEqual([...set(after)].sort(), [...set(before)].sort());
+});
+
+test('選抜した経路の本数を stats に残す（絞った事実を隠さない）', () => {
+  const { stats } = propose({ origin: 'HND', destination: 'CDG', ...NO_OJ }, ctxGeo);
+  assert.ok(stats.outPathsFound > stats.outPaths, '絞る前と後の両方が記録されていること');
+  assert.ok(stats.retPathsFound > stats.retPaths);
+});
+
+test('国内オープンジョー（帰着地を変える）を提案できる', () => {
+  // 「羽田発 → パリ → 羽田で寄り道 → 沖縄着」のような形
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', arrival: 'OKA', wantStopover: true }, ctxGeo);
+  assert.ok(proposals.length > 0);
+  for (const p of proposals) {
+    assert.equal(p.itinerary.arrival, 'OKA');
+    const res = validateItinerary(p.itinerary, { awardType: 'partner', rules, cities: CITIES });
+    assert.equal(res.ok, true);
+  }
+});
+
+// =====================================================================
+// 7. 「増える都市」を1本の軸にする（寄り道と帰着地を掛け合わせない）
+// =====================================================================
+
+test('増える都市は1旅程に1つまで（寄り道と帰着地を掛け算しない）', () => {
+  // 掛け合わせるとパリ行きだけで560本になり、選べる一覧でなくなる
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  const keys = proposals.map((p) => `${p.miles}|${p.extraCity ?? '-'}`);
+  assert.equal(new Set(keys).size, keys.length, '同じ「増える都市」が2本出ている');
+  assert.ok(proposals.length < 60, `一覧が長すぎる（${proposals.length}本）`);
+  for (const p of proposals) {
+    const already = new Set(['HND', 'CDG']);
+    const extras = new Set([p.stopover, p.arrival].filter((x) => x && !already.has(x)));
+    assert.ok(extras.size <= 1, `増える都市が ${extras.size} 都市ある`);
+  }
+});
+
+test('帰着地を変える案は、就航路線の多い空港にしか降ろさない', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  const oj = proposals.filter((p) => p.openJaw);
+  assert.ok(oj.length > 0, '帰着地を変える案が1本も出ていない');
+  for (const p of oj) {
+    assert.ok(hubScore(graph, p.arrival, allowedCarriers('partner', AIRLINES)) >= 8,
+      `${p.arrivalName} は就航路線が少なすぎる`);
+  }
+});
+
+test('遠回りの基準は「まっすぐ帰る旅程」（帰着地ごとに取り直さない）', () => {
+  // 帰着地ごとに基準を取ると、どの帰着地の案も +0km になって並べられない
+  const { proposals, stats } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  const home = proposals.filter((p) => !p.openJaw && p.detourKm != null);
+  assert.equal(Math.min(...home.map((p) => p.detourKm)), 0, '基準となる0kmの案が無い');
+  const zero = proposals.filter((p) => p.detourKm === 0);
+  assert.ok(zero.length < 5, `+0km の案が多すぎる（${zero.length}本）＝基準が取り直されている`);
+  assert.equal(stats.baseKm, Math.min(...home.map((p) => p.km)));
 });

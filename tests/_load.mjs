@@ -21,6 +21,10 @@ export const STAR_ALLIANCE = extract(/const STAR_ALLIANCE = new Set\(\[[\s\S]*?\
 
 export const readJson = (rel) => JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
 export const RULES_JSON = readJson('data/award-rules.json');
+export const AIRLINES = readJson('data/airlines.json');
+export const ALL_CARRIERS = new Set([
+  ...AIRLINES.ana_own, ...AIRLINES.star_alliance, ...AIRLINES.ana_partners,
+]);
 export const CHARTS = {
   partner: readJson('data/mile-chart-partner.json'),
   ana:     readJson('data/mile-chart-ana.json'),

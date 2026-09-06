@@ -14,6 +14,7 @@
 // =====================================================================
 import { ZONE_RANK, validateItinerary } from './rules-core.js';
 import { requiredMiles } from './miles-core.js';
+import { pathDistanceKm } from './geo.js';
 
 // =====================================================================
 // buildGraph — routes.json から「乗り継ぎに使える区間」だけの隣接表を作る
@@ -23,8 +24,10 @@ import { requiredMiles } from './miles-core.js';
 // さらに都市マスタ（CITIES）に無い空港は、ゾーンが分からず規約判定に
 // かけられないため落とす。
 // =====================================================================
+// carriers には「この案件で乗りうる社すべて」（＝ANA自社便＋スタアラ＋ANA提携社）を渡す。
+// 特典の種類ごとの絞り込みは探索時に行う（グラフを2本持つと片方だけ直す事故が起きる）。
 export function buildGraph(routesJson, cities, opts = {}) {
-  const carriers = opts.carriers;         // Set<string>（例: STAR_ALLIANCE）
+  const carriers = opts.carriers;         // Set<string>
   if (!carriers || typeof carriers.has !== 'function') {
     throw new Error('opts.carriers（運航キャリアの集合）が必要です');
   }
@@ -65,20 +68,29 @@ export function buildGraph(routesJson, cities, opts = {}) {
 // 復路の終点は日本（Zone 1・順位0）なので、終点で枝刈りすると海外の
 // 経由地がすべて落ち、復路が「日本国内で乗り継ぐだけ」の1通りに縮む。
 // 2026-09-06 に実際にこれで復路が1通りしか出ていなかった。
-function enumeratePaths(adj, cities, from, to, limits, cap, pruneRank) {
+function enumeratePaths(adj, cities, from, to, limits, cap, pruneRank, allowed) {
   const cityOf = new Map(cities.map((c) => [c.iata, c]));
   const out = [];
+  // その特典で乗れる社が1社も飛んでいない区間は、そもそも経路に使えない。
+  // ★ANA国際線特典（自社便）は NH 運航便しか使えない。ここを見落とすと
+  //   「羽田→グアム（UAのみ運航）」をANA自社便の提案として出してしまう
+  //   （2026-09-06 に実際に28本中4本で発生していた）
+  const usable = (from2, to2) => {
+    const air = adj.get(from2)?.get(to2);
+    return !!air && (!allowed || air.some((a) => allowed.has(a)));
+  };
 
   const walk = (cur, visited, conns, domCnt, ovsCnt) => {
     if (out.length >= cap) return;
     const nexts = adj.get(cur);
     if (!nexts) return;
-    if (nexts.has(to)) out.push([...conns]);          // ここから目的地へ直行できる
+    if (usable(cur, to)) out.push([...conns]);        // ここから目的地へ直行できる
     if (conns.length >= limits.maxTransits) return;
 
     for (const nx of nexts.keys()) {
       if (out.length >= cap) return;
       if (nx === to || visited.has(nx)) continue;
+      if (!usable(cur, nx)) continue;
       const c = cityOf.get(nx);
       if (!c) continue;
       // 第1条・第4条の先取り：目的地より高いゾーンは経由地に使えない
@@ -96,6 +108,73 @@ function enumeratePaths(adj, cities, from, to, limits, cap, pruneRank) {
 
   walk(from, new Set([from]), [], 0, 0);
   return out;
+}
+
+// =====================================================================
+// pickRepresentativePaths — 各都市について「いちばん遠回りでない経路」だけ残す
+// =====================================================================
+// 経路を全部組み合わせると、羽田→パリで 573,045 組・判定 360万件になり
+// 24秒かかる。しかも最後に「必要マイル × 寄り道先」で畳むので、
+// 同じ寄り道先の中で選ばれるのは1本だけ。
+//
+// そこで組み合わせる前に、**都市ごとに最短の1本**へ絞る。
+// 「その都市を通る経路が1本も無くなる」ことは起きないので、
+// 提案に出てくる寄り道先の顔ぶれは変わらない（減るのは重複だけ）。
+//
+// ⚠️ 絞った結果は必ず stats に残す。黙って痩せた出力を正常と思い込まないため。
+// =====================================================================
+function pickRepresentativePaths(paths, from, to, coords) {
+  if (!coords) return { paths, kept: paths.length, enumerated: paths.length };
+  const scored = paths.map((conns) => ({
+    conns,
+    km: pathDistanceKm([from, ...conns, to], coords),
+  })).filter((x) => x.km != null);
+  if (scored.length === 0) return { paths, kept: paths.length, enumerated: paths.length };
+
+  const best = new Map();                       // 都市 → 最短でその都市を通る経路
+  let shortest = scored[0];
+  for (const s of scored) {
+    if (s.km < shortest.km) shortest = s;
+    for (const c of s.conns) {
+      const cur = best.get(c);
+      if (!cur || s.km < cur.km) best.set(c, s);
+    }
+  }
+  const uniq = new Map();
+  const add = (s) => uniq.set(s.conns.join('>'), s);
+  add(shortest);
+  for (const s of best.values()) add(s);
+  return {
+    paths: [...uniq.values()].map((s) => s.conns),
+    kept: uniq.size,
+    enumerated: paths.length,
+  };
+}
+
+// =====================================================================
+// allowedCarriers — その特典で乗れる航空会社
+// =====================================================================
+// ANA国際線特典航空券（自社便）… NH 運航便のみ
+// 提携航空会社特典航空券      … スターアライアンス加盟社 ＋ ANAの提携社
+// airlines を渡さないと絞り込まない（旧来の挙動）。正本は data/airlines.json
+// =====================================================================
+export function allowedCarriers(awardType, airlines) {
+  if (!airlines) return null;
+  if (awardType === 'ana') return new Set(airlines.ana_own ?? ['NH']);
+  return new Set([...(airlines.star_alliance ?? []), ...(airlines.ana_partners ?? [])]);
+}
+
+// 空港の「大きさ」は、特典で乗れる社が何路線飛ばしているかで測る。
+// 設備としての規模（OurAirports の large/medium）とは別物で、
+// 岡山も高知も large になってしまい乗り継ぎの実力を表さない
+export function hubScore(graph, iata, allowed) {
+  const out = graph.adj.get(iata);
+  if (!out) return 0;
+  let n = 0;
+  for (const air of out.values()) {
+    if (!allowed || air.some((a) => allowed.has(a))) n++;
+  }
+  return n;
 }
 
 const padSlots = (arr, n = 3) => [...arr, ...Array(Math.max(0, n - arr.length)).fill(null)].slice(0, n);
@@ -133,29 +212,73 @@ export function propose(req, ctx) {
     ovsMax: cfg.transitOvsMax,
   };
 
+  // 特典の種類で乗れる社が変わる。data/airlines.json が正本
+  const allowed = allowedCarriers(awardType, ctx.airlines);
+
   // 枝刈りの基準は旅程の目的地（オープンジョーなら両端の高いほう）。
   // 往路・復路のどちらも同じ基準を使う
   const rankOf = (iata) => ZONE_RANK[cities.find((c) => c.iata === iata)?.zone] ?? 0;
   const pruneRank = Math.max(rankOf(destination), rankOf(retFrom));
 
-  const outPaths = enumeratePaths(graph.adj, cities, origin,  destination, limits, cap, pruneRank);
-  const retPaths = enumeratePaths(graph.adj, cities, retFrom, arrival,     limits, cap, pruneRank);
+  const allOut = enumeratePaths(graph.adj, cities, origin,  destination, limits, cap, pruneRank, allowed);
+  const allRet = enumeratePaths(graph.adj, cities, retFrom, arrival,     limits, cap, pruneRank, allowed);
+
+  const coords = ctx.coords ?? null;
+  const repOut = pickRepresentativePaths(allOut, origin,  destination, coords);
+  const repRet = pickRepresentativePaths(allRet, retFrom, arrival,     coords);
+  const outPaths = repOut.paths;
+
+  // 帰着地を出発地と変える案（国内オープンジョー）も既定で混ぜる。
+  // 「羽田発 → パリ → 沖縄着」のように、国内枠を使って
+  // もう1都市に降りられる形（2026-09-06 ユーザー決定）。
+  // ★海外オープンジョー（復路の出発地を目的地と変える）はやらない。
+  //   選択肢が増えすぎるため、こちらもユーザーの決定。
+  const retSets = [{ arrival, paths: repRet.paths }];
+  if (req.domesticOpenJaw !== false && arrival === origin) {
+    const airportsFor = ctx.airports ?? null;
+    for (const c of cities) {
+      if (c.type !== 'domestic' || c.iata === origin) continue;
+      // 帰着地は就航路線が多い空港だけ。
+      // 特典で乗れる社の就航先が少ない空港を帰着地にすると、
+      // 実際には便が取れず提案として役に立たない
+      if (hubScore(graph, c.iata, allowed) < (req.minHubRoutes ?? 8)) continue;
+      const alt = enumeratePaths(graph.adj, cities, retFrom, c.iata, limits, cap, pruneRank, allowed);
+      if (!alt.length) continue;
+      const rep = pickRepresentativePaths(alt, retFrom, c.iata, coords);
+      retSets.push({ arrival: c.iata, paths: rep.paths });
+    }
+  }
 
   const stats = {
-    outPaths: outPaths.length, retPaths: retPaths.length,
+    outPathsFound: repOut.enumerated, retPathsFound: repRet.enumerated,
+    outPaths: outPaths.length, retPaths: repRet.paths.length,
     combinations: 0, validated: 0, passed: 0, milesUnknown: 0,
-    truncated: outPaths.length >= cap || retPaths.length >= cap,
+    truncated: allOut.length >= cap || allRet.length >= cap,
+    carriers: allowed ? allowed.size : null,
   };
 
   const cityName = (iata) => cities.find((c) => c.iata === iata)?.name ?? iata;
   const typeOfCity = new Map(cities.map((c) => [c.iata, c.type]));
-  const seen = new Set();
-  const proposals = [];
+  const ovsCountOf = (it) => [...it.outbound, ...it.return]
+    .filter(Boolean).filter((i) => typeOfCity.get(i) === 'overseas').length;
+
+  // ★候補を全件ためない。
+  // 「必要マイル × 寄り道先」で畳んだあとに残るのは数十本なのに、
+  // 畳む前を配列で持つと数百万件になり、実際にメモリを使い切って落ちた
+  //（2026-09-06・路線グラフに提携社の114区間を足した直後）。
+  // そこで**その場で代表を選びながら**進める。順序の基準（総飛行距離）は
+  // 基準値を引く前でも大小が変わらないので、これで同じ結果になる。
+  const keep = new Map();        // key -> 代表の案
+  let minKm = null;              // 全体の最短（参考）
+  let homeKm = null;             // ★基準＝「まっすぐ帰る」旅程の最短飛行距離。
+                                 //   帰着地ごとに基準を取ると、どの帰着地でも
+                                 //   +0km になって並べられなくなる（実測で確認）。
+                                 //   「まっすぐ帰るより何km多く飛ぶか」で統一する
 
   for (const op of outPaths) {
-    for (const rp of retPaths) {
+   for (const { arrival: arv, paths: rps } of retSets) {
+    for (const rp of rps) {
       stats.combinations++;
-      // 寄り道の置き場所：置かない案＋各乗り継ぎ地に1つ置いた案
       const soPlacements = [null];
       if (req.wantStopover) {
         op.forEach((_, i) => soPlacements.push({ leg: 'out', idx: i }));
@@ -166,7 +289,7 @@ export function propose(req, ctx) {
         const itinerary = {
           departure: origin,
           destination,
-          arrival: arrival === origin ? null : arrival,
+          arrival: arv === origin ? null : arv,
           returnDep: retFrom === destination ? null : retFrom,
           outbound: padSlots(op),
           return: padSlots(rp),
@@ -188,52 +311,111 @@ export function propose(req, ctx) {
         if (m.miles == null) stats.milesUnknown++;
 
         const soIata = so ? (so.leg === 'out' ? op[so.idx] : rp[so.idx]) : null;
-        const route = [
-          [origin, ...op, destination].map(cityName).join(' → '),
-          [retFrom, ...rp, arrival].map(cityName).join(' → '),
-        ];
-        // 同じ経路＋同じ寄り道の案は1つだけにする
-        const key = `${op.join('>')}|${rp.join('>')}|${soIata ?? ''}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+        const kmOut = coords ? pathDistanceKm([origin, ...op, destination], coords) : null;
+        const kmRet = coords ? pathDistanceKm([retFrom, ...rp, arv], coords) : null;
+        const km = (kmOut != null && kmRet != null) ? Math.round(kmOut + kmRet) : null;
+        if (km != null) {
+          if (minKm == null || km < minKm) minKm = km;
+          if (arv === origin && (homeKm == null || km < homeKm)) homeKm = km;
+        }
 
-        proposals.push({
+        // ★このアプリで利用者に増えるのは「滞在する都市」だけ。
+        // 途中降機で増える場合と、帰着地を変えて増える場合があり、
+        // この2つは**別の軸ではなく同じ軸**（どちらも「もう1都市」）。
+        // 掛け合わせるとパリ行きだけで560本になり選べなくなった（2026-09-06 実測）。
+        // 出発地・目的地は元から行く場所なので「増える都市」に数えない。
+        const already = new Set([origin, destination, retFrom]);
+        const extras = [...new Set([soIata, arv].filter((x) => x && !already.has(x)))];
+        if (extras.length > (req.maxExtraCities ?? 1)) continue;
+        const extra = extras[0] ?? null;
+
+        const key = `${m.miles}|${extra ?? '-'}`;
+        const cand = {
           itinerary,
           miles: m.miles,
           milesNote: m.miles == null ? m.reason : m.note,
           milesBreakdown: m.breakdown ?? null,
           transits: op.length + rp.length,
+          km,
+          arrival: arv,
+          arrivalName: cityName(arv),
+          openJaw: arv !== origin,
+          extraCity: extra,
+          extraCityName: extra ? cityName(extra) : null,
+          // 増える都市に「どうやって」立ち寄るか：途中降機か、帰着地にするか
+          extraVia: extra == null ? null : (extra === soIata ? 'stopover' : 'arrival'),
           stopover: soIata,
           stopoverName: soIata ? cityName(soIata) : null,
-          route,
+          route: [
+            [origin, ...op, destination].map(cityName).join(' → '),
+            [retFrom, ...rp, arv].map(cityName).join(' → '),
+          ],
           warnings: res.checks.filter((c) => c.ok === 'warn').map((c) => c.msg),
-        });
+          variants: 1,
+        };
+
+        const cur = keep.get(key);
+        if (!cur) { keep.set(key, cand); continue; }
+        cur.variants++;
+        // 代表は「総飛行距離がいちばん短い＝いちばん遠回りでない」もの
+        const better =
+          (cand.km ?? Infinity) !== (cur.km ?? Infinity) ? (cand.km ?? Infinity) < (cur.km ?? Infinity)
+          : cand.transits !== cur.transits ? cand.transits < cur.transits
+          : ovsCountOf(cand.itinerary) < ovsCountOf(cur.itinerary);
+        if (better) { cand.variants = cur.variants; keep.set(key, cand); }
       }
     }
+   }
   }
 
-  // 必要マイルの少ない順 → 乗り継ぎの少ない順。マイル不明は末尾へ
-  // 同点のときは海外の乗り継ぎが少ないほうを代表にする。
-  // 数が同じでも「パリ→シンガポール→札幌→広島」より
-  // 「パリ→東京→札幌→広島」のほうが提案として素直なため
-  const ovsCount = (p) => [...p.itinerary.outbound, ...p.itinerary.return]
-    .filter(Boolean).filter((i) => typeOfCity.get(i) === 'overseas').length;
+  // 寄り道先の「大手空港かどうか」「どの国か」を添える。
+  // 魅力のあるルートを上に出すために使う（データは data/airports.json）
+  const airports = ctx.airports ?? null;
+  for (const p of keep.values()) {
+    const a = p.extraCity && airports ? airports[p.extraCity] : null;
+    p.stopoverSize = a?.size ?? null;
+    p.stopoverCountry = a?.country ?? null;
+    p.hubRoutes = p.extraCity ? hubScore(graph, p.extraCity, allowed) : null;
+  }
+
+  const proposals = [...keep.values()];
+  stats.raw = proposals.reduce((a, p) => a + p.variants, 0);
+
+  // 「遠回り」を測る。基準は合格した中でいちばん短く飛べる案。
+  // 必要マイルは寄り道先が変わっても同じことが多いので、
+  // **距離こそが「しんどさ」の唯一の手がかり**になる
+  const baseKm = homeKm ?? minKm;
+  stats.baseKm = baseKm;
+  proposals.forEach((p) => {
+    p.detourKm = (p.km != null && baseKm != null) ? p.km - baseKm : null;
+    // 「まっすぐ帰る旅程」と比べて何km多く飛ぶか。
+    // 帰着地を変えた案は総飛行距離がむしろ短くなることがある（負の値）。
+    // そのときも 0 に丸めず、そのまま出す
+    p.effort = p.detourKm == null ? null
+      : p.detourKm <= 2000 ? 'ほぼ通り道'
+      : p.detourKm <= 6000 ? '少し遠回り'
+      : '大回り';
+  });
+
   proposals.sort((a, b) => {
     if ((a.miles == null) !== (b.miles == null)) return a.miles == null ? 1 : -1;
     if (a.miles !== b.miles) return (a.miles ?? 0) - (b.miles ?? 0);
+    // マイルが同じなら、遠回りの少ない順。ここが「しんどい案を下げる」中心
+    if ((a.detourKm ?? 0) !== (b.detourKm ?? 0)) return (a.detourKm ?? 0) - (b.detourKm ?? 0);
     if (a.transits !== b.transits) return a.transits - b.transits;
-    return ovsCount(a) - ovsCount(b);
+    // 同条件なら就航路線の多い都市を上に（便が取りやすく、街としても大きい）
+    if ((b.hubRoutes ?? 0) !== (a.hubRoutes ?? 0)) return (b.hubRoutes ?? 0) - (a.hubRoutes ?? 0);
+    return ovsCountOf(a.itinerary) - ovsCountOf(b.itinerary);
   });
 
-  stats.raw = proposals.length;
-  const view = req.dedupe === 'none' ? proposals : dedupeByExperience(proposals, cities);
-  stats.shown = view.length;
-  return { proposals: view, stats };
+  stats.shown = proposals.length;
+  return { proposals, stats };
 }
 
 // =====================================================================
-// dedupeByExperience — 「利用者にとって違う旅」だけを残す
+// dedupeByExperience — 「利用者にとって違う旅」だけを残す（外から呼ぶ用）
 // =====================================================================
+// propose() は同じ畳み方をしながら進むので、通常はこの関数を呼ばなくてよい。
 // 規約に適合する組み合わせをそのまま出すと、広島→パリで 42万本になる。
 // 件数は多くても、その大半は**利用者にとって同じ旅**である。
 //

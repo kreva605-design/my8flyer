@@ -1,0 +1,477 @@
+{
+ "_meta": {
+  "source": "https://davidmegginson.github.io/ourairports-data/airports.csv",
+  "license": "OurAirports — public domain",
+  "fetched": "2026-09-06",
+  "purpose": "経路の遠回り（大圏距離）と、空港の規模・国での並び替えに使う。利用者に座標は表示しない。",
+  "fields": {
+   "size": "large / medium / small（OurAirports の type）",
+   "country": "ISO 3166-1 alpha-2"
+  },
+  "count": 66
+ },
+ "airports": {
+  "AMS": {
+   "lat": 52.3086,
+   "lon": 4.7639,
+   "size": "large",
+   "country": "NL",
+   "name": "Amsterdam Airport Schiphol"
+  },
+  "ARN": {
+   "lat": 59.6485,
+   "lon": 17.9288,
+   "size": "large",
+   "country": "SE",
+   "name": "Stockholm-Arlanda Airport"
+  },
+  "ATL": {
+   "lat": 33.6367,
+   "lon": -84.4281,
+   "size": "large",
+   "country": "US",
+   "name": "Hartsfield Jackson Atlanta International Airport"
+  },
+  "BKK": {
+   "lat": 13.6811,
+   "lon": 100.747,
+   "size": "large",
+   "country": "TH",
+   "name": "Suvarnabhumi Airport"
+  },
+  "BOM": {
+   "lat": 19.0887,
+   "lon": 72.8679,
+   "size": "large",
+   "country": "IN",
+   "name": "Chhatrapati Shivaji Maharaj International Airport"
+  },
+  "CAN": {
+   "lat": 23.3924,
+   "lon": 113.299,
+   "size": "large",
+   "country": "CN",
+   "name": "Guangzhou Baiyun International Airport"
+  },
+  "CDG": {
+   "lat": 49.009,
+   "lon": 2.5541,
+   "size": "large",
+   "country": "FR",
+   "name": "Charles de Gaulle International Airport"
+  },
+  "CGK": {
+   "lat": -6.1256,
+   "lon": 106.656,
+   "size": "large",
+   "country": "ID",
+   "name": "Soekarno-Hatta International Airport"
+  },
+  "CMN": {
+   "lat": 33.3675,
+   "lon": -7.59,
+   "size": "large",
+   "country": "MA",
+   "name": "Mohammed V International Airport"
+  },
+  "CPH": {
+   "lat": 55.6179,
+   "lon": 12.656,
+   "size": "large",
+   "country": "DK",
+   "name": "Copenhagen Kastrup Airport"
+  },
+  "CTS": {
+   "lat": 42.7748,
+   "lon": 141.6904,
+   "size": "large",
+   "country": "JP",
+   "name": "New Chitose Airport"
+  },
+  "DAD": {
+   "lat": 16.0439,
+   "lon": 108.199,
+   "size": "large",
+   "country": "VN",
+   "name": "Da Nang International Airport"
+  },
+  "DEL": {
+   "lat": 28.5556,
+   "lon": 77.0952,
+   "size": "large",
+   "country": "IN",
+   "name": "Indira Gandhi International Airport"
+  },
+  "DEN": {
+   "lat": 39.86,
+   "lon": -104.6738,
+   "size": "large",
+   "country": "US",
+   "name": "Denver International Airport"
+  },
+  "DFW": {
+   "lat": 32.8968,
+   "lon": -97.038,
+   "size": "large",
+   "country": "US",
+   "name": "Dallas Fort Worth International Airport"
+  },
+  "DOH": {
+   "lat": 25.2731,
+   "lon": 51.6081,
+   "size": "large",
+   "country": "QA",
+   "name": "Hamad International Airport"
+  },
+  "DXB": {
+   "lat": 25.2498,
+   "lon": 55.371,
+   "size": "large",
+   "country": "AE",
+   "name": "Dubai International Airport"
+  },
+  "FRA": {
+   "lat": 50.0267,
+   "lon": 8.5584,
+   "size": "large",
+   "country": "DE",
+   "name": "Frankfurt Main Airport"
+  },
+  "FUK": {
+   "lat": 33.5859,
+   "lon": 130.451,
+   "size": "large",
+   "country": "JP",
+   "name": "Fukuoka Airport"
+  },
+  "GUM": {
+   "lat": 13.485,
+   "lon": 144.7973,
+   "size": "large",
+   "country": "GU",
+   "name": "Antonio B. Won Pat International Airport"
+  },
+  "HAN": {
+   "lat": 21.2212,
+   "lon": 105.807,
+   "size": "large",
+   "country": "VN",
+   "name": "Noi Bai International Airport"
+  },
+  "HEL": {
+   "lat": 60.3184,
+   "lon": 24.9633,
+   "size": "large",
+   "country": "FI",
+   "name": "Helsinki Vantaa Airport"
+  },
+  "HIJ": {
+   "lat": 34.4361,
+   "lon": 132.919,
+   "size": "large",
+   "country": "JP",
+   "name": "Hiroshima Airport"
+  },
+  "HKG": {
+   "lat": 22.3118,
+   "lon": 113.9149,
+   "size": "large",
+   "country": "HK",
+   "name": "Hong Kong International Airport"
+  },
+  "HND": {
+   "lat": 35.5497,
+   "lon": 139.787,
+   "size": "large",
+   "country": "JP",
+   "name": "Tokyo Haneda International Airport"
+  },
+  "HNL": {
+   "lat": 21.3184,
+   "lon": -157.9257,
+   "size": "large",
+   "country": "US",
+   "name": "Daniel K. Inouye International Airport"
+  },
+  "ICN": {
+   "lat": 37.4691,
+   "lon": 126.451,
+   "size": "large",
+   "country": "KR",
+   "name": "Incheon International Airport"
+  },
+  "IST": {
+   "lat": 41.2749,
+   "lon": 28.7321,
+   "size": "large",
+   "country": "TR",
+   "name": "İstanbul Airport"
+  },
+  "ITM": {
+   "lat": 34.7809,
+   "lon": 135.4408,
+   "size": "large",
+   "country": "JP",
+   "name": "Osaka Itami International Airport"
+  },
+  "IWK": {
+   "lat": 34.1463,
+   "lon": 132.2472,
+   "size": "medium",
+   "country": "JP",
+   "name": "Iwakuni Kintaikyo Airport"
+  },
+  "IZO": {
+   "lat": 35.4136,
+   "lon": 132.89,
+   "size": "medium",
+   "country": "JP",
+   "name": "Izumo Enmusubi Airport"
+  },
+  "JFK": {
+   "lat": 40.6394,
+   "lon": -73.7793,
+   "size": "large",
+   "country": "US",
+   "name": "John F. Kennedy International Airport"
+  },
+  "KCZ": {
+   "lat": 33.5452,
+   "lon": 133.6702,
+   "size": "large",
+   "country": "JP",
+   "name": "Kochi Ryoma Airport"
+  },
+  "KIX": {
+   "lat": 34.4273,
+   "lon": 135.244,
+   "size": "large",
+   "country": "JP",
+   "name": "Kansai International Airport"
+  },
+  "KUL": {
+   "lat": 2.7456,
+   "lon": 101.71,
+   "size": "large",
+   "country": "MY",
+   "name": "Kuala Lumpur International Airport"
+  },
+  "LAS": {
+   "lat": 36.0834,
+   "lon": -115.1518,
+   "size": "large",
+   "country": "US",
+   "name": "Harry Reid International Airport"
+  },
+  "LAX": {
+   "lat": 33.9425,
+   "lon": -118.408,
+   "size": "large",
+   "country": "US",
+   "name": "Los Angeles International Airport"
+  },
+  "LHR": {
+   "lat": 51.4707,
+   "lon": -0.4599,
+   "size": "large",
+   "country": "GB",
+   "name": "London Heathrow Airport"
+  },
+  "LIS": {
+   "lat": 38.7813,
+   "lon": -9.1359,
+   "size": "large",
+   "country": "PT",
+   "name": "Lisbon Humberto Delgado Airport"
+  },
+  "MLE": {
+   "lat": 4.1918,
+   "lon": 73.5291,
+   "size": "large",
+   "country": "MV",
+   "name": "Velana International Airport"
+  },
+  "MNL": {
+   "lat": 14.5086,
+   "lon": 121.02,
+   "size": "large",
+   "country": "PH",
+   "name": "Ninoy Aquino International Airport"
+  },
+  "MUC": {
+   "lat": 48.3538,
+   "lon": 11.7861,
+   "size": "large",
+   "country": "DE",
+   "name": "Munich Airport"
+  },
+  "MYJ": {
+   "lat": 33.8269,
+   "lon": 132.7001,
+   "size": "large",
+   "country": "JP",
+   "name": "Matsuyama Airport"
+  },
+  "NGO": {
+   "lat": 34.8584,
+   "lon": 136.805,
+   "size": "large",
+   "country": "JP",
+   "name": "Chubu Centrair International Airport"
+  },
+  "NRT": {
+   "lat": 35.7686,
+   "lon": 140.3887,
+   "size": "large",
+   "country": "JP",
+   "name": "Narita International Airport"
+  },
+  "OKA": {
+   "lat": 26.1924,
+   "lon": 127.6398,
+   "size": "large",
+   "country": "JP",
+   "name": "Naha International Airport"
+  },
+  "OKJ": {
+   "lat": 34.7569,
+   "lon": 133.855,
+   "size": "large",
+   "country": "JP",
+   "name": "Okayama Momotaro Airport"
+  },
+  "ORD": {
+   "lat": 41.9786,
+   "lon": -87.9048,
+   "size": "large",
+   "country": "US",
+   "name": "Chicago O'Hare International Airport"
+  },
+  "OSA": {
+   "lat": 34.4273,
+   "lon": 135.244,
+   "size": "large",
+   "country": "JP",
+   "name": "OSA（代表: KIX）"
+  },
+  "OSL": {
+   "lat": 60.1939,
+   "lon": 11.1004,
+   "size": "large",
+   "country": "NO",
+   "name": "Oslo-Gardermoen International Airport"
+  },
+  "PEK": {
+   "lat": 40.0773,
+   "lon": 116.5967,
+   "size": "large",
+   "country": "CN",
+   "name": "Beijing Capital International Airport"
+  },
+  "PVG": {
+   "lat": 31.1434,
+   "lon": 121.805,
+   "size": "large",
+   "country": "CN",
+   "name": "Shanghai Pudong International Airport"
+  },
+  "RAK": {
+   "lat": 31.6048,
+   "lon": -8.0358,
+   "size": "large",
+   "country": "MA",
+   "name": "Marrakesh Menara Airport"
+  },
+  "SDJ": {
+   "lat": 38.1397,
+   "lon": 140.917,
+   "size": "large",
+   "country": "JP",
+   "name": "Sendai Airport"
+  },
+  "SGN": {
+   "lat": 10.8188,
+   "lon": 106.652,
+   "size": "large",
+   "country": "VN",
+   "name": "Tan Son Nhat International Airport"
+  },
+  "SIN": {
+   "lat": 1.3502,
+   "lon": 103.994,
+   "size": "large",
+   "country": "SG",
+   "name": "Singapore Changi Airport"
+  },
+  "SYD": {
+   "lat": -33.9461,
+   "lon": 151.177,
+   "size": "large",
+   "country": "AU",
+   "name": "Sydney Kingsford Smith International Airport"
+  },
+  "TAK": {
+   "lat": 34.215,
+   "lon": 134.0155,
+   "size": "large",
+   "country": "JP",
+   "name": "Takamatsu Airport"
+  },
+  "TKS": {
+   "lat": 34.1326,
+   "lon": 134.6078,
+   "size": "large",
+   "country": "JP",
+   "name": "Tokushima Awaodori Airport / JMSDF Tokushima Air Base"
+  },
+  "TPE": {
+   "lat": 25.0777,
+   "lon": 121.233,
+   "size": "large",
+   "country": "TW",
+   "name": "Taiwan Taoyuan International Airport"
+  },
+  "TYO": {
+   "lat": 35.5497,
+   "lon": 139.787,
+   "size": "large",
+   "country": "JP",
+   "name": "TYO（代表: HND）"
+  },
+  "UBJ": {
+   "lat": 33.93,
+   "lon": 131.279,
+   "size": "medium",
+   "country": "JP",
+   "name": "Yamaguchi Ube Airport"
+  },
+  "UKB": {
+   "lat": 34.6328,
+   "lon": 135.224,
+   "size": "large",
+   "country": "JP",
+   "name": "Kobe Airport"
+  },
+  "VIE": {
+   "lat": 48.1103,
+   "lon": 16.5697,
+   "size": "large",
+   "country": "AT",
+   "name": "Vienna International Airport"
+  },
+  "YGJ": {
+   "lat": 35.4922,
+   "lon": 133.236,
+   "size": "medium",
+   "country": "JP",
+   "name": "Yonago Kitaro Airport / JASDF Miho Air Base"
+  },
+  "YVR": {
+   "lat": 49.1939,
+   "lon": -123.184,
+   "size": "large",
+   "country": "CA",
+   "name": "Vancouver International Airport"
+  }
+ }
+}
