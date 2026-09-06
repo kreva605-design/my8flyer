@@ -378,10 +378,42 @@ requirements:
   last_verified: 2026-09-07
   status: green
 - id: REQ-47
-  text: スターアライアンス加盟社の一覧を一次情報と突合する（現在は index.html から移設したまま verified=false）
-  design_ref: architecture.md#18-5
-  impl_ref: data/airlines.json
+  text: スターアライアンス加盟社の一覧を一次情報から取得する。ANA公式が画像/動的描画で読めない場合も別の出典を当たる（加盟社は公開情報）
+  design_ref: architecture.md#19-1
+  impl_ref: scripts/my8flyer/fetch_airlines.py,data/airlines.json
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-48
+  text: 航空会社一覧は半期に1回見直す。取得のたびに前回結果を data/airlines-history/ に残し、差分は「増えた」と「消えた」の両方を印字する
+  design_ref: architecture.md#19-3
+  impl_ref: scripts/my8flyer/fetch_airlines.py
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-49
+  text: 加盟社が20社未満しか取れなかったら上流の構造変化を疑い、書き込まずに終了する
+  design_ref: architecture.md#19-1
+  impl_ref: scripts/my8flyer/fetch_airlines.py
   test_ref: ''
   verify_mode: manual
-  last_verified: ''
-  status: red  # 公式ページが画像/動的描画のため機械取得できず未突合
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-50
+  text: 旅程が「ANA自社便 / スターアライアンス / 提携航空会社」のどれで成立するかを出し、それぞれの規約逸脱と、区間ごとに乗れる航空会社を示す
+  design_ref: architecture.md#19-4
+  impl_ref: src/proposer.js::evaluateItinerary(),evaluateByKind(),planLabel()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: yellow
+- id: REQ-51
+  text: 提案にも「どの特典・どの航空会社のまとまりで飛ぶ旅程か」と、区間ごとに乗れる社を持たせる
+  design_ref: architecture.md#19-4
+  impl_ref: src/proposer.js::propose()
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green

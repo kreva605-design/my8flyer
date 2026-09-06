@@ -183,6 +183,18 @@ export function allowedCarriers(awardType, airlines) {
 // 2026-09-06 にこれを見落とし、スタアラ便とベトナム航空便を混ぜた提案を
 // 114本出していた。旅程ごとに1つの plan を選び、その中だけで経路を作る。
 // =====================================================================
+// plan の表示名。画面に「どの特典で・どの航空会社のまとまりで飛ぶ旅程か」を出す
+export function planLabel(planId, airlines) {
+  if (planId === 'ana') return 'ANA国際線特典（ANA運航便のみ）';
+  if (planId === 'star') return '提携特典・スターアライアンス（加盟社を自由に組み合わせ）';
+  if (planId.startsWith('single:')) {
+    const code = planId.slice(7);
+    const name = airlines?.names?.[code];
+    return `提携特典・${name ? name + '（' + code + '）' : code} 1社のみ`;
+  }
+  return planId;
+}
+
 export function carrierPlans(awardType, airlines) {
   if (!airlines) return [{ id: 'any', carriers: null }];
   if (awardType === 'ana') {
@@ -208,6 +220,8 @@ export function hubScore(graph, iata, allowed) {
   }
   return n;
 }
+
+const legPairs = (seq) => seq.slice(0, -1).map((a, i) => [a, seq[i + 1]]);
 
 const padSlots = (arr, n = 3) => [...arr, ...Array(Math.max(0, n - arr.length)).fill(null)].slice(0, n);
 const boolSlots = (arr, n = 3) => [...arr, ...Array(Math.max(0, n - arr.length)).fill(false)].slice(0, n);
@@ -299,7 +313,7 @@ export function propose(req, ctx) {
         retSets.push({ arrival: c.iata, paths: rep.paths });
       }
     }
-    routeSets.push({ plan: plan.id, outPaths: repOut.paths, retSets });
+    routeSets.push({ plan: plan.id, carriers: ac, outPaths: repOut.paths, retSets });
   }
 
   const cityName = (iata) => cities.find((c) => c.iata === iata)?.name ?? iata;
@@ -401,6 +415,10 @@ export function propose(req, ctx) {
           extraCityName: extra ? cityName(extra) : null,
           // 増える都市に「どうやって」立ち寄るか：途中降機か、帰着地にするか
           extraVia: extra == null ? null : (extra === soIata ? 'stopover' : 'arrival'),
+          // どの特典・どの航空会社のまとまりで飛ぶ旅程か
+          awardType,
+          plan: rs.plan,
+          planLabel: planLabel(rs.plan, ctx.airlines),
           stopover: soIata,
           stopoverName: soIata ? cityName(soIata) : null,
           route: [
@@ -408,6 +426,15 @@ export function propose(req, ctx) {
             [retFrom, ...rp, arv].map(cityName).join(' → '),
           ],
           warnings: res.checks.filter((c) => c.ok === 'warn').map((c) => c.msg),
+          // 区間ごとに「この旅程で実際に乗れる社」。画面で便を探すときに要る
+          carriersByLeg: [
+            ...legPairs([origin, ...op, destination]),
+            ...legPairs([retFrom, ...rp, arv]),
+          ].map(([a, b]) => ({
+            from: a, to: b,
+            airlines: (graph.adj.get(a)?.get(b) ?? [])
+              .filter((x) => !rs.carriers || rs.carriers.has(x)),
+          })),
           variants: 1,
         };
 
@@ -496,4 +523,113 @@ export function dedupeByExperience(proposals, cities) {
     byKey.set(k, { ...p, variants: 1 });
   }
   return [...byKey.values()];
+}
+
+// =====================================================================
+// evaluateItinerary — 1つの旅程を「3つの特典すべて」で判定する
+// =====================================================================
+// 自分で組んだ旅程が、ANA自社便／スターアライアンス／提携社1社の
+// **どれで成立するか**を並べて出すためのもの。
+// 規約が別物なので、片方で違反でも他方では成立することがある。
+//
+// 戻り値 = [{ id, label, awardType, ok, reasons[], checks[], carriersByLeg[] }]
+//   ok=true  … その特典で成立する（規約も、乗れる社も、両方通る）
+//   reasons  … 成立しない理由（規約違反 or 乗れる社がいない区間）
+// =====================================================================
+export function evaluateItinerary(itinerary, ctx) {
+  const { rules, cities, graph, airlines } = ctx;
+  const out = [];
+  const seq = (arr, a, b) => [a, ...arr.filter(Boolean), b];
+  const dep = itinerary.departure;
+  const dest = itinerary.destination;
+  const arr = itinerary.arrival ?? dep;
+  const retFrom = itinerary.returnDep ?? dest;
+  const domesticAnaOnly = (ctx.asOf ?? '2026-09-07') >= '2026-05-19';
+  const typeOf = new Map(cities.map((c) => [c.iata, c.type]));
+
+  for (const awardType of ['ana', 'partner']) {
+    for (const plan of carrierPlans(awardType, airlines)) {
+      const res = validateItinerary(itinerary, { awardType, rules, cities });
+      const reasons = res.checks.filter((c) => c.ok === false).map((c) => c.msg);
+
+      // 規約を通っても、その社のまとまりで飛べない区間があれば成立しない
+      const legs = [...legPairs(seq(itinerary.outbound, dep, dest)),
+                    ...legPairs(seq(itinerary.return, retFrom, arr))];
+      const carriersByLeg = legs.map(([a, b]) => {
+        const all = graph.adj.get(a)?.get(b) ?? [];
+        const usable = all.filter((x) => !plan.carriers || plan.carriers.has(x));
+        const domesticPair = typeOf.get(a) === 'domestic' && typeOf.get(b) === 'domestic';
+        const anaOnlyBlocked = domesticAnaOnly && domesticPair && !all.includes('NH');
+        return { from: a, to: b, airlines: usable, anaOnlyBlocked };
+      });
+      carriersByLeg.forEach((l) => {
+        if (l.anaOnlyBlocked) {
+          reasons.push(`[乗り継ぎ] ${l.from}→${l.to} は日本国内線で、ANA運航便がありません（2026-05-19 搭乗分〜の規定）`);
+        } else if (l.airlines.length === 0) {
+          reasons.push(`[運航] ${l.from}→${l.to} を飛ぶ対象航空会社がありません`);
+        }
+      });
+
+      out.push({
+        id: plan.id,
+        label: planLabel(plan.id, airlines),
+        awardType,
+        ok: reasons.length === 0,
+        reasons,
+        checks: res.checks,
+        carriersByLeg,
+      });
+    }
+  }
+  // 成立するものを先に、その中では選択肢の多いものを先に
+  out.sort((a, b) => (b.ok - a.ok) || (b.carriersByLeg.flatMap((l) => l.airlines).length
+                                     - a.carriersByLeg.flatMap((l) => l.airlines).length));
+  return out;
+}
+
+// =====================================================================
+// evaluateByKind — 「ANA自社便 / スターアライアンス / 提携航空会社」の3つで判定
+// =====================================================================
+// 画面に出すための形。提携社は9社あるが利用者にとっては1つの選択肢なので、
+// 「どれか1社で成立するか」にまとめ、成立する社を並べる。
+// =====================================================================
+export function evaluateByKind(itinerary, ctx) {
+  const all = evaluateItinerary(itinerary, ctx);
+  const pick = (id) => all.find((r) => r.id === id);
+  const singles = all.filter((r) => r.id.startsWith('single:'));
+  const okSingles = singles.filter((r) => r.ok);
+  const names = ctx.airlines?.names ?? {};
+
+  const ana = pick('ana'), star = pick('star');
+  return [
+    {
+      kind: 'ana',
+      label: 'ANA国際線特典（ANA運航便のみ）',
+      ok: !!ana?.ok,
+      reasons: ana?.reasons ?? [],
+      carriersByLeg: ana?.carriersByLeg ?? [],
+    },
+    {
+      kind: 'star',
+      label: '提携特典・スターアライアンス',
+      note: '加盟社を自由に組み合わせられる',
+      ok: !!star?.ok,
+      reasons: star?.reasons ?? [],
+      carriersByLeg: star?.carriersByLeg ?? [],
+    },
+    {
+      kind: 'partner',
+      label: '提携特典・提携航空会社',
+      note: '★1社だけで組む旅程にしか使えない',
+      ok: okSingles.length > 0,
+      // 成立する社が無いときは、どの社でも落ちる理由をまとめて1つ出す
+      reasons: okSingles.length > 0 ? []
+        : ['この旅程を1社だけで飛べる提携航空会社がありません'],
+      airlines: okSingles.map((r) => {
+        const code = r.id.slice(7);
+        return { code, name: names[code] ?? code };
+      }),
+      carriersByLeg: okSingles[0]?.carriersByLeg ?? [],
+    },
+  ];
 }

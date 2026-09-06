@@ -41,7 +41,15 @@ S-5 のレビューで見つけて直したこと（2026-09-06〜07）：
 - 🔴 **【欠陥】提携社をスタアラ便と混ぜていた。** 公式は「単一の提携航空会社運航便での旅程のみ」。前日に「114区間を回復した」と書いた変更が、**114本の不正な提案**を生んでいた。`carrierPlans()` で旅程ごとに1つの社のまとまりを選ぶ形へ
 - **日本国内線への乗り継ぎは ANA 運航便のみ**（2026-05-19 搭乗分〜）。★この日付は**描画後のDOMにしか無い**（静的HTMLは `年月日（後）` のまま）
 - **同じ街の別空港を「もう1都市」に数えていた**（羽田発で成田が候補に出る／関空・伊丹・神戸が3行に割れる）。街の単位へ
-- `data/airlines.json` の提携社を公式の9社に合わせた（AZ・VL は公式一覧に無いため削除）
+- `data/airlines.json` の提携社を公式の9社に合わせた
+
+2026-09-07 追加（ユーザー指摘「なぜスタアラ加盟が取れない？普通に調べられる」）：
+
+- **加盟社を一次情報から取得できた。** ANA公式1ページで取れなかっただけで、英語版Wikipedia＋各社ページで IATA まで解決できる。`scripts/my8flyer/fetch_airlines.py`（`--check`/`--dry-run`）
+- **前日の削除が誤りだった。** AZ（ITAエアウェイズ）は**スタアラ加盟社**。「公式の提携社一覧に無い」を根拠に消していた。HO（吉祥航空・コネクティングパートナー）も追加。25社 → **27社**
+- **VN（ベトナム航空）は加盟社ではない**（ANA提携社＝単一社旅程のみ）。両出典が一致
+- **半期に1回の見直し**（`_meta.next_review`＝2027-03-06）。取得のたびに前回結果を `data/airlines-history/` に残し、差分は「増えた／消えた」の両方を印字
+- **旅程が3つの特典のどれで成立するかを出せるようにした**（`evaluateByKind`）。実例：羽田→ハノイ直行は ANA自社便❌／スタアラ❌／**提携社1社✅ ベトナム航空**
 
 ---
 
@@ -105,16 +113,16 @@ const { proposals, stats } = propose(
 | **必要マイルの正本** | [src/miles-core.js](src/miles-core.js)（1-A/1-B 判定・オープンジョー合算） |
 | **提案エンジン** | [src/proposer.js](src/proposer.js) |
 | 距離（しんどさ） | [src/geo.js](src/geo.js)／[data/airports.json](data/airports.json)（OurAirports・public domain） |
-| **乗れる航空会社の正本** | [data/airlines.json](data/airlines.json)。自社便=NH／提携=**スタアラ全体 か 非加盟提携社1社**（混ぜ不可）。★提携社9社は公式と一致を確認済み・**スタアラ25社は未突合**（REQ-47） |
+| **乗れる航空会社の正本** | [data/airlines.json](data/airlines.json)（27社＋提携9社・**突合済み**）。取得＝`scripts/my8flyer/fetch_airlines.py`・**次回見直し 2027-03-06**・履歴は [data/airlines-history/](data/airlines-history/) |
 | 提案の目視CLI | [tests/propose_cli.mjs](tests/propose_cli.mjs)（`node tests/propose_cli.mjs HIJ CDG --stopover`） |
 | **規約値の正本** | [data/award-rules.json](data/award-rules.json)（15値・出典と原文つき・旧版併記） |
-| 単体テスト | [tests/rules-core.test.mjs](tests/rules-core.test.mjs) 27件／[tests/proposer.test.mjs](tests/proposer.test.mjs) 35件 |
+| 単体テスト | [tests/rules-core.test.mjs](tests/rules-core.test.mjs) 27件／[tests/proposer.test.mjs](tests/proposer.test.mjs) 40件 |
 | ブラウザ疎通 | [tests/browser_smoke.py](tests/browser_smoke.py)（`.venv/bin/python tests/browser_smoke.py`・ポート8791） |
 | マイルチャート | [data/mile-chart-partner.json](data/mile-chart-partner.json)（99ペア）／[data/mile-chart-ana.json](data/mile-chart-ana.json)（24ペア） |
 | 取得スクリプト | `scripts/my8flyer/fetch_mile_charts.py`／`parse_award_calendar.py` |
 | 空席スパイク拡張 | [spike-ana-calendar/](spike-ana-calendar/)（読み取り専用・調査用） |
 | 再発防止基盤 | `scripts/scrape_guard/guard.py`／`~/.claude/commands/scrape-guard.md` |
-| 設計書 | Vault `projects/my8flyer/architecture.md` **§15（S-2）・§16（S-3）・§17（S-5設計と是正）・§18（一次情報突合）** |
+| 設計書 | Vault `projects/my8flyer/architecture.md` **§15〜§19**（§19＝航空会社の一次情報化と特典種別の可視化） |
 | 公開ページ | https://kreva605-design.github.io/my8flyer/ |
 
 ---
@@ -150,7 +158,7 @@ const { proposals, stats } = propose(
 | 1 | `REQ-未達` | ✅ Claudeがやる | 陸路移動フラグを画面から立てる導線（判定側は実装済み・S-5） | 羽田着→成田発を乗り換え2回として過剰に不合格にし続ける |
 | 1 | `REQ-未達` | ✅ Claudeがやる | 旧 `MILE_CHART` の残置。画面表示を miles-core へ差し替え（S-5） | 画面のマイル表示だけが公式と46セル中22セル食い違ったまま |
 | 2 | `REQ-待ち` | ⏸ Claudeがやる（今は待ち） | manifest の `sources.design.sha256` 確定。**解除条件＝TASK-DF-09 の完了**（参照欠損の誤検出） | 設計書を更新するたび `/verify` が同じ drift を出す |
-| 1 | `REQ-未達` | ✅ Claudeがやる | **スターアライアンス加盟25社の一覧が一次情報と未突合**（REQ-47・`status: red`）。公式ページが画像/動的描画で機械取得できなかった。提携社9社の突合は完了済み | 加盟社が増減したときに、乗れない便を提案する／乗れる便を落とす。**加盟社の変動は年に数回あり、放置すると静かにずれる** |
+| 1 | `REQ-未達` | ✅ Claudeがやる | 旅程がどの特典で成立するかの**画面表示**（判定は `evaluateByKind` で実装済み・REQ-50 `yellow`）。S-5 の実装時に接続する | 提案がどの特典・どの航空会社で飛ぶ旅程なのか、利用者から見えないまま |
 
 ### そのほか未解決（S-3 以降の判断材料）
 

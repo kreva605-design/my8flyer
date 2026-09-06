@@ -7,7 +7,10 @@ import assert from 'node:assert/strict';
 
 import { CITIES, ALL_CARRIERS, AIRLINES, CHARTS, buildRules, loadRoutes, readJson } from './_load.mjs';
 import { requiredMiles, japanZoneKey } from '../src/miles-core.js';
-import { buildGraph, propose, allowedCarriers, hubScore, carrierPlans } from '../src/proposer.js';
+import {
+  buildGraph, propose, allowedCarriers, hubScore, carrierPlans,
+  evaluateItinerary, evaluateByKind, planLabel,
+} from '../src/proposer.js';
 import { validateItinerary, ZONE_RANK } from '../src/rules-core.js';
 
 const rules = buildRules();
@@ -421,4 +424,79 @@ test('同じ街の別空港は「もう1都市」に数えない（羽田と成�
       assert.notEqual(cityKey(p.extraCity), 'CDG', '目的地を増える都市にしている');
     }
   }
+});
+
+// =====================================================================
+// 9. 旅程が「どの特典・どの航空会社のまとまりで飛べるか」を出す
+// =====================================================================
+
+test('提案には、どの特典・どの航空会社のまとまりかが付く', () => {
+  const { proposals } = propose({ origin: 'HND', destination: 'HAN', wantStopover: true }, ctxGeo);
+  assert.ok(proposals.length > 0);
+  for (const p of proposals) {
+    assert.ok(p.plan, 'plan が無い');
+    assert.ok(p.planLabel && p.planLabel.length > 0, 'planLabel が無い');
+    // 区間ごとに、その旅程で実際に乗れる社が1社以上いること
+    assert.ok(p.carriersByLeg.length > 0);
+    for (const l of p.carriersByLeg) {
+      assert.ok(l.airlines.length > 0, `${l.from}→${l.to} に乗れる社がいない`);
+    }
+  }
+  // 羽田→ハノイの直行は VN の単独運航なので「1社のみ」の旅程になる
+  const direct = proposals.find((p) => p.transits === 0) ?? proposals[0];
+  assert.ok(direct.planLabel.includes('スターアライアンス') || direct.plan.startsWith('single:'));
+});
+
+test('同じ旅程を3つの特典すべてで判定する', () => {
+  const it = {
+    departure: 'HND', destination: 'CDG', arrival: null, returnDep: null,
+    outbound: ['FRA', null, null], return: ['ICN', null, null],
+    outboundSO: [false, false, false], returnSO: [true, false, false],
+    outboundSurfaceAfter: [false, false, false], returnSurfaceAfter: [false, false, false],
+  };
+  const kinds = evaluateByKind(it, ctxGeo);
+  assert.deepEqual(kinds.map((k) => k.kind), ['ana', 'star', 'partner']);
+  const by = Object.fromEntries(kinds.map((k) => [k.kind, k]));
+  // 日本発の途中降機があるので ANA自社便では成立しない
+  assert.equal(by.ana.ok, false);
+  assert.ok(by.ana.reasons.some((r) => r.includes('途中降機')));
+  // スタアラなら成立する
+  assert.equal(by.star.ok, true, by.star.reasons.join(' / '));
+  // 4区間を1社で飛べる提携社はいない
+  assert.equal(by.partner.ok, false);
+});
+
+test('ANAが飛ばない直行便は、提携社1社の旅程としてだけ成立する', () => {
+  const it = {
+    departure: 'HND', destination: 'HAN', arrival: null, returnDep: null,
+    outbound: [null, null, null], return: [null, null, null],
+    outboundSO: [false, false, false], returnSO: [false, false, false],
+    outboundSurfaceAfter: [false, false, false], returnSurfaceAfter: [false, false, false],
+  };
+  const by = Object.fromEntries(evaluateByKind(it, ctxGeo).map((k) => [k.kind, k]));
+  assert.equal(by.ana.ok, false, '羽田→ハノイをANAは飛んでいない');
+  assert.equal(by.star.ok, false, 'スターアライアンス加盟社も飛んでいない');
+  assert.equal(by.partner.ok, true);
+  assert.deepEqual(by.partner.airlines.map((a) => a.code), ['VN']);
+});
+
+test('提携社は1社ずつ別の計画として扱われ、名前が引ける', () => {
+  const plans = carrierPlans('partner', AIRLINES);
+  const vn = plans.find((p) => p.id === 'single:VN');
+  assert.ok(vn, 'ベトナム航空の単独計画が無い');
+  assert.match(planLabel('single:VN', AIRLINES), /ベトナム航空/);
+  assert.match(planLabel('ana', AIRLINES), /ANA運航便のみ/);
+});
+
+test('スターアライアンス加盟社の一覧が一次情報から取れている', () => {
+  assert.equal(AIRLINES._meta.verified_star_alliance, true, '未突合のまま使っている');
+  assert.ok(AIRLINES.star_alliance.length >= 25,
+    `加盟社が ${AIRLINES.star_alliance.length} 社しかない`);
+  ['NH', 'UA', 'LH', 'SQ', 'TG', 'AZ'].forEach((c) =>
+    assert.ok(AIRLINES.star_alliance.includes(c), `${c} が漏れている`));
+  // ベトナム航空は加盟社ではなく提携社（単一社旅程のみ）
+  assert.ok(!AIRLINES.star_alliance.includes('VN'));
+  assert.ok(AIRLINES.ana_partners.includes('VN'));
+  // 次回見直しの期限が入っていること（半期に1回）
+  assert.match(AIRLINES._meta.next_review, /^\d{4}-\d{2}-\d{2}$/);
 });
