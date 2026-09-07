@@ -21,7 +21,10 @@ try:
         pg.on("pageerror", lambda e: errors.append(str(e)))
         pg.on("console", lambda m: errors.append(f"console.{m.type}: {m.text}") if m.type == "error" else None)
         pg.goto(f"http://127.0.0.1:{PORT}/index.html")
-        pg.wait_for_function("window.RULES_CFG !== null || window.RULES_LOAD_ERROR !== null", timeout=10000)
+        # ★ window.RULES_CFG では待てない（トップレベルの let は window に生えないため常に undefined ≠ null）。
+        # 読み込みの完了そのものを待つ
+        pg.wait_for_function("typeof rulesReady !== 'undefined'", timeout=15000)
+        pg.evaluate("async () => { await rulesReady; }")
 
         cfg = pg.evaluate("RULES_CFG")
         results.append(("規約データ読み込み", cfg is not None, json.dumps(
