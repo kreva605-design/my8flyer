@@ -42,7 +42,9 @@ console.log(`  規約判定: ${stats.validated}件 → 合格 ${stats.passed}件
 proposals.slice(0, top).forEach((p, i) => {
   console.log(`${String(i + 1).padStart(2)}. ${p.miles == null ? '（マイル不明）' : `${p.miles.toLocaleString()} マイル`}` +
               `  乗継${p.transits}回` +
-              `${p.extraCity ? `  ＋${p.extraCityName}${p.extraVia === 'arrival' ? '（帰着地）' : '（寄り道）'}` : '  （増える都市なし）'}` +
+              `${p.extraCity ? `  ＋${p.extraCityName}${
+                  p.extraVia === 'home' ? (p.homeLeg === 'out' ? '（自宅で途中降機・国内線を先に）' : '（自宅で途中降機・国内線をあとに）')
+                  : p.extraVia === 'arrival' ? '（帰着地）' : '（寄り道）'}` : '  （増える都市なし）'}` +
               `${p.detourKm != null ? `  飛行距離 ${p.detourKm >= 0 ? '+' : ''}${p.detourKm.toLocaleString()}km（${p.effort}）` : ''}` +
               `${p.hubRoutes ? `  就航${p.hubRoutes}路線` : ''}` +
               `${p.variants > 1 ? `  ／別 ${p.variants.toLocaleString()}` : ''}`);

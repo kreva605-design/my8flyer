@@ -404,16 +404,72 @@ requirements:
 - id: REQ-50
   text: 旅程が「ANA自社便 / スターアライアンス / 提携航空会社」のどれで成立するかを出し、それぞれの規約逸脱と、区間ごとに乗れる航空会社を示す
   design_ref: architecture.md#19-4
-  impl_ref: src/proposer.js::evaluateItinerary(),evaluateByKind(),planLabel()
-  test_ref: tests/proposer.test.mjs
+  impl_ref: src/proposer.js::evaluateItinerary(),src/proposer.js::evaluateByKind(),src/proposer.js::planLabel(),index.html::ppShowItinerary()
+  test_ref: tests/proposer.test.mjs,tests/browser_propose.py
   verify_mode: auto
   last_verified: 2026-09-07
-  status: yellow
+  status: green
 - id: REQ-51
   text: 提案にも「どの特典・どの航空会社のまとまりで飛ぶ旅程か」と、区間ごとに乗れる社を持たせる
   design_ref: architecture.md#19-4
   impl_ref: src/proposer.js::propose()
   test_ref: tests/proposer.test.mjs
   verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-52
+  text: 自宅で途中降機して国内線1区間を国際線と別の日に飛ぶ旅程を提案する（往路＝先に飛ぶ／復路＝あとに飛ぶ の両方）。自宅の滞在が国内線1区間と隣り合う形だけを対象にする
+  design_ref: architecture.md#20-1
+  impl_ref: src/proposer.js::homeStopover(),src/proposer.js::propose()[outSets]
+  test_ref: tests/proposer.test.mjs,tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-53
+  text: 同じ都市への行き方（帰着地変更・寄り道・自宅で途中降機）を別の案として残す。代表を飛行距離だけで選ぶと遠回りになる案が必ず消えるため、行き方をキーに含める
+  design_ref: architecture.md#20-1
+  impl_ref: src/proposer.js::propose()[keep key]
+  test_ref: tests/proposer.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-54
+  text: 一覧は「増える都市」ごとに1行にし、行き方は行の中に並べる。海外は同じ国で1行に畳み、国内は都市ごとに残す（帰着地を選ぶ行為を消さないため）
+  design_ref: architecture.md#20-2
+  impl_ref: src/proposer.js::groupByCity(),index.html::ppRender()
+  test_ref: tests/proposer.test.mjs,tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-55
+  text: 提案画面（さがす→候補→旅程）を実装し、選んだ旅程を従来の判定UIへ引き渡す。出発地は候補一覧の条件バーから変えられる
+  design_ref: architecture.md#20-2
+  impl_ref: index.html::ppSearch(),index.html::ppRender(),index.html::ppShowItinerary(),index.html::ppToEditor()
+  test_ref: tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-56
+  text: 陸路移動区間を画面から指定できる（判定側は実装済みだが導線が無かった）。指定した区間は機体図の下に文章で示す
+  design_ref: architecture.md#20-3
+  impl_ref: index.html::setSurface(),index.html::updateSurfaceNote()
+  test_ref: tests/browser_smoke.py
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-57
+  text: 必要マイルの表示は公式チャート2本と miles-core だけを出どころにする。画面に数値表を持たない（旧 MILE_CHART は14セル中8セルが公式と食い違っていた）
+  design_ref: architecture.md#20-3
+  impl_ref: index.html::milesReady,index.html::validate()[mile-info]
+  test_ref: tests/browser_smoke.py
+  verify_mode: auto
+  last_verified: 2026-09-07
+  status: green
+- id: REQ-58
+  text: 途中降機は往路・復路のどちらにも置ける／「後日に飛ぶ」の上限は旅行開始日から1年。この2つを出典・原文つきで正本に持つ
+  design_ref: architecture.md#20-1
+  impl_ref: data/award-rules.json
+  test_ref: scripts/scrape_guard/guard.py validate
+  verify_mode: manual
   last_verified: 2026-09-07
   status: green

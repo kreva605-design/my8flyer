@@ -1,10 +1,10 @@
 {
  "url": "https://www.ana.co.jp/ja/jp/guide/amc/award/tk/usage/",
  "label": "ana-tk-usage",
- "fetched_at": "2026-09-07T00:31:33",
+ "fetched_at": "2026-09-07T13:01:53",
  "http_status": 200,
- "bytes": 715967,
- "sha256": "dede28c07794fde7dea3d5952052c7e447b4a3aeca84b79d6ef52d57910aca3e",
+ "bytes": 716489,
+ "sha256": "5869d198787cb6f0a53ef27536d588d3fad7466dc968dfc29462fbac8090060b",
  "changed_from_previous": true,
  "lint": [
   {

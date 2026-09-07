@@ -1,10 +1,10 @@
 {
  "url": "https://www.ana.co.jp/ja/jp/guide/amc/award/international/usage/",
  "label": "ana-intl-usage",
- "fetched_at": "2026-09-06T11:14:39",
+ "fetched_at": "2026-09-07T13:02:02",
  "http_status": 200,
- "bytes": 637185,
- "sha256": "9fd2211ceec70a13fac1fbd1ddd0eb93f327806ecc62d895bae9e3d879625a81",
+ "bytes": 637707,
+ "sha256": "cba52dcb75bf337966e5229bb59d7309b1db1e5219f5ceaf9c152bf90d2b5790",
  "changed_from_previous": true,
  "lint": [
   {

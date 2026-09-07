@@ -254,6 +254,20 @@
     }
 
     /* ストップオーバートグル */
+    .surface-row {
+      display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 2px;
+      padding: 9px 10px; background: #f2f7fb; border: 1px solid #d6e4f0;
+      border-radius: 10px; cursor: pointer;
+    }
+    .surface-row.hidden { display: none; }
+    .surface-row input { margin-top: 2px; }
+    .surface-row b { font-size: 0.78rem; color: #223; font-weight: bold; }
+    .surface-row small { display: block; font-size: 0.68rem; color: #7a879a; line-height: 1.7; margin-top: 3px; }
+    .surface-note {
+      font-size: 0.72rem; color: #0b5c40; background: #e6f5ee; border-radius: 8px;
+      padding: 6px 9px; margin: 6px 10px 0; line-height: 1.7;
+    }
+    .surface-note.hidden { display: none; }
     .type-row {
       display: flex;
       align-items: center;
@@ -679,6 +693,107 @@
       font-size: 0.9rem;
       cursor: pointer;
     }
+
+    /* ═══ もう1都市の提案（S1〜S3・S-5 2026-09-07）═══ */
+    .pp {
+      background: rgba(255,255,255,0.62);
+      border-radius: 20px;
+      padding: 16px 14px 18px;
+      box-shadow: 0 4px 24px rgba(0,70,160,0.1);
+      margin-bottom: 14px;
+      backdrop-filter: blur(4px);
+    }
+    .pp-head h2 { font-size: 1.02rem; color: #003270; font-weight: bold; }
+    .pp-head p  { font-size: 0.76rem; color: #556; line-height: 1.7; margin-top: 4px; }
+    .pp-form { display: flex; flex-direction: column; gap: 9px; margin-top: 12px; }
+    .pp-field { display: flex; flex-direction: column; gap: 4px; }
+    .pp-field > span { font-size: 0.7rem; color: #667; font-weight: bold; }
+    .pp-sel {
+      width: 100%; padding: 9px 10px; font-size: 0.9rem; color: #223;
+      background: rgba(255,255,255,0.9); border: 1px solid #c3d5e6;
+      border-radius: 10px; font-family: inherit;
+    }
+    .pp-go {
+      width: 100%; background: linear-gradient(135deg, #0057a8, #003270); color: #fff;
+      border: none; border-radius: 12px; padding: 13px; font-size: 0.95rem;
+      font-weight: bold; cursor: pointer; margin-top: 4px;
+    }
+    .pp-go:disabled { opacity: .55; cursor: default; }
+    .pp-ghost {
+      width: 100%; background: rgba(255,255,255,0.9); color: #0057a8;
+      border: 1px solid #c3d5e6; border-radius: 12px; padding: 11px;
+      font-size: 0.86rem; font-weight: bold; cursor: pointer;
+    }
+    .pp-msg { font-size: 0.76rem; color: #a33; line-height: 1.7; }
+    .pp-msg.wait { color: #556; }
+
+    .pp-cond {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      font-size: 0.7rem; color: #778; margin: 12px 0 10px;
+    }
+    .pp-pick {
+      background: rgba(255,255,255,0.92); border: 1px solid #c3d5e6; border-radius: 999px;
+      padding: 4px 11px; font-size: 0.74rem; font-weight: bold; color: #223;
+      cursor: pointer; font-family: inherit;
+    }
+    .pp-pick.dim { color: #778; font-weight: normal; }
+    .pp-base {
+      background: rgba(255,255,255,0.88); border-radius: 12px; padding: 11px 12px;
+      font-size: 0.78rem; color: #445; line-height: 1.8;
+    }
+    .pp-base b { font-size: 1.24rem; color: #003270; letter-spacing: .3px; }
+    .pp-gain {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin: 14px 2px 8px;
+    }
+    .pp-gain h3 { font-size: 0.86rem; color: #003270; font-weight: bold; }
+    .pp-gain span { font-size: 0.74rem; color: #667; }
+    .pp-list { list-style: none; border: 1px solid #cfe0ee; border-radius: 12px; overflow: hidden; }
+    .pp-list li + li { border-top: 1px solid #e3edf5; }
+    .pp-city {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 9px; align-items: center;
+      width: 100%; text-align: left; background: rgba(255,255,255,0.9); border: 0;
+      padding: 10px 12px; font-family: inherit; font-size: 0.88rem; color: #223; cursor: pointer;
+    }
+    .pp-city.on { background: #eaf3fb; }
+    .pp-city .sub { display: block; font-size: 0.68rem; color: #7a879a; margin-top: 2px; }
+    .pp-city .km  { font-size: 0.74rem; color: #556; font-variant-numeric: tabular-nums; }
+    .pp-ways { background: #f4f9fd; border-top: 1px solid #e3edf5; }
+    .pp-way {
+      display: grid; grid-template-columns: 20px 1fr auto; gap: 9px; align-items: center;
+      width: 100%; text-align: left; background: transparent; border: 0;
+      padding: 9px 12px 9px 16px; font-family: inherit; color: #223; cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+    .pp-way + .pp-way { border-top: 1px solid #e7f0f7; }
+    .pp-way.on { background: rgba(255,255,255,0.95); border-left-color: #0057a8; }
+    .pp-way.home.on { border-left-color: #0b7a52; }
+    .pp-way .wt { font-size: 0.78rem; font-weight: bold; line-height: 1.5; }
+    .pp-way .wd { display: block; font-size: 0.68rem; color: #7a879a; font-weight: normal; }
+    .pp-way .km { font-size: 0.72rem; color: #556; font-variant-numeric: tabular-nums; }
+    .pp-foot { font-size: 0.7rem; color: #7a879a; line-height: 1.7; margin-top: 8px; }
+    .pp-more { width: 100%; background: transparent; border: 0; padding: 10px;
+               font-size: 0.76rem; color: #0057a8; cursor: pointer; font-family: inherit; }
+
+    .pp-note {
+      font-size: 0.76rem; color: #0b5c40; background: #e6f5ee; border-radius: 10px;
+      padding: 9px 11px; line-height: 1.75; margin-bottom: 10px;
+    }
+    .pp-note.plain { color: #445; background: rgba(255,255,255,0.88); }
+    .pp-legs { border: 1px solid #cfe0ee; border-radius: 12px; overflow: hidden; }
+    .pp-leg {
+      display: grid; grid-template-columns: 76px 1fr; gap: 10px; align-items: center;
+      padding: 9px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.9);
+    }
+    .pp-leg + .pp-leg { border-top: 1px solid #e3edf5; }
+    .pp-leg .pair { font-size: 0.72rem; font-weight: bold; color: #556; letter-spacing: .5px; }
+    .pp-leg .who  { display: block; font-size: 0.68rem; color: #7a879a; }
+    .pp-leg.so { background: #e6f5ee; }
+    .pp-leg.so .who { color: #0b7a52; font-weight: bold; }
+    .pp-kinds { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; }
+    .pp-kind { font-size: 0.74rem; color: #556; line-height: 1.6; }
+    .pp-kind b { color: #223; }
+    .pp-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
   </style>
 </head>
 <!-- onclick="void(0)" はiOS SafariでSVG要素のタップを有効にする定番修正 -->
@@ -690,6 +805,77 @@
 </header>
 
 <div class="container">
+
+  <!-- ══════════════════════════════════════════════════════════════
+       S1〜S3：もう1都市の提案（S-5・2026-09-07）
+       同じマイル数で、目的地に加えてもう1都市に降りられる案を出す。
+       判定は src/rules-core.js、必要マイルは src/miles-core.js、
+       候補づくりは src/proposer.js が行う。ここには規約値を書かない。
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="pp" id="pp">
+    <div class="pp-head">
+      <h2>もう1都市</h2>
+      <p>行き先を決めると、<b>同じマイル数で寄れるもう1都市</b>を提案します。</p>
+    </div>
+
+    <!-- S1 さがす -->
+    <div class="pp-form" id="pp-s1">
+      <label class="pp-field">
+        <span>出発地（自宅）</span>
+        <select id="pp-origin" class="pp-sel"></select>
+      </label>
+      <label class="pp-field">
+        <span>目的地</span>
+        <select id="pp-dest" class="pp-sel"></select>
+      </label>
+      <label class="pp-field">
+        <span>特典の種類</span>
+        <select id="pp-award" class="pp-sel">
+          <option value="partner">提携航空会社（スターアライアンス含む）</option>
+          <option value="ana">ANA便のみ</option>
+        </select>
+      </label>
+      <label class="pp-field">
+        <span>座席</span>
+        <select id="pp-cabin" class="pp-sel">
+          <option value="eco">エコノミー</option>
+          <option value="biz">ビジネス</option>
+        </select>
+      </label>
+      <label class="pp-field">
+        <span>持っているマイル（任意）</span>
+        <input id="pp-miles" class="pp-sel" type="number" inputmode="numeric" placeholder="空欄なら全部出します">
+      </label>
+      <button class="pp-go" id="pp-go" onclick="ppSearch()">ルートを提案する ▶</button>
+      <div class="pp-msg" id="pp-msg"></div>
+    </div>
+
+    <!-- S2 候補 -->
+    <div id="pp-s2" hidden>
+      <div class="pp-cond">
+        <span>条件</span>
+        <button class="pp-pick" id="pp-cond-origin" onclick="ppEditCondition()">出発地 —</button>
+        <button class="pp-pick dim" id="pp-cond-award" onclick="ppEditCondition()">—</button>
+        <button class="pp-pick dim" id="pp-cond-cabin" onclick="ppEditCondition()">—</button>
+      </div>
+      <div class="pp-base" id="pp-base"></div>
+      <div class="pp-gain"><h3>もう1都市</h3><span id="pp-plus"></span></div>
+      <ul class="pp-list" id="pp-list"></ul>
+      <p class="pp-foot" id="pp-foot"></p>
+    </div>
+
+    <!-- S3 旅程 -->
+    <div id="pp-s3" hidden>
+      <div class="pp-gain"><h3 id="pp-s3-title">旅程</h3><span id="pp-s3-miles"></span></div>
+      <p class="pp-note" id="pp-s3-note"></p>
+      <div class="pp-legs" id="pp-legs"></div>
+      <div class="pp-kinds" id="pp-kinds"></div>
+      <div class="pp-actions">
+        <button class="pp-go" onclick="ppToEditor()">この旅程を「じぶんで組む」に読み込む ▼</button>
+        <button class="pp-ghost" onclick="ppBackToList()">◀ 候補一覧に戻る</button>
+      </div>
+    </div>
+  </section>
 
   <!-- 設定パネル -->
   <div class="settings-panel">
@@ -793,6 +979,7 @@
         </div>
       </div>
       <p class="plane-hint">各丸をタップして都市を設定 · <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#d97706;color:white;font-size:8px;font-weight:bold;vertical-align:middle;">S</span> マークがストップオーバー</p>
+      <p class="surface-note hidden" id="surface-note"></p>
     </div>
 
     <!--
@@ -1113,6 +1300,15 @@
       <button id="btn-stopover"  class="type-btn"        onclick="setType('stopover')"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#d97706;color:white;font-size:9px;font-weight:bold;vertical-align:middle;margin-right:2px;">S</span> ストップオーバー</button>
     </div>
 
+    <!-- 陸路移動（この都市から次の都市までを飛行機に乗らずに移動する） -->
+    <label class="surface-row hidden" id="surface-row">
+      <input type="checkbox" id="surface-chk" onchange="setSurface(this.checked)">
+      <span>
+        <b>🚄 次の都市までは飛行機に乗らない（陸路で移動する）</b>
+        <small>例：羽田に着いて、成田から飛ぶ。規約では<b>両端の都市を合わせて乗り換え1回</b>と数えます。</small>
+      </span>
+    </label>
+
     <div class="modal-buttons">
       <button class="btn-clear" onclick="clearCity()">クリア</button>
       <button class="btn-close" onclick="closeModal()">閉じる</button>
@@ -1192,33 +1388,24 @@ const CITIES = [
   // インド
   { name:"ムンバイ",          iata:"BOM", type:"overseas",  zone:4,  miles:4200 },
   { name:"シドニー",          iata:"SYD", type:"overseas",  zone:10, miles:4870 },
-  // アフリカ（Zone 8）※ MILE_CHART は未定義のためルール1判定の参考値のみ
+  // アフリカ（Zone 8）※ 必要マイルは data/mile-chart-partner.json 側にある
   { name:"カサブランカ",      iata:"CMN", type:"overseas",  zone:8,  miles:7500 },
   { name:"マラケシュ",        iata:"RAK", type:"overseas",  zone:8,  miles:7550 },
 ];
 
-const MILE_CHART = {
-  2:  { label:"Zone 2（韓国・ロシア）",
-        reg:{eco:15000,biz:50000,first:null},
-        low:{eco:12000,biz:40000}, high:{eco:24000,biz:80000} },
-  3:  { label:"Zone 3（アジア1：台北・香港・グアム等）",
-        reg:{eco:24630,biz:70000,first:null},
-        low:{eco:18500,biz:60000}, high:{eco:37500,biz:95000} },
-  4:  { label:"Zone 4（アジア2：BKK・SIN・ハノイ等）",
-        reg:{eco:35000,biz:90000,first:null},
-        low:{eco:30000,biz:80000}, high:{eco:50000,biz:95000} },
-  5:  { label:"Zone 5（ハワイ）",
-        reg:{eco:40000,biz:100000,first:null},
-        low:{eco:35000,biz:85000}, high:{eco:60000,biz:120000} },
-  6:  { label:"Zone 6（北米：LA・NY・シカゴ等）",
-        reg:{eco:50000,biz:120000,first:300000},
-        low:{eco:40000,biz:100000}, high:{eco:72000,biz:165000} },
-  7:  { label:"Zone 7（ヨーロッパ：ロンドン・パリ・FRA等）",
-        reg:{eco:55000,biz:140000,first:330000},
-        low:{eco:45000,biz:120000}, high:{eco:78000,biz:230000} },
-  10: { label:"Zone 10（オセアニア：シドニー等）",
-        reg:{eco:45000,biz:90000,first:null},
-        low:{eco:40000,biz:80000}, high:{eco:60000,biz:135000} },
+// ゾーンの見出し（選択メニューの区切りに使う「名前」だけ）。
+// ★必要マイルの数値はここに置かない——公式チャート2本（data/mile-chart-*.json）が
+//   唯一の出どころで、計算は src/miles-core.js が行う。
+//   2026-09-07 まで、ここに置いた表が公式と 46セル中22セル食い違ったまま画面に出ていた。
+const ZONE_LABEL = {
+  2:  "Zone 2（韓国・ロシア）",
+  3:  "Zone 3（アジア1：台北・香港・グアム等）",
+  4:  "Zone 4（アジア2：BKK・SIN・ハノイ等）",
+  5:  "Zone 5（ハワイ）",
+  6:  "Zone 6（北米：LA・NY・シカゴ等）",
+  7:  "Zone 7（ヨーロッパ：ロンドン・パリ・FRA等）",
+  8:  "Zone 8（アフリカ）",
+  10: "Zone 10（オセアニア：シドニー等）",
 };
 
 // ===== 規約値・判定ロジックは src/rules-core.js が正本 =====
@@ -1245,6 +1432,32 @@ const rulesReady = (async () => {
     // 読めなかったときに既定値で判定を続けない（不明な上限で「問題なし」を出さない）
     RULES_LOAD_ERROR = e;
     console.error('規約データの読み込みに失敗:', e);
+    return false;
+  }
+})();
+
+// ===== 必要マイルは src/miles-core.js ＋ 公式チャート2本が正本 =====
+// 画面に数値表を持たない（旧 MILE_CHART は 46セル中22セルが公式と食い違っていた）。
+//  - 計算       : src/miles-core.js（Zone 1-A / 1-B の判定・オープンジョーの合算）
+//  - チャート   : data/mile-chart-partner.json / data/mile-chart-ana.json
+let MILES_CORE = null, MILE_CHARTS = null, MILES_LOAD_ERROR = null;
+
+const milesReady = (async () => {
+  try {
+    const [mod, partner, ana] = await Promise.all([
+      import('./src/miles-core.js'),
+      fetch('data/mile-chart-partner.json', { cache: 'default' }).then(r => {
+        if (!r.ok) throw new Error('mile-chart-partner.json HTTP ' + r.status); return r.json(); }),
+      fetch('data/mile-chart-ana.json', { cache: 'default' }).then(r => {
+        if (!r.ok) throw new Error('mile-chart-ana.json HTTP ' + r.status); return r.json(); }),
+    ]);
+    MILES_CORE = mod;
+    MILE_CHARTS = { partner, ana };
+    return true;
+  } catch (e) {
+    // 読めなかったら必要マイルを出さない（推測値を出さない）
+    MILES_LOAD_ERROR = e;
+    console.error('マイルチャートの読み込みに失敗:', e);
     return false;
   }
 })();
@@ -1325,6 +1538,18 @@ function setVal(slot, iata) {
   else if (slot.startsWith('ret-')) STATE.return[+slot[4]]   = iata;
 }
 
+// 陸路移動（この乗り継ぎ地から次の地点までを飛行機に乗らずに移動する）。
+// 規約では両端の都市を合わせて乗り換え1回と数える。判定は rules-core が行う
+function getSurface(slot) {
+  if (slot.startsWith('out-')) return STATE.outboundSurface[+slot[4]];
+  if (slot.startsWith('ret-')) return STATE.returnSurface[+slot[4]];
+  return false;
+}
+function setSurfaceAt(slot, value) {
+  if (slot.startsWith('out-')) STATE.outboundSurface[+slot[4]] = value;
+  if (slot.startsWith('ret-')) STATE.returnSurface[+slot[4]]   = value;
+}
+
 function isConn(slot) {
   return slot.startsWith('out-') || slot.startsWith('ret-');
 }
@@ -1372,7 +1597,30 @@ function updateAllDots() {
       badge.style.visibility = (so && !!val) ? 'visible' : 'hidden';
     }
   });
+  updateSurfaceNote();
   updateTransitCounter();
+}
+
+// 陸路にした区間を機体図の下に文章で出す。
+// 丸の見た目だけでは「次まで飛行機に乗らない」ことが伝わらないため
+function updateSurfaceNote() {
+  const el = document.getElementById('surface-note');
+  if (!el) return;
+  const nameOf = (iata) => CITIES.find(c => c.iata === iata)?.name ?? iata;
+  const lines = [];
+  const walk = (leg, arr, flags, endpoint) => {
+    const seq = arr.filter(Boolean);
+    seq.forEach((iata, i) => {
+      if (!flags[i]) return;
+      const next = seq[i + 1] ?? endpoint;
+      if (!next) return;
+      lines.push(`${leg}：${nameOf(iata)} → ${nameOf(next)} は陸路で移動`);
+    });
+  };
+  walk('往路', STATE.outbound, STATE.outboundSurface, STATE.destination);
+  walk('復路', STATE.return, STATE.returnSurface, STATE.arrival ?? STATE.departure);
+  el.textContent = lines.length ? '🚄 ' + lines.join(' ／ ') + '（両端で乗り換え1回として数えます）' : '';
+  el.classList.toggle('hidden', lines.length === 0);
 }
 
 // ===== 乗り継ぎ回数カウンター =====
@@ -1465,7 +1713,7 @@ function buildModalSelect() {
   const zones = [...new Set(CITIES.filter(c => c.type === 'overseas').map(c => c.zone))].sort((a,b) => a-b);
   zones.forEach(z => {
     const grp = document.createElement('optgroup');
-    grp.label = `🌏 ${MILE_CHART[z]?.label ?? 'Zone ' + z}`;
+    grp.label = `🌏 ${ZONE_LABEL[z] ?? 'Zone ' + z}`;
     CITIES.filter(c => c.type === 'overseas' && c.zone === z).forEach(c => {
       const o = document.createElement('option');
       o.value = c.iata;
@@ -1485,7 +1733,12 @@ function openModal(slot) {
 
   // トグル：接続都市は有効、出発地・目的地・帰着地・復路出発地はグレーアウト
   const typeRow = document.getElementById('type-row');
+  const surfRow = document.getElementById('surface-row');
+  const surfChk = document.getElementById('surface-chk');
   typeRow.classList.remove('hidden');
+  // 陸路移動は乗り継ぎ地にだけ置ける（出発地・目的地・帰着地には出さない）
+  surfRow.classList.toggle('hidden', !isConn(slot));
+  if (isConn(slot)) surfChk.checked = getSurface(slot);
   if (isConn(slot)) {
     typeRow.classList.remove('disabled');
     updateTypeButtons();
@@ -1518,9 +1771,16 @@ function setType(type) {
   updateAllDots();
 }
 
+function setSurface(on) {
+  if (!currentSlot || !isConn(currentSlot)) return;
+  setSurfaceAt(currentSlot, on);
+  updateAllDots();
+}
+
 function clearCity() {
   setVal(currentSlot, null);
   if (isConn(currentSlot)) setStopover(currentSlot, false);
+  if (isConn(currentSlot)) setSurfaceAt(currentSlot, false);
   updateAllDots();
   closeModal();
 }
@@ -1540,8 +1800,8 @@ document.getElementById('modal-select').addEventListener('change', function() {
   const iata = this.value || null;
   setVal(currentSlot, iata);
 
-  // 都市をクリアした場合はストップオーバーも解除
-  if (!iata && isConn(currentSlot)) setStopover(currentSlot, false);
+  // 都市をクリアした場合はストップオーバーも陸路移動も解除
+  if (!iata && isConn(currentSlot)) { setStopover(currentSlot, false); setSurfaceAt(currentSlot, false); }
 
   updateAllDots();
 
@@ -1653,54 +1913,60 @@ async function validate() {
     return `<div class="check-item ${cls}">${icon} ${c.msg}</div>`;
   }).join('');
 
-  // マイル情報（オープンジョー: 第7条計算を追記）
+  // ===== 必要マイル（miles-core が計算する。画面は数値表を持たない）=====
   const mileDiv = document.getElementById('mile-info');
-  const info = MILE_CHART[destCity.zone];
-  if (info) {
-    const fmtM = v => v != null
-      ? `<span class="val">${v.toLocaleString()} マイル</span>`
-      : `<span style="color:#bbb">—</span>`;
-
-    let ojNote = '';
-    // 異なるゾーン1/2合算ルール: 提携は第7条、ANA便は第5条
-    const halfMileRuleLabel = STATE.awardType === 'ana' ? '第5条' : '第7条';
-    if (isOpenJaw && retDepCity) {
-      if (retDepCity.zone !== destCity.zone) {
-        const infoRet = MILE_CHART[retDepCity.zone];
-        if (infoRet) {
-          const halfOut = Math.round((info.reg.eco    ?? 0) / 2);
-          const halfRet = Math.round((infoRet.reg.eco ?? 0) / 2);
-          ojNote = `
-            <div style="margin-top:10px;padding:8px;background:#ebf8ff;border-radius:6px;font-size:0.74rem;line-height:1.9;color:#2a4365">
-              <b>[${halfMileRuleLabel}] オープンジョー マイル目安（エコノミー）</b><br>
-              往路 Zone${destCity.zone}: ${(info.reg.eco??0).toLocaleString()} ÷ 2 = ${halfOut.toLocaleString()} マイル<br>
-              復路 Zone${retDepCity.zone}: ${(infoRet.reg.eco??0).toLocaleString()} ÷ 2 = ${halfRet.toLocaleString()} マイル<br>
-              <b>合計目安: ${(halfOut + halfRet).toLocaleString()} マイル</b>
-            </div>`;
-        }
-      } else {
-        ojNote = `<div style="margin-top:6px;font-size:0.73rem;color:#2b6cb0">オープンジョー（同一Zone${destCity.zone}）: マイル計算は通常往復と同じです</div>`;
+  const milesOk = await milesReady;
+  if (!milesOk) {
+    mileDiv.innerHTML = '<div style="font-size:0.78rem;color:#a55;line-height:1.8">'
+      + 'マイルチャートを読み込めませんでした。<b>必要マイルは表示しません</b>（推測値を出さないため）。'
+      + '通信状況を確かめて開き直してください。</div>';
+    mileDiv.classList.remove('hidden');
+  } else {
+    const it = currentItinerary();
+    const seasons = STATE.awardType === 'ana'
+      ? [['low', 'ロー'], ['regular', 'レギュラー'], ['high', 'ハイ']]
+      : [['regular', null]];                     // 提携特典はシーズンで変わらない
+    const calc = (cabin, season) => {
+      try {
+        return MILES_CORE.requiredMiles(it, {
+          charts: MILE_CHARTS, cities: CITIES, awardType: STATE.awardType, cabin, season,
+        });
+      } catch (e) { return { miles: null, reason: e.message }; }
+    };
+    const cabins = [['eco', '✈ エコノミー'], ['biz', '🛋 ビジネス'], ['first', '⭐ ファースト']];
+    const base = calc('eco', 'regular');
+    const rows = [];
+    for (const [cabin, cabinLabel] of cabins) {
+      for (const [season, seasonLabel] of seasons) {
+        const r = calc(cabin, season);
+        if (r.miles == null && cabin === 'first') continue;   // ファーストは無い組み合わせが多い
+        rows.push(`<div class="mile-row"><span>${cabinLabel}${seasonLabel ? '（' + seasonLabel + '）' : ''}</span>`
+          + (r.miles != null
+              ? `<span class="val">${r.miles.toLocaleString()} マイル</span>`
+              : `<span style="color:#bbb" title="${(r.reason ?? '').replace(/"/g, '')}">—</span>`)
+          + '</div>');
       }
     }
-
+    const breakdown = (base.breakdown ?? []).length > 1
+      ? '<div style="font-size:0.72rem;color:#557;margin-top:8px;line-height:1.8">内訳（エコノミー）：'
+        + base.breakdown.map(b => `${b.label} ${b.miles.toLocaleString()}`).join(' ＋ ') + '</div>'
+      : '';
     mileDiv.innerHTML = `
       <div>
         <span class="zone-badge">Zone ${destCity.zone}</span>
-        ${isOpenJaw && retDepCity && retDepCity.zone !== destCity.zone ? `<span class="zone-badge" style="margin-left:4px">Zone ${retDepCity.zone}</span>` : ''}
+        ${isOpenJaw && retDepCity && retDepCity.zone !== destCity.zone
+          ? `<span class="zone-badge" style="margin-left:4px">Zone ${retDepCity.zone}</span>` : ''}
       </div>
-      <div style="font-size:0.78rem;color:#558;margin-bottom:10px">${info.label}</div>
-      <div class="mile-row"><span>✈ エコノミー（往復 レギュラー）</span>${fmtM(info.reg.eco)}</div>
-      <div class="mile-row"><span>🛋 ビジネス（往復 レギュラー）</span>${fmtM(info.reg.biz)}</div>
-      ${info.reg.first ? `<div class="mile-row"><span>⭐ ファースト（往復）</span>${fmtM(info.reg.first)}</div>` : ''}
+      <div style="font-size:0.76rem;color:#558;margin:6px 0 10px;line-height:1.7">
+        ${base.note ?? base.reason ?? ''}
+      </div>
+      ${rows.join('')}
+      ${breakdown}
       <div style="font-size:0.7rem;color:#88a;margin-top:10px;line-height:1.8">
-        ローシーズン: エコノミー ${info.low.eco?.toLocaleString()??'—'} / ビジネス ${info.low.biz?.toLocaleString()??'—'} マイル<br>
-        ハイシーズン: エコノミー ${info.high.eco?.toLocaleString()??'—'} / ビジネス ${info.high.biz?.toLocaleString()??'—'} マイル<br>
-        ※シーズン区分はANA公式カレンダーで確認してください
-      </div>
-      ${ojNote}`;
+        この旅程に対する往復の必要マイルです（ANA公式チャートから計算）。
+        ${STATE.awardType === 'ana' ? '※シーズン区分はANA公式カレンダーで確認してください' : ''}
+      </div>`;
     mileDiv.classList.remove('hidden');
-  } else {
-    mileDiv.classList.add('hidden');
   }
 
   const rc = document.getElementById('result-card');
@@ -1872,7 +2138,7 @@ function buildOverseasSelect(selId, currentIata) {
   const zones = [...new Set(CITIES.filter(c => c.type === 'overseas').map(c => c.zone))].sort((a,b) => a-b);
   zones.forEach(z => {
     const grp = document.createElement('optgroup');
-    grp.label = `🌏 ${MILE_CHART[z]?.label ?? 'Zone ' + z}`;
+    grp.label = `🌏 ${ZONE_LABEL[z] ?? 'Zone ' + z}`;
     CITIES.filter(c => c.type === 'overseas' && c.zone === z).forEach(c => {
       const o = document.createElement('option');
       o.value = c.iata;
@@ -2687,9 +2953,293 @@ async function renderSavedRoutes() {
       }).join('');
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// もう1都市の提案（S1 さがす → S2 候補 → S3 旅程）／S-5・2026-09-07
+// ここは「入力を渡して、返ってきたものを並べる」だけにする。
+//   判定       : src/rules-core.js
+//   必要マイル : src/miles-core.js
+//   候補づくり : src/proposer.js
+// 規約の数値も、乗れる航空会社も、この画面には書かない（写しを作らない）。
+// ═══════════════════════════════════════════════════════════════════
+const PP = {
+  mod: null, charts: null, airlines: null, airports: null, graph: null,
+  rows: [], base: null, stats: null, sel: 0, way: 0, showFar: false, req: null,
+};
+
+// もう1都市への「行き方」。同じ都市でも体験が変わるので、行の中に並べる
+const PP_WAY = {
+  'arrival':   { icon:'🛬', label:'帰りに降りる（帰着地を変える）',
+                 full:'帰りの最後をこの街にします。空港から先の移動はご自分です。' },
+  'stopover':  { icon:'✈️', label:'寄り道する（24時間以上とまる）',
+                 full:'この街で24時間以上とまります。途中降機は旅程全体で1回だけです。' },
+  'home:ret':  { icon:'🏠', label:'自宅で途中降機（国内線をあとに飛ぶ）',
+                 full:'いったん自宅に帰り、最後の国内線1区間を別の日に飛びます。同じ特典のまま国内旅行が1回増えます。' },
+  'home:out':  { icon:'🏠', label:'自宅で途中降機（国内線を先に飛ぶ）',
+                 full:'先に国内線1区間を飛んで自宅に戻り、24時間以上あけてから国際線に乗ります。' },
+};
+const ppWayKey  = (w) => w.extraVia === 'home' ? 'home:' + w.homeLeg : w.extraVia;
+const ppCityName = (iata) => CITIES.find(c => c.iata === iata)?.name ?? iata;
+const ppKm = (n) => (n >= 0 ? '+' : '') + Number(n).toLocaleString('ja-JP') + 'km';
+const ppMi = (n) => Number(n).toLocaleString('ja-JP');
+
+// 出発地・目的地の選択肢を作る（都市マスタが唯一の出どころ）
+function ppInitSelects() {
+  const org = document.getElementById('pp-origin');
+  const dst = document.getElementById('pp-dest');
+  if (!org || !dst) return;
+  const opt = (c) => `<option value="${c.iata}">${c.name}</option>`;
+  org.innerHTML = CITIES.filter(c => c.type === 'domestic' && !c.group).map(opt).join('');
+  dst.innerHTML = CITIES.filter(c => c.type === 'overseas'  && !c.group).map(opt).join('');
+  org.value = localStorage.getItem('pp-origin') ?? 'HND';
+  dst.value = localStorage.getItem('pp-dest')   ?? 'CDG';
+  const aw = document.getElementById('pp-award');
+  if (aw) aw.value = localStorage.getItem('pp-award') ?? 'partner';
+}
+
+// 提案に必要なものを一度だけ読む。路線データは既存の ROUTE_DB を使い回す
+async function ppLoad() {
+  if (PP.mod) return;
+  const [proposer, partner, ana, airlines, airports] = await Promise.all([
+    import('./src/proposer.js'),
+    fetch('data/mile-chart-partner.json').then(r => r.json()),
+    fetch('data/mile-chart-ana.json').then(r => r.json()),
+    fetch('data/airlines.json').then(r => r.json()),
+    fetch('data/airports.json').then(r => r.json()),
+    ensureRouteDB(),
+  ]);
+  if (!ROUTE_DB) throw new Error('路線データ（routes.json）を読めませんでした');
+  PP.mod = proposer;
+  PP.charts = { partner, ana };
+  PP.airlines = airlines;
+  PP.airports = airports.airports ?? airports;
+  const all = new Set([...airlines.ana_own, ...airlines.star_alliance, ...airlines.ana_partners]);
+  PP.graph = proposer.buildGraph(ROUTE_DB, CITIES, { carriers: all });
+}
+
+async function ppSearch() {
+  const btn = document.getElementById('pp-go');
+  const msg = document.getElementById('pp-msg');
+  btn.disabled = true;
+  msg.className = 'pp-msg wait';
+  msg.textContent = '候補をさがしています…';
+  try {
+    await ppLoad();
+    const ready = await rulesReady;
+    // 規約値が読めないときは既定値で代用しない（「問題ありません」を出さない）
+    if (!ready || !RULES_CFG) throw new Error('規約データを読めませんでした。値を推測して判定はしません。');
+
+    const req = {
+      origin:      document.getElementById('pp-origin').value,
+      destination: document.getElementById('pp-dest').value,
+      awardType:   document.getElementById('pp-award').value,
+      cabin:       document.getElementById('pp-cabin').value,
+      wantStopover: true,
+    };
+    localStorage.setItem('pp-origin', req.origin);
+    localStorage.setItem('pp-dest',   req.dest ?? req.destination);
+    localStorage.setItem('pp-award',  req.awardType);
+    PP.req = req;
+
+    const { proposals, stats } = PP.mod.propose(req, {
+      rules: RULES_CFG, charts: PP.charts, cities: CITIES, graph: PP.graph,
+      coords: PP.airports, airports: PP.airports, airlines: PP.airlines,
+    });
+    PP.stats = stats;
+
+    // 持っているマイルは絞り込みにだけ使う（設計には埋め込まない・2026-09-06 決定）
+    const cap = Number(document.getElementById('pp-miles').value) || null;
+    const within = (p) => !cap || (p.miles != null && p.miles <= cap);
+
+    PP.base = proposals.filter(p => p.extraCity == null && within(p))
+                       .sort((a, b) => a.transits - b.transits)[0] ?? null;
+    PP.rows = PP.mod.groupByCity(proposals.filter(within), { airports: PP.airports });
+    PP.sel = 0; PP.way = 0; PP.showFar = false;
+
+    msg.textContent = '';
+    document.getElementById('pp-s2').hidden = false;
+    document.getElementById('pp-s3').hidden = true;
+    ppRender();
+    document.getElementById('pp-s2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    console.error(e);
+    msg.className = 'pp-msg';
+    msg.textContent = '提案を作れませんでした：' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// 条件バーを押したら S1 に戻す（出発地・特典・座席をその場で替える）
+function ppEditCondition() {
+  document.getElementById('pp-s1').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('pp-origin').focus();
+}
+
+function ppRender() {
+  const near = PP.rows.filter(r => r.effort !== '大回り');
+  const far  = PP.rows.filter(r => r.effort === '大回り');
+  const list = PP.showFar ? [...near, ...far] : near;
+  if (PP.sel >= list.length) { PP.sel = 0; PP.way = 0; }
+  const cur = list[PP.sel] ?? null;
+  if (cur && PP.way >= cur.ways.length) PP.way = 0;
+
+  document.getElementById('pp-cond-origin').textContent = '出発地 ' + ppCityName(PP.req.origin);
+  document.getElementById('pp-cond-award').textContent  =
+    PP.req.awardType === 'ana' ? 'ANA便のみ' : '提携航空会社特典';
+  document.getElementById('pp-cond-cabin').textContent  =
+    PP.req.cabin === 'biz' ? 'ビジネス' : 'エコノミー';
+
+  const b = PP.base;
+  document.getElementById('pp-base').innerHTML = b
+    ? `もう1都市なし（基準）<br><b>${ppMi(b.miles)}</b> マイル ／ 乗継${b.transits}回<br>`
+      + `往路 ${b.route[0]}<br>復路 ${b.route[1]}`
+    : '基準になる「まっすぐ帰る旅程」が作れませんでした';
+
+  const extra = (PP.rows[0] && b) ? PP.rows[0].miles - b.miles : 0;
+  document.getElementById('pp-plus').textContent =
+    PP.rows.length === 0 ? '候補なし' : extra === 0 ? '追加マイルなし' : 'どの都市でも +' + ppMi(extra);
+
+  const ul = document.getElementById('pp-list');
+  ul.innerHTML = '';
+  if (!list.length) {
+    ul.innerHTML = '<li style="padding:12px;font-size:0.8rem;color:#7a879a">もう1都市を足せる案がありません</li>';
+  }
+  list.forEach((r, i) => {
+    const li = document.createElement('li');
+    const on = i === PP.sel;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pp-city' + (on ? ' on' : '');
+    const icons = [...new Set(r.ways.map(w => PP_WAY[ppWayKey(w)]?.icon ?? '•'))].join(' ');
+    const same  = r.sameCountry.length ? ` ・ 同じ国にあと${r.sameCountry.length}都市` : '';
+    btn.innerHTML = `<span>${r.city}<span class="sub">${icons} 行き方${r.ways.length}通り ・ 就航${r.hub}路線${same}</span></span>`
+      + `<span class="km">${ppKm(r.detour)}</span><span class="km">${on ? '▾' : '›'}</span>`;
+    btn.addEventListener('click', () => { PP.sel = i; PP.way = 0; ppRender(); });
+    li.appendChild(btn);
+
+    if (on) {
+      const box = document.createElement('div');
+      box.className = 'pp-ways';
+      r.ways.forEach((w, wi) => {
+        const k = ppWayKey(w);
+        const c = document.createElement('button');
+        c.type = 'button';
+        c.className = 'pp-way' + (w.extraVia === 'home' ? ' home' : '') + (wi === PP.way ? ' on' : '');
+        c.innerHTML = `<span>${PP_WAY[k]?.icon ?? '•'}</span>`
+          + `<span class="wt">${PP_WAY[k]?.label ?? k}<span class="wd">${w.route[1]}</span></span>`
+          + `<span class="km">${ppKm(w.detourKm ?? 0)}</span>`;
+        c.addEventListener('click', () => { PP.way = wi; ppShowItinerary(w); });
+        box.appendChild(c);
+      });
+      li.appendChild(box);
+    }
+    ul.appendChild(li);
+  });
+
+  if (far.length) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pp-more';
+    btn.textContent = PP.showFar ? '▴ 大回りの案を隠す' : `▾ 大回りの案も見る（${far.length}都市）`;
+    btn.addEventListener('click', () => { PP.showFar = !PP.showFar; ppRender(); });
+    li.appendChild(btn); ul.appendChild(li);
+  }
+
+  const s = PP.stats;
+  const home = PP.rows.filter(r => r.ways.some(w => w.extraVia === 'home')).length;
+  document.getElementById('pp-foot').textContent =
+    `規約に適合した ${ppMi(s.passed)} 通りを ${PP.rows.length} 都市に畳み、まっすぐ帰る旅程との飛行距離の差が小さい順に並べています。`
+    + (home ? `うち ${home} 都市は「自宅で途中降機」が選べます。`
+            : 'この出発地・この特典では「自宅で途中降機」は組めません。');
+}
+
+// S3 旅程：選んだ1本の区間・成立する特典・次の一手
+function ppShowItinerary(w) {
+  PP.chosen = w;
+  const pane = document.getElementById('pp-s3');
+  pane.hidden = false;
+  const k = ppWayKey(w);
+  document.getElementById('pp-s3-title').textContent =
+    `${ppCityName(PP.req.origin)} → ${ppCityName(PP.req.destination)} ＋ ${w.extraCityName}`;
+  document.getElementById('pp-s3-miles').textContent = `${ppMi(w.miles)} マイル`;
+  const note = document.getElementById('pp-s3-note');
+  note.textContent = PP_WAY[k]?.full ?? '';
+  note.className = 'pp-note' + (w.extraVia === 'home' ? '' : ' plain');
+
+  const it = w.itinerary;
+  const seq = [
+    [it.departure, ...it.outbound.filter(Boolean), it.destination],
+    [it.returnDep ?? it.destination, ...it.return.filter(Boolean), it.arrival ?? it.departure],
+  ];
+  const soAt = new Set();
+  it.outbound.filter(Boolean).forEach((c, i) => { if (it.outboundSO[i]) soAt.add('out:' + c); });
+  it.return.filter(Boolean).forEach((c, i) => { if (it.returnSO[i]) soAt.add('ret:' + c); });
+
+  const legs = [];
+  seq.forEach((line, li) => {
+    for (let i = 0; i < line.length - 1; i++) {
+      const from = line[i], to = line[i + 1];
+      const so = soAt.has((li === 0 ? 'out:' : 'ret:') + to);
+      legs.push({ from, to, so });
+    }
+  });
+  document.getElementById('pp-legs').innerHTML = legs.map(l =>
+    `<div class="pp-leg${l.so ? ' so' : ''}">
+       <span class="pair">${l.from}→${l.to}</span>
+       <span>${ppCityName(l.from)} → ${ppCityName(l.to)}
+         ${l.so ? '<span class="who">ここで24時間以上とまる＝途中降機</span>' : ''}</span>
+     </div>`).join('');
+
+  // どの特典で成立するかを並べる（規約は特典ごとに別物なので、片方だけ通ることがある）
+  let kinds = [];
+  try {
+    kinds = PP.mod.evaluateByKind(it, {
+      rules: RULES_CFG, cities: CITIES, graph: PP.graph, airlines: PP.airlines,
+    });
+  } catch (e) { console.warn('特典別の判定に失敗:', e); }
+  document.getElementById('pp-kinds').innerHTML = kinds.length
+    ? kinds.map(x => `<div class="pp-kind">${x.ok ? '✅' : '❌'} <b>${x.label}</b>`
+        + (x.ok ? '' : `<br><span style="color:#a55">${(x.reasons ?? []).slice(0, 2).join(' ／ ')}</span>`)
+        + '</div>').join('')
+    : '';
+
+  pane.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function ppBackToList() {
+  document.getElementById('pp-s3').hidden = true;
+  document.getElementById('pp-s2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// 選んだ旅程を「じぶんで組む」（従来の判定UI）へ渡す
+function ppToEditor() {
+  const w = PP.chosen;
+  if (!w) return;
+  const it = w.itinerary;
+  STATE.awardType   = PP.req.awardType;
+  STATE.departure   = it.departure;
+  STATE.destination = it.destination;
+  STATE.arrival     = it.arrival ?? null;
+  STATE.returnDep   = it.returnDep ?? null;
+  STATE.outbound    = [...it.outbound];
+  STATE.return      = [...it.return];
+  STATE.outboundSO  = [...it.outboundSO];
+  STATE.returnSO    = [...it.returnSO];
+  STATE.outboundSurface = [...(it.outboundSurfaceAfter ?? [false, false, false])];
+  STATE.returnSurface   = [...(it.returnSurfaceAfter   ?? [false, false, false])];
+  const radio = document.querySelector(`input[name="awardType"][value="${STATE.awardType}"]`);
+  if (radio) radio.checked = true;
+  updateAllDots();
+  validate();
+  document.querySelector('.plane-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // ===== 初期化 =====
 updateAllDots();
 initSettings();
+ppInitSelects();
 // 規約データ（data/award-rules.json）は非同期に読む。
 // 届いてから乗り換え上限カウンタを描き直す（それまで上限は表示しない）
 rulesReady.then(() => updateTransitCounter());

@@ -9,8 +9,7 @@ import { CITIES, ALL_CARRIERS, AIRLINES, CHARTS, buildRules, loadRoutes, readJso
 import { requiredMiles, japanZoneKey } from '../src/miles-core.js';
 import {
   buildGraph, propose, allowedCarriers, hubScore, carrierPlans,
-  evaluateItinerary, evaluateByKind, planLabel,
-} from '../src/proposer.js';
+  evaluateItinerary, evaluateByKind, planLabel, groupByCity } from '../src/proposer.js';
 import { validateItinerary, ZONE_RANK } from '../src/rules-core.js';
 
 const rules = buildRules();
@@ -312,15 +311,19 @@ test('国内オープンジョー（帰着地を変える）を提案できる',
 // =====================================================================
 
 test('増える都市は1旅程に1つまで（寄り道と帰着地を掛け算しない）', () => {
-  // 掛け合わせるとパリ行きだけで560本になり、選べる一覧でなくなる
+  // 掛け合わせるとパリ行きだけで560本になり、選べる一覧でなくなる。
+  // ★ただし「同じ都市への行き方」（帰着地／寄り道／自宅で途中降機）は別の旅なので、
+  //   同じ都市が行き方の数だけ出る。畳むのは画面側（都市ごとに1行）
   const { proposals } = propose(
     { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
-  const keys = proposals.map((p) => `${p.miles}|${p.extraCity ?? '-'}`);
-  assert.equal(new Set(keys).size, keys.length, '同じ「増える都市」が2本出ている');
-  assert.ok(proposals.length < 60, `一覧が長すぎる（${proposals.length}本）`);
+  const keys = proposals.map((p) => `${p.miles}|${p.extraCity ?? '-'}|${p.extraVia ?? '-'}|${p.homeLeg ?? '-'}`);
+  assert.equal(new Set(keys).size, keys.length, '同じ（増える都市・行き方）が2本出ている');
+  assert.ok(proposals.length < 80, `一覧が長すぎる（${proposals.length}本）`);
+  const cities = new Set(proposals.map((p) => p.extraCity ? cityKey(p.extraCity) : '-'));
+  assert.ok(cities.size < 40, `都市が多すぎる（${cities.size}都市）`);
   for (const p of proposals) {
     const already = new Set(['HND', 'CDG'].map(cityKey));
-    const extras = new Set([p.stopover, p.arrival]
+    const extras = new Set([p.stopover, p.arrival, p.itinerary.departure]
       .filter(Boolean).map(cityKey).filter((x) => !already.has(x)));
     assert.ok(extras.size <= 1,
       `増える都市が ${extras.size} 都市ある: ${p.route.join(' / ')}`);
@@ -378,7 +381,8 @@ test('提案は「スタアラ全体」か「提携社1社」のどちらかで�
     for (const p of proposals) {
       checked++;
       const segs = [];
-      for (const leg of [['HND', ...p.itinerary.outbound.filter(Boolean), d],
+      // ★切符の出発地は自宅とは限らない（往路側の自宅途中降機では国内の別都市になる）
+      for (const leg of [[p.itinerary.departure, ...p.itinerary.outbound.filter(Boolean), d],
                          [d, ...p.itinerary.return.filter(Boolean), p.arrival]]) {
         for (let i = 0; i < leg.length - 1; i++) segs.push(ROUTES[`${leg[i]}-${leg[i + 1]}`] ?? []);
       }
@@ -397,7 +401,7 @@ test('日本国内線の乗り継ぎは ANA 運航便のみ（2026-05-19 搭乗�
   for (const [o, d] of [['HIJ', 'CDG'], ['HND', 'SIN'], ['HIJ', 'HNL']]) {
     const { proposals } = propose({ origin: o, destination: d, wantStopover: true }, ctxGeo);
     for (const p of proposals) {
-      for (const leg of [[o, ...p.itinerary.outbound.filter(Boolean), d],
+      for (const leg of [[p.itinerary.departure, ...p.itinerary.outbound.filter(Boolean), d],
                          [d, ...p.itinerary.return.filter(Boolean), p.arrival]]) {
         for (let i = 0; i < leg.length - 1; i++) {
           if (!dom.has(leg[i]) || !dom.has(leg[i + 1])) continue;
@@ -416,8 +420,8 @@ test('同じ街の別空港は「もう1都市」に数えない（羽田と成�
   // 羽田発の旅程で成田に降りても、増えるのは都市ではなく空港でしかない
   for (const o of ['HND', 'KIX']) {
     const { proposals } = propose({ origin: o, destination: 'CDG', wantStopover: true }, ctxGeo);
-    const keys = proposals.map((p) => `${p.miles}|${p.extraCity ? cityKey(p.extraCity) : '-'}`);
-    assert.equal(new Set(keys).size, keys.length, `${o}発で同じ街が2行出ている`);
+    const keys = proposals.map((p) => `${p.miles}|${p.extraCity ? cityKey(p.extraCity) : '-'}|${p.extraVia ?? '-'}|${p.homeLeg ?? '-'}`);
+    assert.equal(new Set(keys).size, keys.length, `${o}発で同じ街・同じ行き方が2行出ている`);
     for (const p of proposals) {
       if (!p.extraCity) continue;
       assert.notEqual(cityKey(p.extraCity), cityKey(o), `出発地と同じ街（${p.extraCityName}）を増える都市にしている`);
@@ -499,4 +503,100 @@ test('スターアライアンス加盟社の一覧が一次情報から取れ�
   assert.ok(AIRLINES.ana_partners.includes('VN'));
   // 次回見直しの期限が入っていること（半期に1回）
   assert.match(AIRLINES._meta.next_review, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+// =====================================================================
+// 自宅で途中降機して、国内線1区間を別の日に飛ぶ（2026-09-07 追加）
+// =====================================================================
+// ユーザーの指摘で分かった取りこぼし。規約判定は最初から通っていたのに、
+// 同じ都市の中から「飛行距離が最短の1本」だけを代表にしていたため、
+// 遠回りになる自宅経由が毎回消えていた（羽田→パリで 2,752 通りが埋没）。
+// 途中降機は往路・復路のどちらに置いてもよい（ANA公式・現行版で確認）。
+
+test('自宅で途中降機して国内線をあとに残す案が出る（復路版）', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  const home = proposals.filter((p) => p.extraVia === 'home');
+  assert.ok(home.length >= 3, `自宅で途中降機する案が少なすぎる（${home.length}本）`);
+
+  const ret = home.filter((p) => {
+    const rp = p.itinerary.return.filter(Boolean);
+    return rp.length && rp[rp.length - 1] === 'HND';
+  });
+  assert.ok(ret.length >= 1, '復路版（パリ→羽田［途中降機］→国内）が1本も無い');
+
+  const oka = ret.find((p) => p.arrival === 'OKA');
+  assert.ok(oka, '＋那覇の復路版が出ていない');
+  assert.equal(oka.miles, 62000, '寄り道なしの案と同じ追加マイルで済むはず');
+  assert.equal(oka.itinerary.returnSO[oka.itinerary.return.filter(Boolean).length - 1], true,
+    '自宅の滞在が途中降機として立っていない');
+});
+
+test('自宅で途中降機して国内線を先に飛ぶ案も出る（往路版）', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  const out = proposals.filter((p) => {
+    const op = p.itinerary.outbound.filter(Boolean);
+    return p.extraVia === 'home' && op.length && op[0] === 'HND' && p.itinerary.outboundSO[0];
+  });
+  assert.ok(out.length >= 1, '往路版（国内→羽田［途中降機］→パリ）が1本も無い');
+  for (const p of out) {
+    assert.notEqual(p.itinerary.departure, 'HND', '切符の出発地が自宅のままになっている');
+    assert.equal(p.extraCity, p.itinerary.departure, '増える都市は切符の出発地のはず');
+  }
+});
+
+test('ANA自社便では自宅で途中降機できない（日本発の途中降機は不可）', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', awardType: 'ana', wantStopover: true }, ctxGeo);
+  const home = proposals.filter((p) => p.extraVia === 'home');
+  assert.equal(home.length, 0,
+    `ANA自社便に自宅での途中降機が ${home.length} 本出ている（規約違反）`);
+});
+
+test('国内線が羽田経由しかない出発地では、自宅での途中降機は出ない（広島）', () => {
+  // 復路の日本国内の乗り換えは1回まで。自宅での途中降機がその1回を使うため、
+  // パリ→羽田→広島→那覇（国内2回）は組めない。黙って0本にせず、
+  // 「この出発地では選べない」と言えるように 0 であることを固定する
+  const { proposals } = propose(
+    { origin: 'HIJ', destination: 'CDG', wantStopover: true }, ctxGeo);
+  assert.equal(proposals.filter((p) => p.extraVia === 'home').length, 0);
+});
+
+test('自宅で降りても次が最終区間でなければ「自宅で途中降機」に数えない', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  for (const p of proposals.filter((x) => x.extraVia === 'home')) {
+    const op = p.itinerary.outbound.filter(Boolean);
+    const rp = p.itinerary.return.filter(Boolean);
+    const retOk = rp.length && rp[rp.length - 1] === 'HND' && p.itinerary.returnSO[rp.length - 1];
+    const outOk = op.length && op[0] === 'HND' && p.itinerary.outboundSO[0];
+    assert.ok(retOk || outOk,
+      `切り離せる国内線1区間になっていない: ${p.route.join(' / ')}`);
+  }
+});
+
+test('画面に出す形は都市ごとに1行で、行き方は行の中に入る', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  const rows = groupByCity(proposals, { airports: COORDS });   // airports.json は座標と国を同じ表に持つ
+
+  assert.ok(rows.length < proposals.length, '畳めていない');
+  const names = rows.map((r) => r.iata);
+  assert.equal(new Set(names).size, names.length, '同じ都市が2行ある');
+
+  // ドイツはフランクフルトとミュンヘンが1行にまとまる（Q10・2026-09-07）
+  const de = rows.find((r) => r.country === 'DE');
+  assert.ok(de, 'ドイツの行が無い');
+  assert.ok(de.sameCountry.length >= 1, `同じ国の残りが畳まれていない: ${de.city}`);
+
+  // 国内は畳まない（福岡と那覇が同じ行にならない）
+  const jp = rows.filter((r) => r.country === 'JP').map((r) => r.city);
+  assert.ok(jp.includes('福岡') && jp.includes('那覇'), `国内が畳まれている: ${jp.join(',')}`);
+
+  // 那覇の行には3通り（帰りに降りる・寄り道・自宅で途中降機）が入る
+  const oka = rows.find((r) => r.iata === 'OKA');
+  const kinds = new Set(oka.ways.map((w) => w.extraVia));
+  assert.ok(kinds.has('home'), '那覇の行に自宅で途中降機が無い');
+  assert.ok(kinds.size >= 2, `那覇の行き方が ${kinds.size} 通りしかない`);
 });

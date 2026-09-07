@@ -223,6 +223,21 @@ export function hubScore(graph, iata, allowed) {
 
 const legPairs = (seq) => seq.slice(0, -1).map((a, i) => [a, seq[i + 1]]);
 
+// 「自宅で途中降機して、国内線1区間を別の日に飛ぶ」形かどうか。
+// 成立するのは、自宅での24時間超の滞在が**国内線1区間と隣り合っている**ときだけ：
+//   復路版 … パリ → 東京（羽田）［途中降機］→ 那覇   ＝ 帰ってから、あとで那覇へ
+//   往路版 … 那覇 → 東京（羽田）［途中降機］→ パリ   ＝ 先に那覇から来ておく
+// 途中降機は往路・復路のどちらに置いてもよい（ANA公式・現行版で確認済み）。
+// 自宅で降りても次が最終区間でなければ、切り離せる国内線1区間にならないので数えない。
+function homeStopover(itinerary, home, cityKey) {
+  const same = (iata) => iata != null && cityKey(iata) === cityKey(home);
+  const op = itinerary.outbound.filter(Boolean);
+  const rp = itinerary.return.filter(Boolean);
+  if (rp.length && same(rp[rp.length - 1]) && itinerary.returnSO[rp.length - 1]) return 'ret';
+  if (op.length && same(op[0]) && itinerary.outboundSO[0]) return 'out';
+  return null;
+}
+
 const padSlots = (arr, n = 3) => [...arr, ...Array(Math.max(0, n - arr.length)).fill(null)].slice(0, n);
 const boolSlots = (arr, n = 3) => [...arr, ...Array(Math.max(0, n - arr.length)).fill(false)].slice(0, n);
 
@@ -313,7 +328,26 @@ export function propose(req, ctx) {
         retSets.push({ arrival: c.iata, paths: rep.paths });
       }
     }
-    routeSets.push({ plan: plan.id, carriers: ac, outPaths: repOut.paths, retSets });
+    // 出発地を自宅と変える案（往路側の国内オープンジョー）。
+    // 「那覇 → 東京（羽田）［24時間以上とまる］ → パリ … → 東京（羽田）」のように、
+    // **自宅で途中降機して、国内線1区間を国際線とは別の日に飛ぶ**形。
+    // 途中降機は往路・復路のどちらに置いてもよい（ANA公式・現行版の例示で確認）ので、
+    // 復路側（パリ → 羽田［途中降機］→ 那覇）だけを見ていると半分を取り逃がす。
+    const outSets = [{ departure: origin, paths: repOut.paths }];
+    if (req.domesticOpenJaw !== false && arrival === origin) {
+      for (const c of cities) {
+        if (c.type !== 'domestic' || c.iata === origin) continue;
+        if (hubScore(graph, c.iata, ac) < (req.minHubRoutes ?? 8)) continue;
+        const alt = enumeratePaths(graph.adj, cities, c.iata, destination, limits, cap, pruneRank, ac, domesticAnaOnly);
+        // 自宅がいちばん最初の経由地になる形だけを採る。
+        // そうでないと「切り離して後から飛べる国内線1区間」にならない
+        const viaHome = alt.filter((pth) => pth[0] === origin);
+        if (!viaHome.length) continue;
+        const rep = pickRepresentativePaths(viaHome, c.iata, destination, coords);
+        outSets.push({ departure: c.iata, paths: rep.paths });
+      }
+    }
+    routeSets.push({ plan: plan.id, carriers: ac, outSets, retSets });
   }
 
   const cityName = (iata) => cities.find((c) => c.iata === iata)?.name ?? iata;
@@ -341,8 +375,11 @@ export function propose(req, ctx) {
                                  //   「まっすぐ帰るより何km多く飛ぶか」で統一する
 
   for (const rs of routeSets) {
-   for (const op of rs.outPaths) {
+   for (const os of rs.outSets) {
+    for (const op of os.paths) {
     for (const { arrival: arv, paths: rps } of rs.retSets) {
+     // 出発地と帰着地の両方を自宅と変える形は作らない（国内オープンジョーは片側だけ）
+     if (os.departure !== origin && arv !== origin) continue;
      for (const rp of rps) {
       stats.combinations++;
       const soPlacements = [null];
@@ -353,9 +390,9 @@ export function propose(req, ctx) {
 
       for (const so of soPlacements) {
         const itinerary = {
-          departure: origin,
+          departure: os.departure,
           destination,
-          arrival: arv === origin ? null : arv,
+          arrival: arv === os.departure ? null : arv,
           returnDep: retFrom === destination ? null : retFrom,
           outbound: padSlots(op),
           return: padSlots(rp),
@@ -377,12 +414,13 @@ export function propose(req, ctx) {
         if (m.miles == null) stats.milesUnknown++;
 
         const soIata = so ? (so.leg === 'out' ? op[so.idx] : rp[so.idx]) : null;
-        const kmOut = coords ? pathDistanceKm([origin, ...op, destination], coords) : null;
+        const kmOut = coords ? pathDistanceKm([os.departure, ...op, destination], coords) : null;
         const kmRet = coords ? pathDistanceKm([retFrom, ...rp, arv], coords) : null;
         const km = (kmOut != null && kmRet != null) ? Math.round(kmOut + kmRet) : null;
         if (km != null) {
           if (minKm == null || km < minKm) minKm = km;
-          if (arv === origin && (homeKm == null || km < homeKm)) homeKm = km;
+          // 基準＝自宅を出て自宅に帰る旅程の最短。ここから何km多く飛ぶかで並べる
+          if (arv === origin && os.departure === origin && (homeKm == null || km < homeKm)) homeKm = km;
         }
 
         // ★このアプリで利用者に増えるのは「滞在する都市」だけ。
@@ -390,9 +428,12 @@ export function propose(req, ctx) {
         // この2つは**別の軸ではなく同じ軸**（どちらも「もう1都市」）。
         // 掛け合わせるとパリ行きだけで560本になり選べなくなった（2026-09-06 実測）。
         // 出発地・目的地は元から行く場所なので「増える都市」に数えない。
+        // 自宅・目的地・復路の出発地は「元から行く場所」なので増える都市に数えない。
+        // ★基準は origin（利用者の自宅）であって os.departure（切符の出発地）ではない。
+        //   往路側の自宅途中降機では、切符の出発地こそが「増える都市」になる
         const already = new Set([origin, destination, retFrom].map(cityKey));
         const extras = [...new Map(
-          [soIata, arv].filter(Boolean)
+          [soIata, arv, os.departure].filter(Boolean)
             .filter((x) => !already.has(cityKey(x)))
             .map((x) => [cityKey(x), x])
         ).values()];
@@ -400,7 +441,16 @@ export function propose(req, ctx) {
         const extra = extras[0] ?? null;
 
         // 畳むときも街単位。関空と伊丹を別の「もう1都市」として2行出さない
-        const key = `${m.miles}|${extra ? cityKey(extra) : '-'}`;
+        // 同じ都市でも「行き方」が違えば別の旅。代表を距離だけで選ぶと、
+        // 遠回りになる 🏠（自宅で途中降機）が必ず負けて一覧から消える
+        //（2026-09-07 に実際に起きていた。羽田→パリで 2,752 通りが埋もれていた）
+        const homeLeg = homeStopover(itinerary, origin, cityKey);   // 'out' | 'ret' | null
+        const viaKind = homeLeg ? 'home'
+          : extra == null ? '-'
+          : extra === soIata ? 'stopover' : 'arrival';
+        // ★往路版（国内線を先に飛ぶ）と復路版（あとに飛ぶ）は別の旅。
+        //   同じキーにすると距離の短いほうだけが残り、片方が消える
+        const key = `${m.miles}|${extra ? cityKey(extra) : '-'}|${viaKind}${homeLeg ? ':' + homeLeg : ''}`;
         const cand = {
           itinerary,
           miles: m.miles,
@@ -414,7 +464,10 @@ export function propose(req, ctx) {
           extraCity: extra,
           extraCityName: extra ? cityName(extra) : null,
           // 増える都市に「どうやって」立ち寄るか：途中降機か、帰着地にするか
-          extraVia: extra == null ? null : (extra === soIata ? 'stopover' : 'arrival'),
+          extraVia: viaKind === '-' ? null : viaKind,
+          // 自宅での途中降機を往路・復路のどちらに置いたか。
+          // 'out' ＝ 国内線を先に飛ぶ／'ret' ＝ 国内線をあとに飛ぶ
+          homeLeg,
           // どの特典・どの航空会社のまとまりで飛ぶ旅程か
           awardType,
           plan: rs.plan,
@@ -422,13 +475,13 @@ export function propose(req, ctx) {
           stopover: soIata,
           stopoverName: soIata ? cityName(soIata) : null,
           route: [
-            [origin, ...op, destination].map(cityName).join(' → '),
+            [os.departure, ...op, destination].map(cityName).join(' → '),
             [retFrom, ...rp, arv].map(cityName).join(' → '),
           ],
           warnings: res.checks.filter((c) => c.ok === 'warn').map((c) => c.msg),
           // 区間ごとに「この旅程で実際に乗れる社」。画面で便を探すときに要る
           carriersByLeg: [
-            ...legPairs([origin, ...op, destination]),
+            ...legPairs([os.departure, ...op, destination]),
             ...legPairs([retFrom, ...rp, arv]),
           ].map(([a, b]) => ({
             from: a, to: b,
@@ -449,6 +502,7 @@ export function propose(req, ctx) {
         if (better) { cand.variants = cur.variants; keep.set(key, cand); }
        }
      }
+    }
     }
    }
   }
@@ -495,6 +549,51 @@ export function propose(req, ctx) {
 
   stats.shown = proposals.length;
   return { proposals, stats };
+}
+
+// =====================================================================
+// groupByCity — 画面に出す形（都市ごとに1行・行き方はその中）へ畳む
+// =====================================================================
+// propose() が返すのは「都市 × 行き方」の一覧。そのまま並べると同じ那覇が
+// 離れた3か所に出るため、画面では**都市ごとに1行**にし、行き方（🛬 帰りに降りる／
+// ✈️ 寄り道／🏠 自宅で途中降機）を行の中に並べる。
+//
+// 海外は**同じ国で1行**に畳む（フランクフルトとミュンヘンを別行にしない）。
+// 国内は畳まない——福岡と那覇を「日本」にまとめると、帰着地を選ぶという
+// 行為そのものが画面から消えるため（2026-09-07 ユーザー確認済み）。
+//
+// ctx = { airports }（国の判定に使う。無ければ畳まない）
+// 戻り値 = [{ city, iata, country, miles, extra, hub, detour, effort,
+//             sameCountry:[都市名], ways:[提案] }]
+// =====================================================================
+export function groupByCity(proposals, ctx = {}) {
+  const airports = ctx.airports ?? null;
+  const countryOf = (iata) => (airports && airports[iata]?.country) ?? null;
+  const rows = new Map();
+  for (const p of proposals) {
+    if (p.extraCity == null) continue;
+    const co = countryOf(p.extraCity);
+    const key = (co && co !== 'JP') ? `${p.miles}|C:${co}` : `${p.miles}|A:${p.extraCity}`;
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(p);
+  }
+  return [...rows.values()].map((group) => {
+    group.sort((a, b) => (a.detourKm ?? 0) - (b.detourKm ?? 0));
+    const best = group[0];
+    // 同じ行き方が複数あるときは、いちばん遠回りでないものを代表にする
+    const ways = [];
+    for (const w of group) {
+      const kind = `${w.extraVia}${w.homeLeg ? ':' + w.homeLeg : ''}`;
+      if (!ways.some((x) => `${x.extraVia}${x.homeLeg ? ':' + x.homeLeg : ''}` === kind)) ways.push(w);
+    }
+    return {
+      city: best.extraCityName, iata: best.extraCity, country: countryOf(best.extraCity),
+      miles: best.miles, hub: best.hubRoutes ?? 0,
+      detour: best.detourKm ?? 0, effort: best.effort,
+      sameCountry: [...new Set(group.map((g) => g.extraCityName))].filter((n) => n !== best.extraCityName),
+      ways,
+    };
+  }).sort((a, b) => (a.miles - b.miles) || (a.detour - b.detour));
 }
 
 // =====================================================================

@@ -57,6 +57,52 @@ try:
         r = judge({"departure": "HND", "destination": "CDG", "outbound": ["ICN", None, None]}, "ana")
         results.append(("ANA自社便で海外乗換は不合格", "日本以外の乗り換えはできません" in r["checks"], None))
 
+        # 陸路移動を画面から立てられるか（S-5 で追加した導線）。
+        # 判定側は前から対応していたが、UI が無いため使えなかった
+        pg.evaluate("""() => {
+            Object.assign(STATE, {
+              awardType:'partner', departure:'HIJ', destination:'CDG', arrival:null, returnDep:null,
+              outbound:['HND','NRT',null], return:[null,null,null],
+              outboundSO:[false,false,false], returnSO:[false,false,false],
+              outboundSurface:[false,false,false], returnSurface:[false,false,false],
+            });
+            updateAllDots();
+            openModal('out-0');
+        }""")
+        shown = pg.is_visible("#surface-row")
+        pg.check("#surface-chk")
+        pg.click("button.btn-close")
+        note = pg.inner_text("#surface-note")
+        st   = pg.evaluate("STATE.outboundSurface")
+        results.append(("乗り継ぎ地に陸路移動の切り替えが出る", shown, None))
+        results.append(("陸路にすると機体図の下に出る", "陸路で移動" in note, note))
+        results.append(("陸路の指定が状態に入る", st == [True, False, False], str(st)))
+
+        r = pg.evaluate("""async () => {
+            await validate();
+            return document.getElementById('result-summary').innerText;
+        }""")
+        results.append(("陸路でつなげば国内2回でも合格になる（判定と導線がつながる）",
+                        "問題ありません" in r, r.replace("\n", " / ")))
+
+        # 必要マイルの表示が公式チャート（miles-core）から来ているか。
+        # 2026-09-07 まで index.html が持っていた表は、ビジネスが全ゾーンで過大だった
+        #（羽田→パリ ビジネス：旧 140,000 ／ 公式 115,000）
+        judge({"departure": "HND", "destination": "CDG"})
+        pg.wait_for_function(
+            "document.getElementById('mile-info').innerText.includes('マイル')", timeout=10000)
+        mi = pg.evaluate("document.getElementById('mile-info').innerText").replace("\n", " / ")
+        results.append(("必要マイルが公式チャートの値になる（羽田→パリ）",
+                        "55,000" in mi and "115,000" in mi and "140,000" not in mi, mi[:150]))
+
+        # 台北はエコノミーも違っていた（旧 24,630 ／ 公式 20,000）
+        judge({"departure": "HND", "destination": "TPE"})
+        pg.wait_for_function(
+            "document.getElementById('mile-info').innerText.includes('マイル')", timeout=10000)
+        mi = pg.evaluate("document.getElementById('mile-info').innerText").replace("\n", " / ")
+        results.append(("必要マイルが公式チャートの値になる（羽田→台北）",
+                        "20,000" in mi and "24,630" not in mi, mi[:120]))
+
         # 乗り換えカウンタの上限表示が規約データ（国内1・海外2）から来ているか
         pg.evaluate("STATE.awardType='partner'; STATE.outbound=[null,null,null]; STATE.return=[null,null,null]; applyAwardTypeUI();")
         cnt = pg.evaluate("document.getElementById('transit-counter')?.innerText ?? ''").replace("\n", " ")
