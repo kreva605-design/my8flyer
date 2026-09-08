@@ -9,7 +9,7 @@ import { CITIES, ALL_CARRIERS, AIRLINES, CHARTS, buildRules, loadRoutes, readJso
 import { requiredMiles, japanZoneKey } from '../src/miles-core.js';
 import {
   buildGraph, propose, allowedCarriers, hubScore, carrierPlans,
-  evaluateItinerary, evaluateByKind, planLabel, groupByCity } from '../src/proposer.js';
+  evaluateItinerary, evaluateByKind, planLabel, groupByCity, soleCarrierOf } from '../src/proposer.js';
 import { validateItinerary, ZONE_RANK } from '../src/rules-core.js';
 
 const rules = buildRules();
@@ -622,4 +622,58 @@ test('帰りの場所を自分で指定したら、その街は「もう1都市�
     assert.notEqual(p.extraCity, 'CDG', '指定した復路の出発地を「増える都市」に数えている');
     assert.equal(p.itinerary.returnDep, 'CDG', '指定した復路の出発地が守られていない');
   }
+});
+
+// =====================================================================
+// 実際に選べる便が1社だけの旅程（2026-09-08 追加）
+// =====================================================================
+// 提案は「区間ごとに、その特典で乗れる社が1社以上いる」ことしか見ていない。
+// 全区間で選べるのがANAだけなら、実際に予約できるのはANA運航便だけの旅程で、
+// ANA国際線特典の規約（日本発の途中降機は不可）が当たる可能性がある。
+// 公式は提携特典の対象便に ANA(NH) を含めるが、ANA便だけの旅程を提携特典として
+// 発券できるかは沈黙している。沈黙している以上「成立する」と言い切らない。
+
+test('全区間で選べる社が1社だけかを判定できる', () => {
+  assert.equal(soleCarrierOf([{ airlines: ['NH'] }, { airlines: ['NH'] }]), 'NH');
+  assert.equal(soleCarrierOf([{ airlines: ['NH'] }, { airlines: ['NH', 'LH'] }]), null);
+  assert.equal(soleCarrierOf([{ airlines: ['NH'] }, { airlines: ['LH'] }]), null);
+  assert.equal(soleCarrierOf([]), null);
+});
+
+test('ANA便しか選べない旅程で日本発の途中降機を組んだら「要確認」を付ける', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
+  const sole = proposals.filter((p) => soleCarrierOf(p.carriersByLeg) === 'NH');
+  assert.ok(sole.length > 0, 'ANAしか選べない旅程が1本も出ていない（前提が崩れた）');
+
+  for (const p of sole) {
+    const hasSO = p.stopover != null;
+    if (hasSO) {
+      assert.ok(p.needsCheck, `ANA便だけの途中降機つき旅程に注意書きが無い: ${p.route.join(' / ')}`);
+      assert.ok(p.warnings.some((w) => w.includes('ANA')), '警告文に入っていない');
+    } else {
+      assert.equal(p.needsCheck, undefined, '途中降機の無い旅程にまで注意書きを付けている');
+    }
+  }
+  // 複数社から選べる旅程には付けない
+  for (const p of proposals.filter((x) => soleCarrierOf(x.carriersByLeg) === null)) {
+    assert.equal(p.needsCheck, undefined, `社を選べる旅程に注意書きが付いている: ${p.route.join(' / ')}`);
+  }
+});
+
+test('特典ごとの判定でも、ANA便しか選べない途中降機つきは「成立」と言い切らない', () => {
+  const it = {
+    departure: 'HND', destination: 'CDG', arrival: 'FUK', returnDep: null,
+    outbound: [null, null, null], return: ['HND', null, null],
+    outboundSO: [false, false, false], returnSO: [true, false, false],
+    outboundSurfaceAfter: [false, false, false], returnSurfaceAfter: [false, false, false],
+  };
+  const kinds = evaluateByKind(it, { rules, cities: CITIES, graph, airlines: AIRLINES });
+  const star = kinds.find((k) => k.kind === 'star');
+  assert.equal(star.ok, true, '規約そのものは通る');
+  assert.ok(star.caution, '実際にはANA便しか選べないのに注意書きが無い');
+  assert.ok(star.caution.includes('ANA国際線特典'), star.caution);
+
+  const ana = kinds.find((k) => k.kind === 'ana');
+  assert.equal(ana.ok, false, 'ANA自社便では日本発の途中降機ができない');
 });

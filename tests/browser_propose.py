@@ -81,19 +81,41 @@ try:
         # 帰りの場所を自分で指定して検索する（往路と復路で場所を変える）
         pg.select_option("#pp-origin", "FUK")
         pg.select_option("#pp-dest", "LIS")
-        pg.select_option("#pp-arrival", "HND")     # 福岡発 → リスボン → 羽田着
-        pg.select_option("#pp-retdep", "CDG")      # 復路はパリ発
+        pg.select_option("#pp-arrival", "HND")     # 福岡発 → リスボン → 羽田着（帰りに降りる場所を指定）
         pg.click("#pp-go")
         pg.wait_for_function("PP.req && PP.req.arrival === 'HND'", timeout=60000)
         pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
         rows2 = pg.eval_on_selector_all("#pp-list .pp-city", "els => els.length")
         pin   = pg.inner_text("#pp-cond-pin")
         base  = pg.inner_text("#pp-base")
-        bad   = pg.evaluate("PP.rows.filter(r => r.iata === 'HND' || r.iata === 'CDG').length")
+        bad   = pg.evaluate("PP.rows.filter(r => r.iata === 'HND').length")
         check("帰りの場所を指定して検索できる", rows2 >= 5, f"{rows2}都市")
-        check("指定した場所が条件バーに出る", "羽田" in pin and "パリ" in pin, pin)
-        check("指定した旅程が基準になる", "リスボン" in base and "パリ" in base, base.replace("\n", " ")[:90])
+        check("指定した場所が条件バーに出る", "羽田" in pin, pin)
+        check("指定した旅程が基準になる", "リスボン" in base and "羽田" in base, base.replace("\n", " ")[:90])
         check("指定した街を「もう1都市」に数えない", bad == 0, f"混入 {bad}件")
+
+        # ANA便しか選べない旅程に「要確認」が出るか（羽田→パリの 🏠 がこれに当たる）
+        pg.select_option("#pp-origin", "HND")
+        pg.select_option("#pp-dest", "CDG")
+        pg.select_option("#pp-arrival", "")
+        pg.click("#pp-go")
+        pg.wait_for_function("PP.req && !PP.req.arrival && PP.rows.length > 5", timeout=60000)
+        info = pg.evaluate("""() => {
+            const i = PP.rows.findIndex(r => r.ways.some(w => w.needsCheck));
+            if (i < 0) return null;
+            PP.sel = i; PP.way = r_index(PP.rows[i]); ppRender();
+            function r_index(r){ return r.ways.findIndex(w => w.needsCheck); }
+            return { city: PP.rows[i].city, n: PP.rows.filter(r => r.ways.some(w => w.needsCheck)).length };
+        }""")
+        check("ANA便だけの旅程に要確認が付く", info is not None, str(info))
+        if info:
+            badge = pg.eval_on_selector_all(".pp-warn", "els => els.length")
+            check("一覧に「要確認」の印が出る", badge >= 1, f"{badge}件")
+            pg.click(".pp-way.on")
+            pg.wait_for_selector("#pp-s3:not([hidden])", timeout=5000)
+            kinds = pg.inner_text("#pp-kinds")
+            check("特典判定が「成立」と言い切らない", "⚠️" in kinds and "ANA国際線特典として扱われる" in kinds,
+                  kinds.replace("\n", " ")[:110])
 
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()

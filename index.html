@@ -794,6 +794,9 @@
     .pp-kinds { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; }
     .pp-kind { font-size: 0.74rem; color: #556; line-height: 1.6; }
     .pp-kind b { color: #223; }
+    .pp-kind-warn { color: #8a5a00; background: #fff6e5; border-radius: 8px; padding: 7px 9px; line-height: 1.7; }
+    .pp-warn { font-size: 0.68rem; color: #8a5a00; background: #fff1d6; border-radius: 999px;
+               padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
     .pp-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
   </style>
 </head>
@@ -833,11 +836,7 @@
         <span>帰りに降りる場所（省略すると出発地と同じ）</span>
         <select id="pp-arrival" class="pp-sel"></select>
       </label>
-      <label class="pp-field">
-        <span>帰りに出発する場所（省略すると目的地と同じ）</span>
-        <select id="pp-retdep" class="pp-sel"></select>
-      </label>
-      <p class="pp-hint">帰りの場所を指定すると、その街は<b>「もう1都市」には数えません</b>（自分で決めた前提なので）。その分、寄り道の候補がそのまま出ます。</p>
+      <p class="pp-hint">帰りに降りる場所を指定すると、その街は<b>「もう1都市」には数えません</b>（自分で決めた前提なので）。その分、寄り道の候補がそのまま出ます。<br>帰りに<b>出発する</b>場所（海外側）は提案では目的地に固定します。変えたいときは下の「じぶんで組む」で指定してください。</p>
       <label class="pp-field">
         <span>特典の種類</span>
         <select id="pp-award" class="pp-sel">
@@ -3004,11 +3003,10 @@ function ppInitSelects() {
   dst.innerHTML = CITIES.filter(c => c.type === 'overseas'  && !c.group).map(opt).join('');
   // 帰りの場所は任意。空欄＝いつもどおり（出発地に帰る／目的地から帰る）
   const arv = document.getElementById('pp-arrival');
-  const rdp = document.getElementById('pp-retdep');
+
   arv.innerHTML = '<option value="">出発地と同じ</option>'
     + CITIES.filter(c => c.type === 'domestic' && !c.group).map(opt).join('');
-  rdp.innerHTML = '<option value="">目的地と同じ</option>'
-    + CITIES.filter(c => c.type === 'overseas' && !c.group).map(opt).join('');
+
   org.value = localStorage.getItem('pp-origin') ?? 'HND';
   dst.value = localStorage.getItem('pp-dest')   ?? 'CDG';
   const aw = document.getElementById('pp-award');
@@ -3049,7 +3047,7 @@ async function ppSearch() {
 
     const origin = document.getElementById('pp-origin').value;
     const arrival = document.getElementById('pp-arrival').value || null;
-    const retDep  = document.getElementById('pp-retdep').value  || null;
+
     const req = {
       origin,
       destination: document.getElementById('pp-dest').value,
@@ -3059,7 +3057,7 @@ async function ppSearch() {
     };
     // 指定があるときだけ渡す（空欄なら従来どおり自動で候補を出す）
     if (arrival && arrival !== origin) req.arrival = arrival;
-    if (retDep) req.returnDep = retDep;
+
     localStorage.setItem('pp-origin', req.origin);
     localStorage.setItem('pp-dest',   req.dest ?? req.destination);
     localStorage.setItem('pp-award',  req.awardType);
@@ -3117,7 +3115,6 @@ function ppRender() {
   const pin = document.getElementById('pp-cond-pin');
   const bits = [];
   if (PP.req.arrival)   bits.push(ppCityName(PP.req.arrival) + 'に帰着');
-  if (PP.req.returnDep) bits.push(ppCityName(PP.req.returnDep) + 'から復路');
   pin.textContent = bits.join(' ・ ');
   pin.hidden = bits.length === 0;
 
@@ -3157,8 +3154,9 @@ function ppRender() {
         const c = document.createElement('button');
         c.type = 'button';
         c.className = 'pp-way' + (w.extraVia === 'home' ? ' home' : '') + (wi === PP.way ? ' on' : '');
+        const warn = w.needsCheck ? ' <span class="pp-warn">⚠️ 要確認</span>' : '';
         c.innerHTML = `<span>${PP_WAY[k]?.icon ?? '•'}</span>`
-          + `<span class="wt">${PP_WAY[k]?.label ?? k}<span class="wd">${w.route[1]}</span></span>`
+          + `<span class="wt">${PP_WAY[k]?.label ?? k}${warn}<span class="wd">${w.route[1]}</span></span>`
           + `<span class="km">${ppKm(w.detourKm ?? 0)}</span>`;
         c.addEventListener('click', () => { PP.way = wi; ppShowItinerary(w); });
         box.appendChild(c);
@@ -3230,10 +3228,17 @@ function ppShowItinerary(w) {
       rules: RULES_CFG, cities: CITIES, graph: PP.graph, airlines: PP.airlines,
     });
   } catch (e) { console.warn('特典別の判定に失敗:', e); }
+  // ✅／❌ の2値にしない。規約を通っていても、実際に選べる便が1社だけで、
+  // その社の規約なら違反になる旅程は「⚠️ 要確認」として出す（成立と言い切らない）
   document.getElementById('pp-kinds').innerHTML = kinds.length
-    ? kinds.map(x => `<div class="pp-kind">${x.ok ? '✅' : '❌'} <b>${x.label}</b>`
-        + (x.ok ? '' : `<br><span style="color:#a55">${(x.reasons ?? []).slice(0, 2).join(' ／ ')}</span>`)
-        + '</div>').join('')
+    ? kinds.map(x => {
+        const icon = !x.ok ? '❌' : x.caution ? '⚠️' : '✅';
+        const cls  = x.caution ? ' pp-kind-warn' : '';
+        const body = !x.ok
+          ? `<br><span style="color:#a55">${(x.reasons ?? []).slice(0, 2).join(' ／ ')}</span>`
+          : x.caution ? `<br><span>${x.caution}</span>` : '';
+        return `<div class="pp-kind${cls}">${icon} <b>${x.label}</b>${body}</div>`;
+      }).join('')
     : '';
 
   pane.scrollIntoView({ behavior: 'smooth', block: 'start' });

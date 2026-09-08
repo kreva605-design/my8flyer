@@ -511,6 +511,18 @@ export function propose(req, ctx) {
    }
   }
 
+  // ★「実際に選べるのが1社だけ」の旅程に注意書きを付ける。
+  // ANA便しか選べない旅程で日本発の途中降機を組むと、ANA国際線特典の規約に当たり
+  // 予約できない可能性がある（公式が沈黙しているため、成立すると言い切らない）
+  for (const p of keep.values()) {
+    const sole = soleCarrierOf(p.carriersByLeg);
+    p.soleCarrier = sole;
+    if (awardType === 'partner' && sole === 'NH' && hasJapanStopover(p.itinerary, cities)) {
+      p.needsCheck = 'この旅程は実際に選べる便がANAだけです。ANA国際線特典として扱われると日本発の途中降機ができないため、予約できない可能性があります。ANAの予約画面で確かめてください。';
+      p.warnings = [...(p.warnings ?? []), p.needsCheck];
+    }
+  }
+
   // 寄り道先の「大手空港かどうか」「どの国か」を添える。
   // 魅力のあるルートを上に出すために使う（データは data/airports.json）
   const airports = ctx.airports ?? null;
@@ -546,6 +558,8 @@ export function propose(req, ctx) {
     // マイルが同じなら、遠回りの少ない順。ここが「しんどい案を下げる」中心
     if ((a.detourKm ?? 0) !== (b.detourKm ?? 0)) return (a.detourKm ?? 0) - (b.detourKm ?? 0);
     if (a.transits !== b.transits) return a.transits - b.transits;
+    // 規約の裏が取れていない案（実際にはANA便しか選べない途中降機つき）は後ろへ
+    if (!!a.needsCheck !== !!b.needsCheck) return a.needsCheck ? 1 : -1;
     // 同条件なら就航路線の多い都市を上に（便が取りやすく、街としても大きい）
     if ((b.hubRoutes ?? 0) !== (a.hubRoutes ?? 0)) return (b.hubRoutes ?? 0) - (a.hubRoutes ?? 0);
     return ovsCountOf(a.itinerary) - ovsCountOf(b.itinerary);
@@ -553,6 +567,32 @@ export function propose(req, ctx) {
 
   stats.shown = proposals.length;
   return { proposals, stats };
+}
+
+// 実際に選べる運航会社が1社に絞られる旅程かどうか。
+// 提案は「区間ごとに、その特典で乗れる社が1社以上いる」ことしか見ていない。
+// だが全区間で選べるのがANAだけなら、実際に予約できるのはANA運航便だけの旅程で、
+// そのときANA国際線特典の規約（日本発の途中降機は不可）が当たる可能性がある。
+// 公式は提携特典の対象便に ANA(NH) を含めており（「各航空会社を自由に組み合わせた
+// 旅程もご利用になれます」）、ANA便だけの旅程を提携特典として発券できるかは沈黙している。
+// **沈黙している以上、成立すると言い切らない**（fail-safe は厳しい側へ・2026-09-06 決定）。
+export function soleCarrierOf(carriersByLeg) {
+  if (!Array.isArray(carriersByLeg) || carriersByLeg.length === 0) return null;
+  const first = carriersByLeg[0]?.airlines ?? [];
+  if (first.length !== 1) return null;
+  const only = first[0];
+  return carriersByLeg.every((l) => l.airlines.length === 1 && l.airlines[0] === only) ? only : null;
+}
+
+// 日本発の途中降機を含むか（ANA国際線特典では不可）
+function hasJapanStopover(itinerary, cities) {
+  const typeOf = new Map(cities.map((c) => [c.iata, c.type]));
+  const dep = itinerary.departure;
+  if (typeOf.get(dep) !== 'domestic') return false;      // 日本発の旅程だけが対象
+  const so = [];
+  itinerary.outbound.filter(Boolean).forEach((c, i) => { if (itinerary.outboundSO[i]) so.push(c); });
+  itinerary.return.filter(Boolean).forEach((c, i) => { if (itinerary.returnSO[i]) so.push(c); });
+  return so.length > 0;
 }
 
 // =====================================================================
@@ -719,6 +759,13 @@ export function evaluateByKind(itinerary, ctx) {
       ok: !!star?.ok,
       reasons: star?.reasons ?? [],
       carriersByLeg: star?.carriersByLeg ?? [],
+      // ★規約を通っていても、実際に選べる便がANAだけで、しかも日本発の途中降機を
+      //   含む旅程は「成立する」と言い切らない。ANA国際線特典として扱われると
+      //   途中降機ができず、予約できない可能性がある（公式は沈黙している）
+      caution: (star?.ok && soleCarrierOf(star.carriersByLeg) === 'NH'
+                && hasJapanStopover(itinerary, ctx.cities))
+        ? '実際に選べる便がANAだけです。ANA国際線特典として扱われると日本発の途中降機ができないため、予約できない可能性があります。ANAの予約画面で確かめてください。'
+        : null,
     },
     {
       kind: 'partner',
