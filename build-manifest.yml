@@ -473,3 +473,11 @@ requirements:
   verify_mode: manual
   last_verified: 2026-09-07
   status: green
+- id: REQ-59
+  text: 検索時に「帰りに降りる場所」と「帰りに出発する場所」を指定できる。指定した街は利用者が決めた前提なので「もう1都市」に数えず、寄り道の候補を潰さない
+  design_ref: architecture.md#20-5
+  impl_ref: index.html::ppSearch(),src/proposer.js::propose()[already]
+  test_ref: tests/proposer.test.mjs,tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-08
+  status: green

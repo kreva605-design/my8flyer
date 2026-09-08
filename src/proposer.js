@@ -430,8 +430,12 @@ export function propose(req, ctx) {
         // 出発地・目的地は元から行く場所なので「増える都市」に数えない。
         // 自宅・目的地・復路の出発地は「元から行く場所」なので増える都市に数えない。
         // ★基準は origin（利用者の自宅）であって os.departure（切符の出発地）ではない。
-        //   往路側の自宅途中降機では、切符の出発地こそが「増える都市」になる
-        const already = new Set([origin, destination, retFrom].map(cityKey));
+        //   往路側の自宅途中降機では、切符の出発地こそが「増える都市」になる。
+        // ★利用者が自分で指定した帰着地・復路出発地も「元から行く場所」に含める。
+        //   指定した街は提案ではなく前提なので、これを1都市に数えると
+        //   「福岡発 → リスボン → 羽田着」で寄り道が1つも出せなくなる（2026-09-08 是正）
+        const already = new Set([origin, destination, retFrom, req.arrival, req.returnDep]
+          .filter(Boolean).map(cityKey));
         const extras = [...new Map(
           [soIata, arv, os.departure].filter(Boolean)
             .filter((x) => !already.has(cityKey(x)))

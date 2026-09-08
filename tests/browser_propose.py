@@ -78,6 +78,23 @@ try:
             check("従来の判定も通る", "OK" in summary or "問題" in summary or "適合" in summary,
                   summary.replace("\n", " ")[:90])
 
+        # 帰りの場所を自分で指定して検索する（往路と復路で場所を変える）
+        pg.select_option("#pp-origin", "FUK")
+        pg.select_option("#pp-dest", "LIS")
+        pg.select_option("#pp-arrival", "HND")     # 福岡発 → リスボン → 羽田着
+        pg.select_option("#pp-retdep", "CDG")      # 復路はパリ発
+        pg.click("#pp-go")
+        pg.wait_for_function("PP.req && PP.req.arrival === 'HND'", timeout=60000)
+        pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        rows2 = pg.eval_on_selector_all("#pp-list .pp-city", "els => els.length")
+        pin   = pg.inner_text("#pp-cond-pin")
+        base  = pg.inner_text("#pp-base")
+        bad   = pg.evaluate("PP.rows.filter(r => r.iata === 'HND' || r.iata === 'CDG').length")
+        check("帰りの場所を指定して検索できる", rows2 >= 5, f"{rows2}都市")
+        check("指定した場所が条件バーに出る", "羽田" in pin and "パリ" in pin, pin)
+        check("指定した旅程が基準になる", "リスボン" in base and "パリ" in base, base.replace("\n", " ")[:90])
+        check("指定した街を「もう1都市」に数えない", bad == 0, f"混入 {bad}件")
+
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()
 finally:

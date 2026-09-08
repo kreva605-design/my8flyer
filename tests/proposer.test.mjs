@@ -600,3 +600,26 @@ test('画面に出す形は都市ごとに1行で、行き方は行の中に入�
   assert.ok(kinds.has('home'), '那覇の行に自宅で途中降機が無い');
   assert.ok(kinds.size >= 2, `那覇の行き方が ${kinds.size} 通りしかない`);
 });
+
+test('帰りの場所を自分で指定したら、その街は「もう1都市」に数えない', () => {
+  // 指定した街は提案ではなく前提。1都市の枠を食わせると、
+  // 「福岡発 → リスボン → 羽田着」で寄り道が1本も出せなくなる（2026-09-08 是正）
+  const req = { origin: 'FUK', destination: 'LIS', wantStopover: true };
+  const pinned = propose({ ...req, arrival: 'HND' }, ctxGeo);
+  assert.ok(pinned.proposals.length > 10,
+    `帰着地を指定したら候補が ${pinned.proposals.length} 本しか出ない`);
+  assert.ok(pinned.proposals.some((p) => p.extraCity == null),
+    '「もう1都市なし」の基準になる旅程が無い');
+  for (const p of pinned.proposals) {
+    assert.notEqual(p.extraCity, 'HND', '指定した帰着地を「増える都市」に数えている');
+    assert.equal(p.arrival, 'HND', '指定した帰着地が守られていない');
+  }
+
+  // 復路の出発地（海外オープンジョー）も同じ扱い
+  const oj = propose({ ...req, returnDep: 'CDG' }, ctxGeo);
+  assert.ok(oj.proposals.length > 10, '復路出発地を指定したら候補が出ない');
+  for (const p of oj.proposals) {
+    assert.notEqual(p.extraCity, 'CDG', '指定した復路の出発地を「増える都市」に数えている');
+    assert.equal(p.itinerary.returnDep, 'CDG', '指定した復路の出発地が守られていない');
+  }
+});
