@@ -78,7 +78,8 @@ try:
             check("従来の判定も通る", "OK" in summary or "問題" in summary or "適合" in summary,
                   summary.replace("\n", " ")[:90])
 
-        # 帰りの場所を自分で指定して検索する（往路と復路で場所を変える）
+        # 帰りの場所を自分で指定して検索する（画面が切り替わるので、さがすへ戻ってから）
+        pg.evaluate("ppGo('s1')")
         pg.select_option("#pp-origin", "FUK")
         pg.select_option("#pp-dest", "LIS")
         pg.select_option("#pp-arrival", "HND")     # 福岡発 → リスボン → 羽田着（帰りに降りる場所を指定）
@@ -96,6 +97,7 @@ try:
 
         # ANA便でしか飛べない旅程の扱い（2026-09-08）：
         # 途中降機つきは提案に出さない／途中降機なしは「ANA特典扱い」と印を付ける
+        pg.evaluate("ppGo('s1')")
         pg.select_option("#pp-origin", "HND")
         pg.select_option("#pp-dest", "HNL")
         pg.select_option("#pp-arrival", "")
@@ -123,6 +125,40 @@ try:
             pg.wait_for_selector("#pp-s3:not([hidden])", timeout=5000)
             note = pg.inner_text("#pp-s3-note")
             check("旅程画面にANA特典扱いの理由が出る", "ANA国際線特典として扱われます" in note, note[:80])
+
+        # 画面がいちどに1つだけ出ること（2026-09-09）
+        pg.reload()
+        pg.wait_for_function("typeof rulesReady !== 'undefined'", timeout=15000)
+        vis = lambda i: pg.is_visible(f"#{i}")
+        check("起動時は「さがす」だけ", vis("pp-s1") and not vis("pp-s2") and not vis("pp-s3")
+              and not vis("pane-editor"), None)
+        pg.select_option("#pp-origin", "HND"); pg.select_option("#pp-dest", "CDG")
+        pg.click("#pp-go"); pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        check("検索すると「候補」に切り替わる", vis("pp-s2") and not vis("pp-s1"), None)
+        pg.evaluate("() => { PP.sel = 0; PP.way = 0; ppRender(); }")
+        pg.click(".pp-way")
+        pg.wait_for_selector("#pp-s3:not([hidden])", timeout=5000)
+        check("行き方を選ぶと「旅程」に切り替わる", vis("pp-s3") and not vis("pp-s2"), None)
+        pg.click("button[onclick='ppToEditor()']")
+        time.sleep(0.8)
+        check("読み込むと「じぶんで組む」に切り替わる", vis("pane-editor") and not vis("pp-s3"), None)
+        pg.click("button[onclick=\"ppGo('s3')\"]")
+        time.sleep(0.4)
+        check("提案に戻れる", vis("pp-s3") and not vis("pane-editor"), None)
+
+        # 往路側の裏技は往路の経路を見せる（復路だけ出すと意味が伝わらない）
+        pg.click("button[onclick='ppBackToList()']")
+        time.sleep(0.4)
+        out = pg.evaluate("""() => {
+            const i = PP.rows.findIndex(r => r.ways.some(w => w.homeLeg === 'out'));
+            if (i < 0) return null;
+            PP.sel = i; PP.way = PP.rows[i].ways.findIndex(w => w.homeLeg === 'out'); ppRender();
+            const el = document.querySelector('.pp-way.on .wd');
+            return { text: el ? el.textContent : null, route0: PP.rows[i].ways[PP.way].route[0] };
+        }""")
+        check("「国内線を先に飛ぶ」は往路の経路を出す",
+              out is not None and out["text"].startswith("往路") and out["route0"] in out["text"],
+              str(out))
 
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()

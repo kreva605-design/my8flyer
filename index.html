@@ -6,6 +6,9 @@
   <title>My 8flyer</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ★ hidden は display 指定に負ける（.pp-form が display:flex のため
+       「さがす」画面が消えなかった）。属性を最優先にする */
+    [hidden] { display: none !important; }
 
     body {
       font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -726,6 +729,8 @@
     }
     .pp-msg { font-size: 0.76rem; color: #a33; line-height: 1.7; }
     .pp-hint { font-size: 0.7rem; color: #7a879a; line-height: 1.75; margin-top: -3px; }
+    .pp-back { margin: 2px 0 10px; }
+    .pp-back .pp-ghost { width: auto; padding: 7px 14px; font-size: 0.8rem; }
     .pp-msg.wait { color: #556; }
 
     .pp-cond {
@@ -868,6 +873,9 @@
         <button class="pp-pick dim" id="pp-cond-cabin" onclick="ppEditCondition()">—</button>
         <button class="pp-pick" id="pp-cond-pin" onclick="ppEditCondition()" hidden>—</button>
       </div>
+      <div class="pp-back">
+        <button class="pp-ghost" onclick="ppGo('s1')">◀ 条件を変える</button>
+      </div>
       <div class="pp-base" id="pp-base"></div>
       <div class="pp-gain"><h3>もう1都市</h3><span id="pp-plus"></span></div>
       <ul class="pp-list" id="pp-list"></ul>
@@ -882,10 +890,16 @@
       <div class="pp-kinds" id="pp-kinds"></div>
       <div class="pp-actions">
         <button class="pp-go" onclick="ppToEditor()">この旅程を「じぶんで組む」に読み込む ▼</button>
-        <button class="pp-ghost" onclick="ppBackToList()">◀ 候補一覧に戻る</button>
+        <button class="pp-ghost" onclick="ppBackToList()">◀ もう1都市の一覧に戻る</button>
       </div>
     </div>
   </section>
+
+  <!-- ══ S4 じぶんで組む（従来の判定UI）。提案の画面とは行き来で切り替える ══ -->
+  <div id="pane-editor" hidden>
+  <div class="pp-back">
+    <button class="pp-ghost" onclick="ppGo('s3')">◀ 提案に戻る</button>
+  </div>
 
   <!-- 設定パネル -->
   <div class="settings-panel">
@@ -1272,6 +1286,8 @@
     <div id="saved-count" class="saved-count"></div>
     <div id="saved-list"></div>
   </div>
+
+  </div><!-- /#pane-editor -->
 
   <footer>
     マイルデータ：ANA公式（2025年6月24日改定）基準<br>
@@ -3079,10 +3095,8 @@ async function ppSearch() {
     PP.sel = 0; PP.way = 0; PP.showFar = false;
 
     msg.textContent = '';
-    document.getElementById('pp-s2').hidden = false;
-    document.getElementById('pp-s3').hidden = true;
     ppRender();
-    document.getElementById('pp-s2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    ppGo('s2');                       // さがす → 候補（画面を切り替える）
   } catch (e) {
     console.error(e);
     msg.className = 'pp-msg';
@@ -3092,10 +3106,23 @@ async function ppSearch() {
   }
 }
 
-// 条件バーを押したら S1 に戻す（出発地・特典・座席をその場で替える）
+// 条件バーを押したら「さがす」へ戻す（出発地・特典・座席を替える）
 function ppEditCondition() {
-  document.getElementById('pp-s1').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  ppGo('s1');
   document.getElementById('pp-origin').focus();
+}
+
+// 画面はいちどに1つだけ出す。ボタンが全部同じ画面に並ぶと、
+// どれが「いま押すもの」なのか分からなくなる
+function ppGo(screen) {
+  const on = (id, yes) => { const el = document.getElementById(id); if (el) el.hidden = !yes; };
+  on('pp-s1', screen === 's1');
+  on('pp-s2', screen === 's2');
+  on('pp-s3', screen === 's3');
+  on('pane-editor', screen === 'editor');
+  const pp = document.getElementById('pp');
+  if (pp) pp.hidden = screen === 'editor';
+  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function ppRender() {
@@ -3157,7 +3184,8 @@ function ppRender() {
         // ANA便だけで組める案は、提携特典ではなくANA国際線特典として扱われる
         const warn = w.actualAward === 'ana' ? ' <span class="pp-warn">ANA特典扱い</span>' : '';
         c.innerHTML = `<span>${PP_WAY[k]?.icon ?? '•'}</span>`
-          + `<span class="wt">${PP_WAY[k]?.label ?? k}${warn}<span class="wd">${w.route[1]}</span></span>`
+          + `<span class="wt">${PP_WAY[k]?.label ?? k}${warn}`
+          + `<span class="wd">${w.homeLeg === 'out' ? '往路 ' + w.route[0] : '復路 ' + w.route[1]}</span></span>`
           + `<span class="km">${ppKm(w.detourKm ?? 0)}</span>`;
         c.addEventListener('click', () => { PP.way = wi; ppShowItinerary(w); });
         box.appendChild(c);
@@ -3188,8 +3216,7 @@ function ppRender() {
 // S3 旅程：選んだ1本の区間・成立する特典・次の一手
 function ppShowItinerary(w) {
   PP.chosen = w;
-  const pane = document.getElementById('pp-s3');
-  pane.hidden = false;
+  ppGo('s3');                          // 候補 → 旅程
   const k = ppWayKey(w);
   document.getElementById('pp-s3-title').textContent =
     `${ppCityName(PP.req.origin)} → ${ppCityName(PP.req.destination)} ＋ ${w.extraCityName}`;
@@ -3243,13 +3270,9 @@ function ppShowItinerary(w) {
       }).join('')
     : '';
 
-  pane.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function ppBackToList() {
-  document.getElementById('pp-s3').hidden = true;
-  document.getElementById('pp-s2').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+function ppBackToList() { ppGo('s2'); }
 
 // 選んだ旅程を「じぶんで組む」（従来の判定UI）へ渡す
 function ppToEditor() {
@@ -3271,13 +3294,14 @@ function ppToEditor() {
   if (radio) radio.checked = true;
   updateAllDots();
   validate();
-  document.querySelector('.plane-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  ppGo('editor');                      // 旅程 → じぶんで組む
 }
 
 // ===== 初期化 =====
 updateAllDots();
 initSettings();
 ppInitSelects();
+ppGo('s1');            // 起動時は「さがす」だけを出す
 // 規約データ（data/award-rules.json）は非同期に読む。
 // 届いてから乗り換え上限カウンタを描き直す（それまで上限は表示しない）
 rulesReady.then(() => updateTransitCounter());

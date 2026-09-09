@@ -505,3 +505,19 @@ requirements:
   verify_mode: manual
   last_verified: 2026-09-08
   status: yellow
+- id: REQ-63
+  text: 画面はいちどに1つだけ出す（さがす→候補→旅程→じぶんで組む）。各画面に戻り口を置く。hidden 属性が display 指定に負けないようにする
+  design_ref: architecture.md#20-8
+  impl_ref: index.html::ppGo()
+  test_ref: tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-09
+  status: green
+- id: REQ-64
+  text: 「国内線を先に飛ぶ」（往路側の自宅途中降機）は往路の経路を表示する。復路だけ出すと、その案が何をする旅程なのか読み取れない
+  design_ref: architecture.md#20-8
+  impl_ref: index.html::ppRender()
+  test_ref: tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-09
+  status: green
