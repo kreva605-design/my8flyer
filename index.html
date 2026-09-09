@@ -3154,7 +3154,8 @@ function ppRender() {
         const c = document.createElement('button');
         c.type = 'button';
         c.className = 'pp-way' + (w.extraVia === 'home' ? ' home' : '') + (wi === PP.way ? ' on' : '');
-        const warn = w.needsCheck ? ' <span class="pp-warn">⚠️ 要確認</span>' : '';
+        // ANA便だけで組める案は、提携特典ではなくANA国際線特典として扱われる
+        const warn = w.actualAward === 'ana' ? ' <span class="pp-warn">ANA特典扱い</span>' : '';
         c.innerHTML = `<span>${PP_WAY[k]?.icon ?? '•'}</span>`
           + `<span class="wt">${PP_WAY[k]?.label ?? k}${warn}<span class="wd">${w.route[1]}</span></span>`
           + `<span class="km">${ppKm(w.detourKm ?? 0)}</span>`;
@@ -3194,8 +3195,10 @@ function ppShowItinerary(w) {
     `${ppCityName(PP.req.origin)} → ${ppCityName(PP.req.destination)} ＋ ${w.extraCityName}`;
   document.getElementById('pp-s3-miles').textContent = `${ppMi(w.miles)} マイル`;
   const note = document.getElementById('pp-s3-note');
-  note.textContent = PP_WAY[k]?.full ?? '';
-  note.className = 'pp-note' + (w.extraVia === 'home' ? '' : ' plain');
+  // ANA便だけで組める旅程は、提携特典ではなくANA国際線特典として扱われる。
+  // 必要マイルのチャートもシーズンの有無も変わるので、黙って提携特典の顔で出さない
+  note.textContent = (w.awardNote ? w.awardNote + ' ' : '') + (PP_WAY[k]?.full ?? '');
+  note.className = 'pp-note' + (w.actualAward === 'ana' ? ' pp-kind-warn' : (w.extraVia === 'home' ? '' : ' plain'));
 
   const it = w.itinerary;
   const seq = [
@@ -3232,11 +3235,10 @@ function ppShowItinerary(w) {
   // その社の規約なら違反になる旅程は「⚠️ 要確認」として出す（成立と言い切らない）
   document.getElementById('pp-kinds').innerHTML = kinds.length
     ? kinds.map(x => {
-        const icon = !x.ok ? '❌' : x.caution ? '⚠️' : '✅';
-        const cls  = x.caution ? ' pp-kind-warn' : '';
-        const body = !x.ok
-          ? `<br><span style="color:#a55">${(x.reasons ?? []).slice(0, 2).join(' ／ ')}</span>`
-          : x.caution ? `<br><span>${x.caution}</span>` : '';
+        const icon = x.ok ? '✅' : '❌';
+        const cls  = (!x.ok && x.anaOnly) ? ' pp-kind-warn' : '';
+        const body = x.ok ? ''
+          : `<br><span style="color:${x.anaOnly ? '#8a5a00' : '#a55'}">${(x.reasons ?? []).slice(0, 2).join(' ／ ')}</span>`;
         return `<div class="pp-kind${cls}">${icon} <b>${x.label}</b>${body}</div>`;
       }).join('')
     : '';

@@ -1,0 +1,22 @@
+{
+ "url": "https://www.ana.co.jp/ja/us/amc/partner-flight-awards/",
+ "label": "ana-partner-intro",
+ "fetched_at": "2026-09-08T22:35:49",
+ "http_status": 200,
+ "bytes": 398672,
+ "sha256": "d988c6bfc14f19e65e02c4221daa8c4e6b518329b6ad1e6583e2d17571dc4796",
+ "changed_from_previous": true,
+ "lint": [
+  {
+   "id": "H1_multi_version",
+   "severity": "high",
+   "message": "有効期間の異なる版が同じページに 3 種類あります。どのパネルから値を取ったかを locator に記録しないと、旧版を現行版と誤認します。",
+   "detail": [
+    "2025年6月24日以降の予約・発券分",
+    "2025年6月23日までの予約・発券分",
+    "改定前："
+   ],
+   "source": "ana-partner-intro"
+  }
+ ]
+}

@@ -482,9 +482,9 @@ requirements:
   last_verified: 2026-09-08
   status: green
 - id: REQ-60
-  text: 全区間で選べる運航会社が1社（ANA）に絞られる旅程は、提携特典として成立すると言い切らない。日本発の途中降機を含む場合はANA国際線特典の規約に当たる可能性があるため「要確認」として出し、一覧でも印を付けて順位を下げる
+  text: スターアライアンス特典として発券するにはANA以外の加盟社の便が1区間以上必要。全区間ANAでしか飛べない旅程は「ANA国際線特典」として扱い、①日本発の途中降機を含むものは提案から落とす（落とした数を stats に残す）②含まないものは必要マイルをANAのチャートで出し直し「ANA特典扱い」と印を付ける
   design_ref: architecture.md#20-6
-  impl_ref: src/proposer.js::soleCarrierOf(),src/proposer.js::evaluateByKind(),index.html::ppShowItinerary()
+  impl_ref: src/proposer.js::soleCarrierOf(),src/proposer.js::propose()[anaOnly],src/proposer.js::evaluateByKind(),index.html::ppShowItinerary()
   test_ref: tests/proposer.test.mjs,tests/browser_propose.py
   verify_mode: auto
   last_verified: 2026-09-08
@@ -497,3 +497,11 @@ requirements:
   verify_mode: manual
   last_verified: ''
   status: red
+- id: REQ-62
+  text: 「スターアライアンス特典にはANA以外の加盟社便が1区間以上必要」という実務ルールを、出典・原文つきで正本に持つ。公式が製品名でしか書いていないため二次情報であることを明示する
+  design_ref: architecture.md#20-7
+  impl_ref: data/award-rules.json
+  test_ref: scripts/scrape_guard/guard.py validate
+  verify_mode: manual
+  last_verified: 2026-09-08
+  status: yellow

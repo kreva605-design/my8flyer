@@ -94,28 +94,35 @@ try:
         check("指定した旅程が基準になる", "リスボン" in base and "羽田" in base, base.replace("\n", " ")[:90])
         check("指定した街を「もう1都市」に数えない", bad == 0, f"混入 {bad}件")
 
-        # ANA便しか選べない旅程に「要確認」が出るか（羽田→パリの 🏠 がこれに当たる）
+        # ANA便でしか飛べない旅程の扱い（2026-09-08）：
+        # 途中降機つきは提案に出さない／途中降機なしは「ANA特典扱い」と印を付ける
         pg.select_option("#pp-origin", "HND")
-        pg.select_option("#pp-dest", "CDG")
+        pg.select_option("#pp-dest", "HNL")
         pg.select_option("#pp-arrival", "")
         pg.click("#pp-go")
-        pg.wait_for_function("PP.req && !PP.req.arrival && PP.rows.length > 5", timeout=60000)
-        info = pg.evaluate("""() => {
-            const i = PP.rows.findIndex(r => r.ways.some(w => w.needsCheck));
-            if (i < 0) return null;
-            PP.sel = i; PP.way = r_index(PP.rows[i]); ppRender();
-            function r_index(r){ return r.ways.findIndex(w => w.needsCheck); }
-            return { city: PP.rows[i].city, n: PP.rows.filter(r => r.ways.some(w => w.needsCheck)).length };
+        pg.wait_for_function("PP.req && PP.req.destination === 'HNL' && PP.rows.length > 3", timeout=60000)
+        bad = pg.evaluate("""() => {
+            const sole = (legs) => legs.length && legs.every(l => l.airlines.length === 1 && l.airlines[0] === 'NH');
+            return PP.rows.flatMap(r => r.ways).filter(w => w.stopover && sole(w.carriersByLeg)).length;
         }""")
-        check("ANA便だけの旅程に要確認が付く", info is not None, str(info))
+        check("ANA便だけの途中降機つきは提案に出ない", bad == 0, f"{bad}本")
+
+        info = pg.evaluate("""() => {
+            const i = PP.rows.findIndex(r => r.ways.some(w => w.actualAward === 'ana'));
+            if (i < 0) return null;
+            PP.sel = i; PP.way = PP.rows[i].ways.findIndex(w => w.actualAward === 'ana'); ppRender();
+            const w = PP.rows[i].ways[PP.way];
+            return { city: PP.rows[i].city, miles: w.miles, note: w.milesNote };
+        }""")
+        check("ANA便だけで組める案が「ANA特典扱い」になる", info is not None, str(info))
         if info:
+            check("マイルがANAのチャート（シーズンつき）になる", 'シーズン' in (info.get('note') or ''), str(info.get('note')))
             badge = pg.eval_on_selector_all(".pp-warn", "els => els.length")
-            check("一覧に「要確認」の印が出る", badge >= 1, f"{badge}件")
+            check("一覧に「ANA特典扱い」の印が出る", badge >= 1, f"{badge}件")
             pg.click(".pp-way.on")
             pg.wait_for_selector("#pp-s3:not([hidden])", timeout=5000)
-            kinds = pg.inner_text("#pp-kinds")
-            check("特典判定が「成立」と言い切らない", "⚠️" in kinds and "ANA国際線特典として扱われる" in kinds,
-                  kinds.replace("\n", " ")[:110])
+            note = pg.inner_text("#pp-s3-note")
+            check("旅程画面にANA特典扱いの理由が出る", "ANA国際線特典として扱われます" in note, note[:80])
 
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()

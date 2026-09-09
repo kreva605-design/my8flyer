@@ -292,6 +292,9 @@ export function propose(req, ctx) {
   const stats = {
     outPathsFound: 0, retPathsFound: 0, outPaths: 0, retPaths: 0,
     combinations: 0, validated: 0, passed: 0, milesUnknown: 0,
+    // 規約は通ったが「ANA便でしか飛べない＋日本発の途中降機」で発券できない案の数。
+    // 黙って捨てると、あとで件数が合わない理由が誰にも分からなくなる
+    droppedAnaOnly: 0,
     truncated: false, carriers: allowed ? allowed.size : null,
     plans: plans.map((p) => p.id), plansUsed: [],
   };
@@ -495,6 +498,29 @@ export function propose(req, ctx) {
           variants: 1,
         };
 
+        // ★ANA便でしか飛べない旅程は「ANA国際線特典」として扱われる。
+        // 提携（スタアラ）特典にするには、ANA以外の加盟社の便が1区間以上必要
+        //（実務解説2件で一致。公式は製品名でしか書いていない）。
+        // 日本発の途中降機はANA国際線特典では不可なので、この形は**どちらの特典でも成立しない**。
+        // 代表を選ぶ前にここで落とす（後で落とすと、成立する別の組み方が埋もれる）
+        if (awardType === 'partner') {
+          const sole = soleCarrierOf(cand.carriersByLeg);
+          if (sole === 'NH') {
+            if (soIata) { stats.droppedAnaOnly++; continue; }   // ANA便のみ＋日本発の途中降機＝不成立
+            cand.actualAward = 'ana';          // 途中降機が無ければ成立するが、扱いはANA国際線特典
+            cand.awardNote = 'この旅程はANA便だけで組めるため、ANA国際線特典として扱われます（必要マイルはANAのチャート・シーズンで変わります）。';
+            const anaMiles = requiredMiles(itinerary, {
+              awardType: 'ana', charts, cities,
+              cabin: req.cabin, season: req.season, revision: req.revision,
+            });
+            if (anaMiles.miles != null) {
+              cand.miles = anaMiles.miles;
+              cand.milesNote = anaMiles.note;
+              cand.milesBreakdown = anaMiles.breakdown ?? null;
+            }
+          }
+        }
+
         const cur = keep.get(key);
         if (!cur) { keep.set(key, cand); continue; }
         cur.variants++;
@@ -509,18 +535,6 @@ export function propose(req, ctx) {
     }
     }
    }
-  }
-
-  // ★「実際に選べるのが1社だけ」の旅程に注意書きを付ける。
-  // ANA便しか選べない旅程で日本発の途中降機を組むと、ANA国際線特典の規約に当たり
-  // 予約できない可能性がある（公式が沈黙しているため、成立すると言い切らない）
-  for (const p of keep.values()) {
-    const sole = soleCarrierOf(p.carriersByLeg);
-    p.soleCarrier = sole;
-    if (awardType === 'partner' && sole === 'NH' && hasJapanStopover(p.itinerary, cities)) {
-      p.needsCheck = 'この旅程は実際に選べる便がANAだけです。ANA国際線特典として扱われると日本発の途中降機ができないため、予約できない可能性があります。ANAの予約画面で確かめてください。';
-      p.warnings = [...(p.warnings ?? []), p.needsCheck];
-    }
   }
 
   // 寄り道先の「大手空港かどうか」「どの国か」を添える。
@@ -558,8 +572,6 @@ export function propose(req, ctx) {
     // マイルが同じなら、遠回りの少ない順。ここが「しんどい案を下げる」中心
     if ((a.detourKm ?? 0) !== (b.detourKm ?? 0)) return (a.detourKm ?? 0) - (b.detourKm ?? 0);
     if (a.transits !== b.transits) return a.transits - b.transits;
-    // 規約の裏が取れていない案（実際にはANA便しか選べない途中降機つき）は後ろへ
-    if (!!a.needsCheck !== !!b.needsCheck) return a.needsCheck ? 1 : -1;
     // 同条件なら就航路線の多い都市を上に（便が取りやすく、街としても大きい）
     if ((b.hubRoutes ?? 0) !== (a.hubRoutes ?? 0)) return (b.hubRoutes ?? 0) - (a.hubRoutes ?? 0);
     return ovsCountOf(a.itinerary) - ovsCountOf(b.itinerary);
@@ -756,16 +768,15 @@ export function evaluateByKind(itinerary, ctx) {
       kind: 'star',
       label: '提携特典・スターアライアンス',
       note: '加盟社を自由に組み合わせられる',
-      ok: !!star?.ok,
-      reasons: star?.reasons ?? [],
+      // ★スターアライアンス特典として発券するには、ANA以外の加盟社の便が
+      //   1区間以上必要。ANA便だけの旅程はANA国際線特典として扱われるため、
+      //   規約そのものを通っていてもスタアラ特典としては成立しない
+      ok: !!star?.ok && soleCarrierOf(star?.carriersByLeg ?? []) !== 'NH',
+      reasons: soleCarrierOf(star?.carriersByLeg ?? []) === 'NH'
+        ? ['この旅程はANA便でしか飛べません。スターアライアンス特典にするには、ANA以外の加盟社の便が1区間以上必要です']
+        : (star?.reasons ?? []),
       carriersByLeg: star?.carriersByLeg ?? [],
-      // ★規約を通っていても、実際に選べる便がANAだけで、しかも日本発の途中降機を
-      //   含む旅程は「成立する」と言い切らない。ANA国際線特典として扱われると
-      //   途中降機ができず、予約できない可能性がある（公式は沈黙している）
-      caution: (star?.ok && soleCarrierOf(star.carriersByLeg) === 'NH'
-                && hasJapanStopover(itinerary, ctx.cities))
-        ? '実際に選べる便がANAだけです。ANA国際線特典として扱われると日本発の途中降機ができないため、予約できない可能性があります。ANAの予約画面で確かめてください。'
-        : null,
+      anaOnly: soleCarrierOf(star?.carriersByLeg ?? []) === 'NH',
     },
     {
       kind: 'partner',

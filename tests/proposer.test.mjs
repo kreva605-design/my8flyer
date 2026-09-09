@@ -246,7 +246,9 @@ test('同じ（必要マイル・増える都市）の案は1本にまとめ、�
     { origin: 'HIJ', destination: 'CDG', wantStopover: true, maxTransits: 2, ...NO_OJ }, ctx);
   const keys = proposals.map((p) => `${p.miles}|${p.extraCity ?? '-'}`);
   assert.equal(new Set(keys).size, keys.length, '同じ組み合わせが2本出ている');
-  assert.equal(proposals.reduce((a, p) => a + p.variants, 0), stats.passed,
+  // 規約は通ったが「ANA便でしか飛べない＋日本発の途中降機」で発券できない案は
+  // 畳む前に落としている。その数は stats に残す（無言で捨てない）
+  assert.equal(proposals.reduce((a, p) => a + p.variants, 0), stats.passed - stats.droppedAnaOnly,
     'まとめた本数の合計が、合格した組み合わせの数と合わない');
   assert.ok(proposals.length < stats.passed, '畳めていない');
 });
@@ -661,7 +663,7 @@ test('ANA便しか選べない旅程で日本発の途中降機を組んだら�
   }
 });
 
-test('特典ごとの判定でも、ANA便しか選べない途中降機つきは「成立」と言い切らない', () => {
+test('ANA便しか選べない旅程は、スターアライアンス特典としては成立しない', () => {
   const it = {
     departure: 'HND', destination: 'CDG', arrival: 'FUK', returnDep: null,
     outbound: [null, null, null], return: ['HND', null, null],
@@ -669,11 +671,40 @@ test('特典ごとの判定でも、ANA便しか選べない途中降機つき�
     outboundSurfaceAfter: [false, false, false], returnSurfaceAfter: [false, false, false],
   };
   const kinds = evaluateByKind(it, { rules, cities: CITIES, graph, airlines: AIRLINES });
+  // スターアライアンス特典にするには、ANA以外の加盟社の便が1区間以上必要。
+  // ANA便だけの旅程はANA国際線特典として扱われ、日本発の途中降機ができない
   const star = kinds.find((k) => k.kind === 'star');
-  assert.equal(star.ok, true, '規約そのものは通る');
-  assert.ok(star.caution, '実際にはANA便しか選べないのに注意書きが無い');
-  assert.ok(star.caution.includes('ANA国際線特典'), star.caution);
+  assert.equal(star.ok, false, 'ANA便だけの旅程をスタアラ特典として成立と出している');
+  assert.equal(star.anaOnly, true, 'ANA便しか選べないことを示せていない');
+  assert.ok(star.reasons.some((r) => r.includes('1区間以上')), star.reasons.join(' / '));
 
   const ana = kinds.find((k) => k.kind === 'ana');
   assert.equal(ana.ok, false, 'ANA自社便では日本発の途中降機ができない');
+});
+
+test('ANA便でしか飛べない途中降機つきの案は提案に出さない（落とした数を残す）', () => {
+  for (const [o, d] of [['HND', 'CDG'], ['HND', 'HNL']]) {
+    const { proposals, stats } = propose(
+      { origin: o, destination: d, wantStopover: true }, ctxGeo);
+    const bad = proposals.filter(
+      (p) => p.stopover && soleCarrierOf(p.carriersByLeg) === 'NH');
+    assert.equal(bad.length, 0,
+      `${o}→${d} にANA便だけの途中降機つきが ${bad.length} 本残っている`);
+    assert.ok(stats.droppedAnaOnly > 0,
+      `${o}→${d} で落とした件数が記録されていない`);
+  }
+});
+
+test('ANA便だけで組める案は「ANA国際線特典として扱う」と印を付け、マイルもANAのチャートで出す', () => {
+  const { proposals } = propose(
+    { origin: 'HND', destination: 'HNL', wantStopover: true }, ctxGeo);
+  const ana = proposals.filter((p) => p.actualAward === 'ana');
+  assert.ok(ana.length > 0, 'ANA便だけで組める案が1本も無い（前提が崩れた）');
+  for (const p of ana) {
+    assert.equal(soleCarrierOf(p.carriersByLeg), 'NH');
+    assert.equal(p.stopover, null, '途中降機つきが残っている');
+    assert.ok(p.awardNote.includes('ANA国際線特典'), p.awardNote);
+    // ANAのチャートはシーズンで変わる。提携チャートの値を出したままにしない
+    assert.ok(/シーズン/.test(p.milesNote ?? ''), `マイルの注記がANA側になっていない: ${p.milesNote}`);
+  }
 });
