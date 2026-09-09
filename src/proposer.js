@@ -266,6 +266,8 @@ export function propose(req, ctx) {
   const arrival     = req.arrival ?? origin;
   const retFrom     = req.returnDep ?? destination;
   const cap         = req.cap ?? 4000;         // 経路列挙の打ち切り（安全弁）
+  // 必ず通る都市（空なら制限なし）。空港ではなく街の単位で見る
+  const mustVia     = (req.mustVia ?? []).filter(Boolean);
 
   const limits = {
     maxTransits: Math.min(req.maxTransits ?? 3, 3),   // UI のスロットが片道3つ
@@ -295,6 +297,7 @@ export function propose(req, ctx) {
     // 規約は通ったが「ANA便でしか飛べない＋日本発の途中降機」で発券できない案の数。
     // 黙って捨てると、あとで件数が合わない理由が誰にも分からなくなる
     droppedAnaOnly: 0,
+    mustVia,
     truncated: false, carriers: allowed ? allowed.size : null,
     plans: plans.map((p) => p.id), plansUsed: [],
   };
@@ -497,6 +500,15 @@ export function propose(req, ctx) {
           })),
           variants: 1,
         };
+
+        // ★経由地の指定（じぶんで組む画面から提案を受けるときに使う）。
+        // 「フランクフルトは必ず通る」のように、いま組んである経由地を条件として残す。
+        // 指定した都市が往路・復路のどこかに現れる案だけを採る
+        if (mustVia.length) {
+          const visited = new Set([...op, ...rp, os.departure, destination, retFrom, arv]
+            .filter(Boolean).map(cityKey));
+          if (!mustVia.every((v) => visited.has(cityKey(v)))) continue;
+        }
 
         // ★ANA便でしか飛べない旅程は「ANA国際線特典」として扱われる。
         // 提携（スタアラ）特典にするには、ANA以外の加盟社の便が1区間以上必要

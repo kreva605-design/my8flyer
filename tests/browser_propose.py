@@ -48,7 +48,7 @@ try:
         found = pg.evaluate("""() => {
             const i = PP.rows.findIndex(r => r.ways.some(w => w.extraVia === 'home'));
             if (i < 0) return null;
-            PP.sel = i; PP.way = 0; ppRender();
+            PP.selKey = PP.rows[i].iata; PP.way = 0; ppRender();
             const r = PP.rows[i];
             return { city: r.city, ways: r.ways.map(w => w.extraVia + (w.homeLeg ? ':' + w.homeLeg : '')) };
         }""")
@@ -112,7 +112,7 @@ try:
         info = pg.evaluate("""() => {
             const i = PP.rows.findIndex(r => r.ways.some(w => w.actualAward === 'ana'));
             if (i < 0) return null;
-            PP.sel = i; PP.way = PP.rows[i].ways.findIndex(w => w.actualAward === 'ana'); ppRender();
+            PP.selKey = PP.rows[i].iata; PP.way = PP.rows[i].ways.findIndex(w => w.actualAward === 'ana'); ppRender();
             const w = PP.rows[i].ways[PP.way];
             return { city: PP.rows[i].city, miles: w.miles, note: w.milesNote };
         }""")
@@ -135,7 +135,7 @@ try:
         pg.select_option("#pp-origin", "HND"); pg.select_option("#pp-dest", "CDG")
         pg.click("#pp-go"); pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
         check("検索すると「候補」に切り替わる", vis("pp-s2") and not vis("pp-s1"), None)
-        pg.evaluate("() => { PP.sel = 0; PP.way = 0; ppRender(); }")
+        pg.evaluate("() => { PP.selKey = PP.rows[0].iata; PP.way = 0; ppRender(); }")
         pg.click(".pp-way")
         pg.wait_for_selector("#pp-s3:not([hidden])", timeout=5000)
         check("行き方を選ぶと「旅程」に切り替わる", vis("pp-s3") and not vis("pp-s2"), None)
@@ -152,13 +152,51 @@ try:
         out = pg.evaluate("""() => {
             const i = PP.rows.findIndex(r => r.ways.some(w => w.homeLeg === 'out'));
             if (i < 0) return null;
-            PP.sel = i; PP.way = PP.rows[i].ways.findIndex(w => w.homeLeg === 'out'); ppRender();
+            PP.selKey = PP.rows[i].iata; PP.way = PP.rows[i].ways.findIndex(w => w.homeLeg === 'out'); ppRender();
             const el = document.querySelector('.pp-way.on .wd');
             return { text: el ? el.textContent : null, route0: PP.rows[i].ways[PP.way].route[0] };
         }""")
         check("「国内線を先に飛ぶ」は往路の経路を出す",
               out is not None and out["text"].startswith("往路") and out["route0"] in out["text"],
               str(out))
+
+        # 2026-09-10 追加の4件
+        pg.evaluate("ppGo('s1')")
+        grp = pg.evaluate("""() => ({
+            dest: [...document.querySelectorAll('#pp-dest optgroup')].map(g => g.label),
+            org:  [...document.querySelectorAll('#pp-origin optgroup')].map(g => g.label),
+        })""")
+        check("目的地がゾーン別にまとまる",
+              any('Zone 7' in l for l in grp["dest"]) and len(grp["dest"]) >= 5, str(grp["dest"])[:90])
+        check("出発地が地域別にまとまる",
+              any('グループ空港' in l for l in grp["org"]), str(grp["org"]))
+
+        pg.select_option("#pp-origin", "HND"); pg.select_option("#pp-dest", "CDG")
+        pg.select_option("#pp-arrival", "")
+        pg.click("#pp-go"); pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        first = pg.inner_text("#pp-list .pp-city")
+        check("「もう1都市なし」が一覧の先頭に行として出る", "もう1都市なし" in first,
+              first.replace("\n", " ")[:70])
+        pg.click("#pp-list .pp-city")
+        pg.wait_for_selector("#pp-s3:not([hidden])", timeout=5000)
+        title = pg.inner_text("#pp-s3-title")
+        check("「もう1都市なし」を選ぶと旅程画面へ進める", "もう1都市なし" in title, title)
+
+        # じぶんで組む → 提案（経由地も条件にする）
+        pg.evaluate("""() => {
+            Object.assign(STATE, { awardType:'partner', departure:'HND', destination:'CDG',
+              arrival:null, returnDep:null, outbound:['FRA',null,null], return:[null,null,null],
+              outboundSO:[false,false,false], returnSO:[false,false,false],
+              outboundSurface:[false,false,false], returnSurface:[false,false,false] });
+            updateAllDots(); ppGo('editor');
+        }""")
+        pg.click("button[onclick='ppFromEditor()']")
+        pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        pin = pg.inner_text("#pp-cond-pin")
+        okvia = pg.evaluate("""() => PP.rows.flatMap(r => r.ways)
+            .every(w => JSON.stringify(w.itinerary).includes('FRA'))""")
+        check("じぶんで組む画面から提案を受けられる", pg.is_visible("#pp-s2"), None)
+        check("置いてある経由地が条件になる", "フランクフルト" in pin and okvia, pin)
 
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()

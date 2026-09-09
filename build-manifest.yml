@@ -521,3 +521,35 @@ requirements:
   verify_mode: auto
   last_verified: 2026-09-09
   status: green
+- id: REQ-65
+  text: 「もう1都市なし（まっすぐ帰る）」も一覧の行として選べる。基準の旅程をそのまま旅程画面へ進められるようにする
+  design_ref: architecture.md#20-9
+  impl_ref: index.html::ppRender()[baseRow]
+  test_ref: tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green
+- id: REQ-66
+  text: 提案画面の出発地・目的地・帰着地の選択肢を「じぶんで組む」画面と同じ並びに揃える（目的地はゾーン別・国内は グループ空港／個別空港（北→南））
+  design_ref: architecture.md#20-9
+  impl_ref: index.html::ppInitSelects()
+  test_ref: tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green
+- id: REQ-67
+  text: 「じぶんで組む」画面から提案を受けられる。いま置いてある経由地を「必ず通る」条件として引き継ぎ、0件なら条件を外して探し直す出口を出す
+  design_ref: architecture.md#20-9
+  impl_ref: src/proposer.js::propose()[mustVia],index.html::ppFromEditor(),index.html::ppClearVia()
+  test_ref: tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green
+- id: REQ-68
+  text: Googleフライトのリンクに、その区間で特典に使える運航会社を検索文として入れる。アライアンス指定はURLの内部形式に依存するため採らない
+  design_ref: architecture.md#20-9
+  impl_ref: index.html::gfLink()
+  test_ref: tests/browser_smoke.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green

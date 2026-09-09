@@ -729,7 +729,7 @@
     }
     .pp-msg { font-size: 0.76rem; color: #a33; line-height: 1.7; }
     .pp-hint { font-size: 0.7rem; color: #7a879a; line-height: 1.75; margin-top: -3px; }
-    .pp-back { margin: 2px 0 10px; }
+    .pp-back { margin: 2px 0 10px; display: flex; gap: 8px; flex-wrap: wrap; }
     .pp-back .pp-ghost { width: auto; padding: 7px 14px; font-size: 0.8rem; }
     .pp-msg.wait { color: #556; }
 
@@ -899,6 +899,7 @@
   <div id="pane-editor" hidden>
   <div class="pp-back">
     <button class="pp-ghost" onclick="ppGo('s3')">◀ 提案に戻る</button>
+    <button class="pp-ghost" onclick="ppFromEditor()">▲ この条件でもう1都市の提案を受ける</button>
   </div>
 
   <!-- 設定パネル -->
@@ -2692,8 +2693,12 @@ function renderFlightCard(legArr, results, soIatas) {
 
   // Googleフライト深リンク（便名・時刻はGoogle側で確認する）
   // アプリは外部リンクを開くだけなのでCORS・APIキー・費用は不要。
-  const gfLink = (from, to) => {
-    const q = encodeURIComponent(`flights from ${from} to ${to}`);
+  // 区間で実際に乗れる社を検索文に入れる。アライアンス指定はURLの内部形式
+  // （tfs）に依存して壊れやすいため採らない（2026-09-10 ユーザー決定）
+  const gfLink = (from, to, airlines) => {
+    const codes = (airlines ?? []).filter(Boolean).slice(0, 4);
+    const q = encodeURIComponent(
+      `flights from ${from} to ${to}` + (codes.length ? ` on ${codes.join(' or ')}` : ''));
     return `<a class="gf-link" href="https://www.google.com/travel/flights?q=${q}" target="_blank" rel="noopener">🔍 Googleフライトで便名を見る</a>`;
   };
 
@@ -2701,9 +2706,15 @@ function renderFlightCard(legArr, results, soIatas) {
   const renderLegFull = (leg, data, opts = {}) => {
     const { from, to } = leg;
     const isAlt = opts.asAlternative === true;
-    const header = isAlt
-      ? `<div class="leg-sub-header">└ ${from} 〜 ${to} 経由 ${gfLink(from, to)}</div>`
-      : `<div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}） ${gfLink(from, to)}</div>`;
+    // ★リンクには「この区間で特典に使える社」を入れる。
+    // Googleフライト側でアライアンスを選び直す手間を省くため（2026-09-10）
+    const usable = (data.flights ?? [])
+      .filter(f => f.starAlliance || f.connectingPartner || f.partnerAirline)
+      .map(f => f.airline ?? f.iata ?? f.code).filter(Boolean);
+    const mkHeader = () => isAlt
+      ? `<div class="leg-sub-header">└ ${from} 〜 ${to} 経由 ${gfLink(from, to, usable)}</div>`
+      : `<div class="leg-header">${cityName(from)}（${from}）→ ${cityName(to)}（${to}） ${gfLink(from, to, usable)}</div>`;
+    const header = mkHeader();
 
     if (data.error === 'auth') return `${header}<div class="check-item check-ng">❌ アクセストークンが無効です。設定を確認してください。</div>`;
     if (data.error === 'network') return `${header}<div class="check-item check-ng">❌ 通信エラー。ネットワーク・Workers URLを確認してください。</div>`;
@@ -2990,7 +3001,7 @@ async function renderSavedRoutes() {
 // ═══════════════════════════════════════════════════════════════════
 const PP = {
   mod: null, charts: null, airlines: null, airports: null, graph: null,
-  rows: [], base: null, stats: null, sel: 0, way: 0, showFar: false, req: null,
+  rows: [], base: null, stats: null, selKey: null, way: 0, showFar: false, req: null, mustVia: [],
 };
 
 // もう1都市への「行き方」。同じ都市でも体験が変わるので、行の中に並べる
@@ -3013,15 +3024,30 @@ const ppMi = (n) => Number(n).toLocaleString('ja-JP');
 function ppInitSelects() {
   const org = document.getElementById('pp-origin');
   const dst = document.getElementById('pp-dest');
-  if (!org || !dst) return;
-  const opt = (c) => `<option value="${c.iata}">${c.name}</option>`;
-  org.innerHTML = CITIES.filter(c => c.type === 'domestic' && !c.group).map(opt).join('');
-  dst.innerHTML = CITIES.filter(c => c.type === 'overseas'  && !c.group).map(opt).join('');
-  // 帰りの場所は任意。空欄＝いつもどおり（出発地に帰る／目的地から帰る）
   const arv = document.getElementById('pp-arrival');
+  if (!org || !dst) return;
 
-  arv.innerHTML = '<option value="">出発地と同じ</option>'
-    + CITIES.filter(c => c.type === 'domestic' && !c.group).map(opt).join('');
+  // 「じぶんで組む」画面の都市選択と同じ並びに揃える。
+  // 都市名がただ並ぶだけだと、どのゾーン（＝必要マイルの段）なのか読み取れない
+  const opt = (c) => `<option value="${c.iata}">${c.name}（${c.iata}）</option>`;
+  const domesticGroups = () =>
+    `<optgroup label="🇯🇵 国内 グループ空港">`
+    + CITIES.filter((c) => c.type === 'domestic' && c.group).map(opt).join('')
+    + `</optgroup><optgroup label="🇯🇵 国内 個別空港（北→南）">`
+    + CITIES.filter((c) => c.type === 'domestic' && !c.group).map(opt).join('')
+    + `</optgroup>`;
+  const overseasByZone = () => {
+    const zones = [...new Set(CITIES.filter((c) => c.type === 'overseas').map((c) => c.zone))]
+      .sort((a, b) => a - b);
+    return zones.map((z) =>
+      `<optgroup label="🌏 ${ZONE_LABEL[z] ?? 'Zone ' + z}">`
+      + CITIES.filter((c) => c.type === 'overseas' && c.zone === z && !c.group).map(opt).join('')
+      + `</optgroup>`).join('');
+  };
+
+  org.innerHTML = domesticGroups();
+  dst.innerHTML = overseasByZone();
+  if (arv) arv.innerHTML = '<option value="">出発地と同じ</option>' + domesticGroups();
 
   org.value = localStorage.getItem('pp-origin') ?? 'HND';
   dst.value = localStorage.getItem('pp-dest')   ?? 'CDG';
@@ -3073,6 +3099,7 @@ async function ppSearch() {
     };
     // 指定があるときだけ渡す（空欄なら従来どおり自動で候補を出す）
     if (arrival && arrival !== origin) req.arrival = arrival;
+    if (PP.mustVia && PP.mustVia.length) req.mustVia = PP.mustVia;
 
     localStorage.setItem('pp-origin', req.origin);
     localStorage.setItem('pp-dest',   req.dest ?? req.destination);
@@ -3092,7 +3119,7 @@ async function ppSearch() {
     PP.base = proposals.filter(p => p.extraCity == null && within(p))
                        .sort((a, b) => a.transits - b.transits)[0] ?? null;
     PP.rows = PP.mod.groupByCity(proposals.filter(within), { airports: PP.airports });
-    PP.sel = 0; PP.way = 0; PP.showFar = false;
+    PP.selKey = PP.rows[0]?.iata ?? null; PP.way = 0; PP.showFar = false;
 
     msg.textContent = '';
     ppRender();
@@ -3126,11 +3153,20 @@ function ppGo(screen) {
 }
 
 function ppRender() {
-  const near = PP.rows.filter(r => r.effort !== '大回り');
-  const far  = PP.rows.filter(r => r.effort === '大回り');
+  // ★「もう1都市なし」も選べる行にする。上の枠に出すだけだと、
+  // まっすぐ帰る旅程を選んで先へ進むことができなかった
+  const baseRow = PP.base ? [{
+    city: 'もう1都市なし（まっすぐ帰る）', iata: null, country: null,
+    miles: PP.base.miles, hub: 0, detour: PP.base.detourKm ?? 0,
+    effort: PP.base.effort ?? 'ほぼ通り道', sameCountry: [], ways: [PP.base],
+  }] : [];
+  const rowsAll = [...baseRow, ...PP.rows];
+  const near = rowsAll.filter(r => r.effort !== '大回り');
+  const far  = rowsAll.filter(r => r.effort === '大回り');
   const list = PP.showFar ? [...near, ...far] : near;
-  if (PP.sel >= list.length) { PP.sel = 0; PP.way = 0; }
-  const cur = list[PP.sel] ?? null;
+  // ★選択は都市で持つ。行数が変わっても選び直しにならない
+  const keyOf = (r) => r.iata ?? '__base__';
+  const cur = list.find((r) => keyOf(r) === PP.selKey) ?? null;
   if (cur && PP.way >= cur.ways.length) PP.way = 0;
 
   document.getElementById('pp-cond-origin').textContent = '出発地 ' + ppCityName(PP.req.origin);
@@ -3142,6 +3178,7 @@ function ppRender() {
   const pin = document.getElementById('pp-cond-pin');
   const bits = [];
   if (PP.req.arrival)   bits.push(ppCityName(PP.req.arrival) + 'に帰着');
+  if (PP.req.mustVia?.length) bits.push(PP.req.mustVia.map(ppCityName).join('・') + 'を必ず通る');
   pin.textContent = bits.join(' ・ ');
   pin.hidden = bits.length === 0;
 
@@ -3158,26 +3195,37 @@ function ppRender() {
   const ul = document.getElementById('pp-list');
   ul.innerHTML = '';
   if (!list.length) {
-    ul.innerHTML = '<li style="padding:12px;font-size:0.8rem;color:#7a879a">もう1都市を足せる案がありません</li>';
+    // 黙って空にしない。何が効いて0件になったのかと、その外し方を出す
+    ul.innerHTML = PP.req.mustVia?.length
+      ? `<li style="padding:12px;font-size:0.8rem;color:#7a879a">`
+        + `${PP.req.mustVia.map(ppCityName).join('・')} を必ず通る案がありませんでした。`
+        + `<br><button class="pp-ghost" style="margin-top:8px" onclick="ppClearVia()">経由地の条件を外してさがす</button></li>`
+      : '<li style="padding:12px;font-size:0.8rem;color:#7a879a">もう1都市を足せる案がありません</li>';
   }
   list.forEach((r, i) => {
     const li = document.createElement('li');
-    const on = i === PP.sel;
+    const on = keyOf(r) === PP.selKey;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'pp-city' + (on ? ' on' : '');
-    const icons = [...new Set(r.ways.map(w => PP_WAY[ppWayKey(w)]?.icon ?? '•'))].join(' ');
+    const icons = [...new Set(r.ways.map(w => w.extraVia ? (PP_WAY[ppWayKey(w)]?.icon ?? '•') : '✈'))].join(' ');
     const same  = r.sameCountry.length ? ` ・ 同じ国にあと${r.sameCountry.length}都市` : '';
-    btn.innerHTML = `<span>${r.city}<span class="sub">${icons} 行き方${r.ways.length}通り ・ 就航${r.hub}路線${same}</span></span>`
+    const sub   = r.iata === null
+      ? `${ppMi(r.miles)} マイル ・ 乗継${r.ways[0].transits}回`
+      : `${icons} 行き方${r.ways.length}通り ・ 就航${r.hub}路線${same}`;
+    btn.innerHTML = `<span>${r.city}<span class="sub">${sub}</span></span>`
       + `<span class="km">${ppKm(r.detour)}</span><span class="km">${on ? '▾' : '›'}</span>`;
-    btn.addEventListener('click', () => { PP.sel = i; PP.way = 0; ppRender(); });
+    btn.addEventListener('click', () => {
+      if (r.iata === null) { ppShowItinerary(r.ways[0]); return; }   // 基準はそのまま旅程へ
+      PP.selKey = keyOf(r); PP.way = 0; ppRender();
+    });
     li.appendChild(btn);
 
     if (on) {
       const box = document.createElement('div');
       box.className = 'pp-ways';
       r.ways.forEach((w, wi) => {
-        const k = ppWayKey(w);
+        const k = w.extraVia ? ppWayKey(w) : null;
         const c = document.createElement('button');
         c.type = 'button';
         c.className = 'pp-way' + (w.extraVia === 'home' ? ' home' : '') + (wi === PP.way ? ' on' : '');
@@ -3219,12 +3267,14 @@ function ppShowItinerary(w) {
   ppGo('s3');                          // 候補 → 旅程
   const k = ppWayKey(w);
   document.getElementById('pp-s3-title').textContent =
-    `${ppCityName(PP.req.origin)} → ${ppCityName(PP.req.destination)} ＋ ${w.extraCityName}`;
+    `${ppCityName(PP.req.origin)} → ${ppCityName(PP.req.destination)}`
+    + (w.extraCityName ? ` ＋ ${w.extraCityName}` : '（もう1都市なし）');
   document.getElementById('pp-s3-miles').textContent = `${ppMi(w.miles)} マイル`;
   const note = document.getElementById('pp-s3-note');
   // ANA便だけで組める旅程は、提携特典ではなくANA国際線特典として扱われる。
   // 必要マイルのチャートもシーズンの有無も変わるので、黙って提携特典の顔で出さない
-  note.textContent = (w.awardNote ? w.awardNote + ' ' : '') + (PP_WAY[k]?.full ?? '');
+  note.textContent = (w.awardNote ? w.awardNote + ' ' : '')
+    + (k ? (PP_WAY[k]?.full ?? '') : 'まっすぐ行って、まっすぐ帰る旅程です。');
   note.className = 'pp-note' + (w.actualAward === 'ana' ? ' pp-kind-warn' : (w.extraVia === 'home' ? '' : ' plain'));
 
   const it = w.itinerary;
@@ -3273,6 +3323,37 @@ function ppShowItinerary(w) {
 }
 
 function ppBackToList() { ppGo('s2'); }
+
+// 「じぶんで組む」→ 提案。いま組んである条件を持って一覧へ戻る。
+// 経由地も条件として残す（「フランクフルトは必ず通る」を活かす・2026-09-10 ユーザー決定）
+async function ppFromEditor() {
+  if (!STATE.departure || !STATE.destination) {
+    alert('出発地と目的地を決めてから押してください。');
+    return;
+  }
+  const dep = CITIES.find(c => c.iata === STATE.departure);
+  const dst = CITIES.find(c => c.iata === STATE.destination);
+  if (!dep || dep.type !== 'domestic' || !dst || dst.type !== 'overseas') {
+    alert('提案は「日本国内発 → 海外」の旅程にだけ出せます。');
+    return;
+  }
+  document.getElementById('pp-origin').value = STATE.departure;
+  document.getElementById('pp-dest').value   = STATE.destination;
+  document.getElementById('pp-award').value  = STATE.awardType;
+  document.getElementById('pp-arrival').value =
+    (STATE.arrival && STATE.arrival !== STATE.departure) ? STATE.arrival : '';
+  // いま置いてある経由地を条件にする（目的地・出発地・帰着地は条件ではない）
+  PP.mustVia = [...STATE.outbound, ...STATE.return].filter(Boolean)
+    .filter(i => i !== STATE.destination && i !== STATE.departure && i !== STATE.arrival);
+  ppGo('s1');
+  await ppSearch();
+}
+
+// 経由地の条件を外してもう一度さがす
+async function ppClearVia() {
+  PP.mustVia = [];
+  await ppSearch();
+}
 
 // 選んだ旅程を「じぶんで組む」（従来の判定UI）へ渡す
 function ppToEditor() {

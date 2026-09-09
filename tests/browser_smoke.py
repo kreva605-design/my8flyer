@@ -123,6 +123,22 @@ try:
         ok = ("読み込めませんでした" in r) and ("問題ありません" not in r)
         results.append(("規約データが無いときは判定せず止まる", ok, r.replace("\n", " / ")))
 
+        # Googleフライトのリンクに「その区間で乗れる社」が入るか（2026-09-10）
+        pg.evaluate("""async () => {
+            Object.assign(STATE, { awardType:'partner', departure:'HND', destination:'CDG',
+              arrival:null, returnDep:null, outbound:[null,null,null], return:[null,null,null],
+              outboundSO:[false,false,false], returnSO:[false,false,false],
+              outboundSurface:[false,false,false], returnSurface:[false,false,false] });
+            updateAllDots(); await validate();
+            if (typeof ppGo === 'function') ppGo('editor');   // 提案画面ではなく編集画面を出す
+        }""")
+        pg.wait_for_selector("a.gf-link", state="attached", timeout=20000)
+        href = pg.get_attribute("a.gf-link", "href")
+        from urllib.parse import unquote
+        q = unquote(href.split("q=")[1])
+        results.append(("Googleフライトのリンクに乗れる社が入る",
+                        " on " in q and "HND" in q and "CDG" in q, q))
+
         results.append(("JSエラーなし", len(errors) == 0, errors))
         b.close()
 finally:
