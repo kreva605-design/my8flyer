@@ -473,6 +473,24 @@
     }
     .flight-time { font-weight: bold; color: #0057a8; margin-left: 18px; }
     .gf-link { font-size: 0.72rem; font-weight: normal; color: #1a73e8; text-decoration: none; margin-left: 8px; white-space: nowrap; }
+
+    /* ===== 実便（S-4・data/flights.json）===== */
+    .rf-head {
+      font-size: 0.72rem; color: #667; margin: 8px 0 4px;
+      border-top: 1px solid #dde5ee; padding-top: 6px;
+    }
+    .rf-row {
+      display: flex; gap: 10px; align-items: baseline;
+      font-size: 0.82rem; padding: 2px 0;
+    }
+    .rf-no   { font-weight: bold; color: #334; min-width: 4.2em; font-variant-numeric: tabular-nums; }
+    .rf-time { color: #445; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .rf-days { font-size: 0.74rem; color: #778; margin-left: auto; white-space: nowrap; }
+    .rf-note { font-size: 0.72rem; color: #889; margin-top: 4px; }
+    .rf-warn {
+      font-size: 0.78rem; color: #8a5a00; background: #fff8e6;
+      border-radius: 6px; padding: 6px 8px; margin-top: 8px;
+    }
     .gf-link:hover { text-decoration: underline; }
     .star-badge {
       display: inline-block;
@@ -2037,6 +2055,50 @@ function ensureRouteDB() {
   return _routeDBPromise;
 }
 
+// ===== 実便の時刻表（S-4 で取得・data/flights.json）=====
+// 中身は「区間 → 便 × 飛ぶ曜日」。**特典の空席ではなく、有償運賃の時刻表**。
+// 特典で取れるかは ANA 側でしか分からない（そちらは特典カレンダー／空席照会の担当）。
+// 読めなくてもアプリは止めない（実便欄を出さないだけ）。
+let FLIGHTS_DB = null;
+let _flightsDBPromise = null;
+
+async function loadFlightsDB() {
+  try {
+    const res = await fetch('data/flights.json', { cache: 'default' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    FLIGHTS_DB = await res.json();
+    return true;
+  } catch (e) {
+    console.warn('data/flights.json 読込失敗（実便欄は出しません）:', e);
+    FLIGHTS_DB = null;
+    return false;
+  }
+}
+
+function ensureFlightsDB() {
+  if (!_flightsDBPromise) _flightsDBPromise = loadFlightsDB();
+  return _flightsDBPromise;
+}
+
+// 飛ぶ曜日の見せ方。'1'=飛ぶ / '0'=飛ばない / '?'=その曜日を見ていない。
+//
+// ★見ていない曜日を「飛ばない」と読ませない。 便数の多い区間は1日しか見ていないので、
+// そこを「月曜だけ」と書くと**毎日飛んでいる路線が週1便に見える**（実装中に踏んだ）。
+// 7曜日そろっていないときは、断定せず「曜日は未確認」と書く。
+const WEEK_JA = ['月', '火', '水', '木', '金', '土', '日'];
+function daysLabel(days) {
+  if (!days || days.length !== 7) return '';
+  const known = [...days].filter(c => c !== '?').length;
+  const on = [...days].map((c, i) => (c === '1' ? WEEK_JA[i] : null)).filter(Boolean);
+  if (known < 7) {
+    // 見ていない曜日がある。運休日が見えているときだけ、その事実を添える
+    const off = [...days].filter(c => c === '0').length;
+    return off ? `${on.join('')}は運航（他の曜日は未確認）` : '曜日は未確認';
+  }
+  if (!on.length) return '運休';
+  return on.length === 7 ? '毎日' : on.join('');
+}
+
 // ===== スターアライアンス加盟 IATA コード =====
 // SK（SAS）は2024年脱退、JP（アドリア航空）は倒産のため除外
 // AV（アビアンカ）、CM（コパ航空）を追加（ANA公式2026年5月確認）
@@ -2613,8 +2675,8 @@ async function checkFlights(force = false) {
   const legArr = getExpandedLegs();
   if (legArr.length === 0) return;
 
-  // 路線辞書の読み込みを保証（初回のみネットワーク）
-  await ensureRouteDB();
+  // 路線辞書と実便の読み込みを保証（初回のみネットワーク）
+  await Promise.all([ensureRouteDB(), ensureFlightsDB()]);
 
   // ストップオーバー都市セット（乗り継ぎチェック対象外）
   const soIatas = new Set([
@@ -2702,6 +2764,46 @@ function renderFlightCard(legArr, results, soIatas) {
     return `<a class="gf-link" href="https://www.google.com/travel/flights?q=${q}" target="_blank" rel="noopener">🔍 Googleフライトで便名を見る</a>`;
   };
 
+  // ★実便の一覧。**「乗れる社」ではなく「運航会社」で絞る。**
+  // 路線辞書は「LH がこの区間を飛ぶ」と言うが、実便が ANA 運航＋LH のコードシェアだけなら、
+  // 提携（スタアラ）特典の「ANA以外が1区間以上」は満たさない。
+  // 区間ごとの OK を束ねただけで全体条件を取りこぼすのは、2026-09-08 に直したのと同じ形の欠陥。
+  const renderRealFlights = (from, to, eligibleCodes) => {
+    if (!FLIGHTS_DB) return '';
+    const rec = FLIGHTS_DB.legs?.[`${from}-${to}`];
+    const win = FLIGHTS_DB.window?.from ? `${FLIGHTS_DB.window.from} の週` : '';
+    if (!rec)                    return `<div class="rf-note">実便：この区間はまだ取得していません</div>`;
+    if (rec.status === 'error')  return `<div class="rf-note">実便：取得不可（Googleフライト側の都合。時間を置いて取り直します）</div>`;
+    const all = rec.flights ?? [];
+    if (!all.length)             return `<div class="rf-note">実便：${win}に直行便は見つかりませんでした</div>`;
+
+    const elig = new Set(eligibleCodes ?? []);
+    const usable = all.filter(f => elig.has(String(f.no).slice(0, 2)));
+    // ★REQ-61：実便の運航会社で特典判定をやり直す。
+    // 「路線辞書では乗れるはずだが、実際に飛んでいるのは対象外の社だけ」を見逃さない
+    if (!usable.length) {
+      const ops = [...new Set(all.map(f => String(f.no).slice(0, 2)))].join('・');
+      return `<div class="rf-warn">⚠️ 実便：${win}にこの区間を飛んでいるのは <b>${ops}</b> だけで、`
+           + `この特典では乗れません（運航 ${all.length}便）</div>`;
+    }
+    const hidden = all.length - usable.length;
+    // 曜日を調べたのは「1日に2本以下」の薄い区間だけ（多頻度の路線に曜日運休は無いため）。
+    // 調べていない区間で毎行「曜日は未確認」と並べても読み手の役に立たないので、
+    // 行からは外し、区間の下に1行だけ理由を書く
+    const surveyed = usable.every(f => !String(f.days ?? '').includes('?'));
+    const rows = usable.map(f =>
+      `<div class="rf-row"><span class="rf-no">${f.no}</span>`
+      + `<span class="rf-time">${f.dep} → ${f.arr}</span>`
+      + (surveyed ? `<span class="rf-days">${daysLabel(f.days)}</span>` : '')
+      + `</div>`).join('');
+    const surveyNote = surveyed ? ''
+      : `<div class="rf-note">この区間は1日に${all.length}便あるため曜日は調べていません（多頻度の路線に曜日運休は無いため、毎日運航とみなしています）</div>`;
+    const note = hidden > 0
+      ? `<div class="rf-note">＋この特典では乗れない便が ${hidden}便あります（表示していません）</div>` : '';
+    return `<div class="rf-head">実便（${win}・Googleフライト調べ／<b>特典の空席ではありません</b>）</div>`
+         + `${rows}${surveyNote}${note}`;
+  };
+
   // 1区間分のレンダリング（フル表示）
   const renderLegFull = (leg, data, opts = {}) => {
     const { from, to } = leg;
@@ -2735,7 +2837,8 @@ function renderFlightCard(legArr, results, soIatas) {
       const msg = isAlt
         ? `⚪ 対象便なし（運航${data.flights.length}社すべて非対象・代替候補）`
         : `❌ 特典対象の航空会社がありません（運航${data.flights.length}社が非対象）`;
-      return `${header}<div class="check-item ${isAlt ? 'check-muted' : 'check-ng'}">${msg}</div>`;
+      return `${header}<div class="check-item ${isAlt ? 'check-muted' : 'check-ng'}">${msg}</div>`
+           + renderRealFlights(from, to, []);
     }
 
     const hasPartner = eligible.some(f => f.partnerAirline);
@@ -2751,7 +2854,9 @@ function renderFlightCard(legArr, results, soIatas) {
     const partnerNote = hasPartner
       ? '<div class="partner-note">🤝 提携航空会社の便を使う場合は、<b>全区間その航空会社のみ</b>の単独旅程が必要です（スターアライアンス便との混合不可）</div>'
       : '';
-    return `${header}${rows}${partnerNote}`;
+    // 実便（便名・時刻・飛ぶ曜日）。運航会社で絞る＝REQ-61
+    const real = renderRealFlights(from, to, eligible.map(f => f.iata).filter(Boolean));
+    return `${header}${rows}${partnerNote}${real}`;
   };
 
   // 1グループ分のレンダリング
@@ -2804,9 +2909,62 @@ function renderFlightCard(legArr, results, soIatas) {
     : '';
   document.getElementById('flight-legs').innerHTML = primaryNote + groups.map(renderGroup).join('');
 
+  // ===== REQ-61：実便の運航会社で特典判定をやり直す =====
+  // 提案時点の判定は路線辞書の「乗れるはずの社」で行っている。実際に飛んでいる社は
+  // それより狭いことがある（実測：295区間中26区間で、提案側が言う社が実便に1社も出てこない）。
+  //
+  // ★見るのは**運航会社**であってコードシェアではない。NH223 は LH4919 としても売られるが、
+  // 飛ばしているのは ANA。「LH の便名があるから ANA以外の便がある」と数えると、
+  // 2026-09-08 に直した欠陥（全区間ANAの旅程をスタアラ特典として出す）がそのまま戻る。
+  const req61Note = () => {
+    if (!FLIGHTS_DB) return '';
+    const missing = [];          // 特典で乗れる実便が1本も無い区間
+    const carriers = new Set();  // 旅程全体で実際に飛ばしている、特典対象の運航会社
+    let unknown = 0;             // 実便を取っていない区間
+    for (const g of groups) {
+      let found = new Set();
+      let haveData = false;
+      for (const leg of g.legs) {
+        const rec = FLIGHTS_DB.legs?.[`${leg.from}-${leg.to}`];
+        if (!rec || rec.status === 'error') continue;
+        haveData = true;
+        const data = results[leg.key] ?? {};
+        const elig = new Set((data.flights ?? [])
+          .filter(f => f.starAlliance || f.connectingPartner || f.partnerAirline)
+          .map(f => f.iata));
+        (rec.flights ?? []).forEach(f => {
+          const code = String(f.no).slice(0, 2);
+          if (elig.has(code)) found.add(code);
+        });
+      }
+      if (!haveData) { unknown += 1; continue; }
+      if (!found.size) missing.push(`${g.groupFrom}→${g.groupTo}`);
+      found.forEach(c => carriers.add(c));
+    }
+
+    const out = [];
+    if (missing.length) {
+      out.push(`<div class="rf-warn">⚠️ <b>特典で乗れる実便が見つからない区間</b>：${missing.join('・')}`
+             + `<br>路線辞書では乗れるはずですが、実際に飛んでいるのは対象外の会社だけでした。`
+             + `この旅程は組めない可能性があります。</div>`);
+    }
+    // 提携（スタアラ）特典は ANA以外の加盟社の便が1区間以上必要
+    const nonNH = [...carriers].filter(c => c !== 'NH');
+    if (STATE.awardType === 'partner' && carriers.size && !nonNH.length && !missing.length) {
+      out.push(`<div class="rf-warn">⚠️ <b>実便はすべて ANA 運航です。</b>`
+             + `提携（スターアライアンス）特典には ANA以外の加盟社の便が1区間以上必要なので、`
+             + `この旅程は <b>ANA国際線特典</b>として扱われます（必要マイルが変わります）。</div>`);
+    }
+    if (unknown) {
+      out.push(`<div class="rf-note">実便を取っていない区間が ${unknown} あります`
+             + `（その区間は運航会社での再判定をしていません）</div>`);
+    }
+    return out.join('');
+  };
+
   // 乗り継ぎ時間チェックは廃止（静的路線データは時刻を持たないため）。
-  // 区間ごとの「運航している提携航空会社」の有無で可否を判断する。
-  document.getElementById('flight-connections').innerHTML = '';
+  // 代わりに、実便の運航会社で特典判定をやり直した結果を出す。
+  document.getElementById('flight-connections').innerHTML = req61Note();
 }
 
 // ===== 保存ルート機能（最大5件） =====

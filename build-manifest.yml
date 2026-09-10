@@ -490,13 +490,13 @@ requirements:
   last_verified: 2026-09-08
   status: green
 - id: REQ-61
-  text: 実便（S-4 で取得する運航会社）が確定したら、その実際の運航会社の組み合わせで特典の判定をやり直し、提案時点の判定と食い違ったら画面に出す
-  design_ref: architecture.md#20-6
-  impl_ref: ''
-  test_ref: ''
-  verify_mode: manual
-  last_verified: ''
-  status: red
+  text: 実便（S-4 で取得する運航会社）が確定したら、その実際の運航会社の組み合わせで特典の判定をやり直し、提案時点の判定と食い違ったら画面に出す。①特典で乗れる実便が1本も無い区間を挙げる②提携特典なのに実便の運航が全区間ANAだけなら「ANA国際線特典として扱われる」と出す。判定はコードシェアではなく運航会社で行う
+  design_ref: architecture.md#21-6
+  impl_ref: index.html::renderFlightCard()[req61Note]
+  test_ref: tests/browser_flights.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green
 - id: REQ-62
   text: 「スターアライアンス特典にはANA以外の加盟社便が1区間以上必要」という実務ルールを、出典・原文つきで正本に持つ。公式が製品名でしか書いていないため二次情報であることを明示する
   design_ref: architecture.md#20-7
@@ -593,3 +593,19 @@ requirements:
   verify_mode: manual
   last_verified: 2026-09-10
   status: yellow
+- id: REQ-74
+  text: フライト確認カードの区間ごとに実便（便名・時刻・飛ぶ曜日）を出す。運航会社が特典対象でない便は出さず、隠した本数を明示する。実便は有償運賃の時刻表であって特典の空席ではないと画面に書く
+  design_ref: architecture.md#21-6
+  impl_ref: index.html::renderRealFlights(),index.html::ensureFlightsDB()
+  test_ref: tests/browser_flights.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green
+- id: REQ-75
+  text: 観測していない曜日を「飛ばない」と表示しない。見た曜日の集合は区間ごとに計算し、7曜日そろわないときは曜日を断定せず、調べていない理由を1行で書く
+  design_ref: architecture.md#21-7
+  impl_ref: scripts/my8flyer/build_flights_index.py::main()[leg_seen],index.html::daysLabel()
+  test_ref: tests/browser_flights.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green
