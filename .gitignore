@@ -10,3 +10,15 @@ workers/**/.wrangler/
 # このリポジトリは GitHub Pages で公開されるため、他社ページの再公開を避けて追跡しない。
 # 変更検知に必要なハッシュと罠検査の結果は .meta.json 側に入っており、そちらは追跡する。
 data/snapshots/*.html
+
+# --- S-4 実便取得の専用venv ---
+# fast-flights が protobuf 6.31+ を要求し、共有 .venv（protobuf 5.x・google-generativeai が <6.0 で固定）
+# と両立しないため、この案件だけ専用venvを持つ。公開リポジトリなので絶対に追跡しない。
+.venv-flights/
+
+# --- S-4 実便の生台帳 ---
+# 295区間×7日ぶんの取得結果そのまま（約5MB）。アプリが読むのは
+# build_flights_index.py が畳んだ data/flights.json のほうなので、こちらは公開しない。
+# 取り直せば再生成できる（scripts/my8flyer/fetch_flights.py）。
+data/flights-raw.json
+data/legs.json

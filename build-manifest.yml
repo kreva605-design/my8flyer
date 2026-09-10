@@ -553,3 +553,43 @@ requirements:
   verify_mode: auto
   last_verified: 2026-09-10
   status: green
+- id: REQ-69
+  text: 実便の取得はローカルのバッチで行い、結果のJSONを静的サイトに同梱する。Cloudflare Workers には置かない（fast-flights の取得部がChromeのTLS指紋を偽装するネイティブ拡張のため載らない）。共有.venvとprotobufが両立しないので案件専用venvを持つ
+  design_ref: architecture.md#21-1
+  impl_ref: scripts/my8flyer/fetch_flights.py
+  test_ref: tests/fetch_flights_test.py
+  verify_mode: manual
+  last_verified: 2026-09-10
+  status: green
+- id: REQ-70
+  text: 取得の対象は提案として画面に出る区間だけにする。提案エンジンを実際に回して区間を集め、方向つきで持つ（往路と復路は出発時刻が別物のため畳まない）
+  design_ref: architecture.md#21-2
+  impl_ref: scripts/my8flyer/collect_legs.mjs
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-09-10
+  status: yellow
+- id: REQ-71
+  text: 取れるのは有償運賃の時刻表であって特典の空席ではない。この区別を台帳のnoteに書き込み、画面でも「実便が取れた＝特典で取れる」と読まれないようにする
+  design_ref: architecture.md#21-3
+  impl_ref: scripts/my8flyer/fetch_flights.py::_save()
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-09-10
+  status: yellow
+- id: REQ-72
+  text: 便の一覧は payload[2]（おすすめ）と payload[3]（その他）の2か所に入る。両方を読み、さらに payload の木を全部辿って取りこぼした便が1本でも残っていたら SHAPE_CHANGED で停止し書き出さない。通信の失敗は止めず status:error として台帳に残す（提案そのものを消さないため）
+  design_ref: architecture.md#21-4
+  impl_ref: scripts/my8flyer/fetch_flights.py::parse_nonstop(),scripts/my8flyer/fetch_flights.py::_scan_flight_numbers()
+  test_ref: tests/fetch_flights_test.py
+  verify_mode: auto
+  last_verified: 2026-09-10
+  status: green
+- id: REQ-73
+  text: 1区間あたり連続7日を取る。1日だけの観測で「直行便なし」と判定すると週2〜3便の路線を提案から消すため。5区間続けて取得に失敗したら弾かれていると見なして中断し、取れたぶんを保存する
+  design_ref: architecture.md#21-5
+  impl_ref: scripts/my8flyer/fetch_flights.py::main()
+  test_ref: ''
+  verify_mode: manual
+  last_verified: 2026-09-10
+  status: yellow
