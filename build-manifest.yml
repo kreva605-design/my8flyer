@@ -609,3 +609,27 @@ requirements:
   verify_mode: auto
   last_verified: 2026-09-10
   status: green
+- id: REQ-76
+  text: 空席の確認は区間ごとに道具を決める。日本↔海外かつANA運航便がある区間は特典カレンダー（面・180日を1回）で絞り、それ以外（提携社運航・海外↔海外・国内線）は特典航空券予約（点・前後3日比較で7日）で確認する。旅程全体では全区間ANA運航ならANA特典、ANA以外が1区間でもあればスターアライアンス特典
+  design_ref: architecture.md#22-2
+  impl_ref: index.html::renderFlightCard()[req61Note]
+  test_ref: tests/browser_flights.py
+  verify_mode: manual
+  last_verified: 2026-09-11
+  status: yellow
+- id: REQ-77
+  text: 特典カレンダーを畳んだ data/award-calendar.json を読み、提案1本ごとに「今後180日で往復が成立しそうな日が何日あるか」を数えて一覧に出す。既定はその順に並べ、寄り道が小さい順へ切り替えられる。「もう1都市なし」は比べる基準なので並び替えの対象にしない。目安であって実在庫ではないことを画面に書く
+  design_ref: architecture.md#22-3
+  impl_ref: scripts/my8flyer/build_award_calendar.py,index.html::ppSeatDays(),index.html::ppRender()
+  test_ref: tests/browser_seats.py
+  verify_mode: auto
+  last_verified: 2026-09-11
+  status: green
+- id: REQ-78
+  text: 確認の深さが違うものを同じ物差しで並べない。カレンダーに無い区間（covered=false）と0日を区別し、片道しか確認できていないものは「行きだけN日（帰りは未確認）」と書く。並びは①往復とも確認②片道だけ③面が無い の順に束ね、束の中で数を比べる。クラスが一致しないカレンダーは流用しない
+  design_ref: architecture.md#22-4
+  impl_ref: index.html::ppSeatDays(),index.html::ppSeatLabel(),index.html::ppRender()[depth]
+  test_ref: tests/browser_seats.py
+  verify_mode: auto
+  last_verified: 2026-09-11
+  status: green
