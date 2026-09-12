@@ -47,8 +47,18 @@ try:
           return (bar.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
         }""")
         check("ボタンが候補一覧より上にある", before is True, str(before))
-        check("ボタンが見えている（拡張なしでも位置は変わらない）",
-              pg.evaluate("!document.getElementById('pp-cal-bar').hidden") in (True, False))
+        # ★拡張が無い端末（スマホ・Safari）でも、ボタン自体は出す。
+        #   隠すと「機能が無い」のか「この端末では使えない」のかが区別できない
+        check("拡張が無くてもボタンは出る",
+              pg.evaluate("!document.getElementById('pp-cal-bar').hidden") is True)
+        check("拡張が無いときは押せない状態にする",
+              pg.evaluate("document.getElementById('pp-cal-go').disabled") is True)
+        why = pg.inner_text("#pp-cal-why")
+        check("押せない理由を画面に書く", "パソコンのChrome" in why, why[:50])
+        check("撮ったものが端末を越えると誤解させない", "パソコンで一度取っておけば" not in why)
+        check("いま使っている表の出どころを書く",
+              "アプリ同梱" in pg.inner_text("#pp-cal-when") or "あなたが撮ったもの" in pg.inner_text("#pp-cal-when"),
+              pg.inner_text("#pp-cal-when"))
 
         # ---------- ② 旅程の詳細に、行き／帰りの日付が別々に出る ----------
         # 都市の行を開く → 行き方を1つ選ぶと旅程の詳細になる

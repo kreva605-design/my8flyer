@@ -822,7 +822,9 @@
       border: none; border-radius: 12px; padding: 11px 13px; font-size: 0.82rem;
       font-weight: bold; cursor: pointer; line-height: 1.45; text-align: left;
     }
+    .pp-cal-go:disabled { background: #cfd8e2; color: #f7fafd; cursor: default; }
     .pp-cal-when { font-size: 0.7rem; color: #7a879a; }
+    .pp-cal-why { font-size: 0.7rem; color: #8a5a00; line-height: 1.6; }
     /* 旅程の詳細に出す「空いている日」 */
     .pp-dates { margin: 12px 0 6px; padding: 12px; border: 1px solid #dbe4ee;
                 border-radius: 12px; background: #f7fafd; }
@@ -944,8 +946,9 @@
         <button class="pp-pick" id="pp-cond-pin" onclick="ppEditCondition()" hidden>—</button>
       </div>
       <div class="pp-cal-bar" id="pp-cal-bar" hidden>
-        <button class="pp-cal-go" type="button" onclick="ppOpenCalendar()">📅 国内↔海外の空いているANA便の往路復路の日程を検索</button>
+        <button class="pp-cal-go" type="button" id="pp-cal-go" onclick="ppOpenCalendar()">📅 国内↔海外の空いているANA便の往路復路の日程を検索</button>
         <span class="pp-cal-when" id="pp-cal-when"></span>
+        <span class="pp-cal-why" id="pp-cal-why" hidden></span>
       </div>
       <div class="pp-back">
         <button class="pp-ghost" onclick="ppGo('s1')">◀ 条件を変える</button>
@@ -2190,6 +2193,7 @@ async function loadAwardCal() {
     const saved = JSON.parse(localStorage.getItem(AWARD_CAL_LS) || 'null');
     if (saved?.built?.legs && Object.keys(saved.built.legs).length) {
       AWARD_CAL = saved.built;
+      AWARD_CAL._fromCapture = true;      // この端末で撮ったもの
       return true;
     }
   } catch { /* 壊れていたら同梱ファイルへ落ちる */ }
@@ -2197,6 +2201,7 @@ async function loadAwardCal() {
     const res = await fetch('data/award-calendar.json', { cache: 'default' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     AWARD_CAL = await res.json();
+    AWARD_CAL._fromCapture = false;       // アプリに同梱している表
     return true;
   } catch (e) {
     console.warn('data/award-calendar.json 読込失敗（取れる日は出しません）:', e);
@@ -2245,6 +2250,7 @@ async function ppApplyCalendar(payload, capturedAt) {
     }
     if (!Object.keys(built.legs).length) return false;
     AWARD_CAL = built;
+    AWARD_CAL._fromCapture = true;
     _awardCalPromise = Promise.resolve(true);
     try { localStorage.setItem(AWARD_CAL_LS, JSON.stringify({ built, capturedAt })); } catch {}
     if (PP.rows) ppRender();           // 候補一覧が出ていれば取れる日を出し直す
@@ -3811,12 +3817,27 @@ function ppRender() {
   if (calBar) {
     const installed = document.documentElement.hasAttribute('data-my8flyer-bridge');
     const zone = ppZoneCode(PP.req?.destination);
-    calBar.hidden = !installed || !zone;
+    // ★拡張が無くても隠さない。隠すと「機能が無い」のか「この端末では使えない」のかが
+    //   区別できず、スマホで探しても見つからない（2026-09-13 実機で判明）。
+    //   押せないときは、押せない理由を書く
+    calBar.hidden = !zone;
+    const goBtn = document.getElementById('pp-cal-go');
+    if (goBtn) goBtn.disabled = !installed;
+    const why = document.getElementById('pp-cal-why');
+    if (why) {
+      why.hidden = installed;
+      // ★撮ったものはそのブラウザにしか残らない（localStorage）。
+      //   「パソコンで取ればスマホでも出る」は誤りなので書かない
+      why.textContent = 'この検索はパソコンのChromeでだけできます'
+        + '（Chrome拡張「My 8flyer → ANA Bridge」が必要です）。'
+        + 'スマホやSafariでは押せません。'
+        + 'いま出ている「取れる日」は、アプリに入っている表で計算したものです。';
+    }
     const when = document.getElementById('pp-cal-when');
     if (when) {
       when.textContent = AWARD_CAL
         ? `いまの表：${AWARD_CAL._meta?.zone_label ?? '—'} / ${AWARD_CAL._meta?.cabin ?? '—'}`
-          + `（${AWARD_CAL._meta?.as_of ?? '取得日不明'} 時点）`
+          + `（${AWARD_CAL._meta?.as_of ?? '取得日不明'} 時点${AWARD_CAL._fromCapture ? '・あなたが撮ったもの' : '・アプリ同梱'}）`
         : 'この目的地・クラスの表はまだありません';
     }
   }
