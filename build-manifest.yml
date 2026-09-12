@@ -633,3 +633,19 @@ requirements:
   verify_mode: auto
   last_verified: 2026-09-11
   status: green
+- id: REQ-79
+  text: 空席待ちはANA特典でしか使えない（スターアライアンス特典は不可）。カレンダーの「残席わずか、空席待ち」はANA特典として組む旅程でだけ日数に数え、「取れる日」とは足し合わせず別に出す。並び替えの基準は取れる日のままとし、空席待ちで順位を押し上げない
+  design_ref: architecture.md#22-7
+  impl_ref: index.html::ppCanWaitlist(),index.html::ppSeatDays(),index.html::ppSeatLabel()
+  test_ref: tests/browser_seats.py
+  verify_mode: auto
+  last_verified: 2026-09-12
+  status: green
+- id: REQ-80
+  text: 特典カレンダーの読み取りを my8flyer-ana-bridge に統合する。拡張が Zone とクラスに画面を合わせ、表が描き終わるのを待ってから読む。読み取り結果は chrome.storage 経由で8flyerのタブへ直接渡し、ダウンロードフォルダを経由しない。路線名→空港コードの対応づけはアプリ側（toLegs）に置き、落とせない路線は legs に入れず unresolved に積む
+  design_ref: architecture.md#22-8
+  impl_ref: ../my8flyer-ana-bridge/content_cal.js,../my8flyer-ana-bridge/content_8flyer.js,../my8flyer-ana-bridge/background.js,src/award-calendar.js,index.html::ppApplyCalendar()
+  test_ref: tests/award-calendar.test.mjs,tests/browser_seats.py
+  verify_mode: auto
+  last_verified: 2026-09-12
+  status: green

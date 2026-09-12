@@ -71,6 +71,57 @@ try:
         check("ビジネスの検索にエコノミーの表を流用しない",
               not any("取れる日" in r for r in biz), biz[0].replace("\n", " ")[:60])
 
+        # ===== 空席待ち：ANA特典でしか待てない =====
+        pg.evaluate("ppGo('s1')"); pg.select_option("#pp-cabin", "eco")
+        pg.select_option("#pp-origin", "HIJ"); pg.select_option("#pp-dest", "CDG")
+        pg.click("#pp-go"); pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        rows3 = pg.eval_on_selector_all("#pp-list .pp-city", "e=>e.map(x=>x.innerText.replace(/\\n/g,' '))")
+        base3 = next((r for r in rows3 if "もう1都市なし" in r), "")
+        check("ANA特典扱いの旅程には空席待ちの日数が出る", "空席待ち" in base3, base3[:80])
+        # ★「全区間ANA運航か」で決まる。帰着地を羽田に変えるだけの案も全区間ANAなので
+        # 空席待ちは出る（正しい）。ここで見たいのは、ANA以外の運航を含む旅程で出ないこと。
+        star = [r for r in rows3 if any(c in r for c in ("ストックホルム", "フランクフルト", "ロンドン"))]
+        check("ANA以外の運航を含む旅程には空席待ちを出さない",
+              bool(star) and not any("空席待ち" in r for r in star),
+              str([r[:56] for r in star][:2]))
+        check("空席待ちが出る旅程と出ない旅程が両方ある",
+              any("空席待ち" in r for r in rows3) and any(
+                  "取れる日" in r and "空席待ち" not in r for r in rows3))
+        check("空席待ちは取れる日と足し合わせない",
+              "＋空席待ち" in base3 and re.search(r"取れる日 \d+/\d+日 ＋空席待ち", base3) is not None,
+              base3[:80])
+        check("空席待ちの意味を画面に書いている",
+              "ANA特典でしか待てません" in pg.inner_text("#pp-foot"))
+
+        # ===== 拡張からの受け渡し（ダウンロードフォルダを経由しない）=====
+        # 実際の拡張は使えないので、拡張が送るのと同じ postMessage をページに投げて確かめる
+        before = pg.eval_on_selector_all("#pp-list .pp-city", "e=>e.map(x=>x.innerText)")[0]
+        ok = pg.evaluate("""async () => {
+            const dates = Array.from({length: 30}, (_, i) =>
+              new Date(Date.UTC(2026, 8, 5 + i)).toISOString().slice(0, 10));
+            const payload = {
+              _meta: { zone_label: 'Zone7 欧州・ロシア2', cabin: 'エコノミー', as_of: '2026-09-30' },
+              dates,
+              rows: [
+                { route: '東京(羽田) パリ(CDG)', direction: '日本発', codes: '3'.repeat(30) },
+                { route: '東京(羽田) パリ(CDG)', direction: '日本着', codes: '3'.repeat(30) },
+                { route: '東京(羽田) 架空の街',   direction: '日本発', codes: '3'.repeat(30) },
+              ],
+            };
+            window.postMessage({ type: 'my8flyer:calendar', payload, capturedAt: Date.now() }, '*');
+            await new Promise(r => setTimeout(r, 600));
+            return AWARD_CAL && AWARD_CAL._meta.as_of;
+        }""")
+        check("拡張から届いたカレンダーを取り込む", ok == "2026-09-30", str(ok))
+        after = pg.eval_on_selector_all("#pp-list .pp-city", "e=>e.map(x=>x.innerText)")[0]
+        check("取り込んだら取れる日が出し直される", before != after,
+              f"{before[:40]!r} → {after[:40]!r}")
+        unres = pg.evaluate(
+            "(async () => { const m = await import('./src/award-calendar.js');"
+            " return m.toLegs({dates:['2026-09-05'],rows:[{route:'東京(羽田) 架空の街',"
+            "direction:'日本発',codes:'3'}]}, CITIES).unresolved; })()")
+        check("落とせない路線は黙って捨てず控える", unres == ["東京(羽田) 架空の街"], str(unres))
+
         check("JSエラーなし", not errors, str(errors[:3]))
         b.close()
 finally:

@@ -797,6 +797,8 @@
     .pp-way .km { font-size: 0.72rem; color: #556; font-variant-numeric: tabular-nums; }
     .pp-foot { font-size: 0.7rem; color: #7a879a; line-height: 1.7; margin-top: 8px; }
     .pp-cal-note { display: block; margin-top: 4px; }
+    .pp-cal-bar { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .pp-cal-when { font-size: 0.7rem; color: #7a879a; }
     .pp-seat { color: #1f6f4a; font-weight: 700; }
     .pp-seat.partial { color: #8a6d1f; font-weight: 500; }
     .pp-sort { display: flex; gap: 6px; margin: 10px 0 2px; }
@@ -907,6 +909,10 @@
       <div class="pp-gain"><h3>もう1都市</h3><span id="pp-plus"></span></div>
       <div class="pp-sort" id="pp-sort" hidden></div>
       <ul class="pp-list" id="pp-list"></ul>
+      <div class="pp-cal-bar" id="pp-cal-bar" hidden>
+        <button class="pp-ghost" type="button" onclick="ppOpenCalendar()">📅 取れる日を撮り直す</button>
+        <span class="pp-cal-when" id="pp-cal-when"></span>
+      </div>
       <p class="pp-foot" id="pp-foot"></p>
     </div>
 
@@ -2120,6 +2126,14 @@ let AWARD_CAL = null;
 let _awardCalPromise = null;
 
 async function loadAwardCal() {
+  // 自分で撮ったものが残っていれば、同梱ファイルより優先する
+  try {
+    const saved = JSON.parse(localStorage.getItem(AWARD_CAL_LS) || 'null');
+    if (saved?.built?.legs && Object.keys(saved.built.legs).length) {
+      AWARD_CAL = saved.built;
+      return true;
+    }
+  } catch { /* 壊れていたら同梱ファイルへ落ちる */ }
   try {
     const res = await fetch('data/award-calendar.json', { cache: 'default' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -2136,8 +2150,68 @@ function ensureAwardCal() {
   return _awardCalPromise;
 }
 
+// ===== 拡張から届く特典カレンダー（ダウンロードフォルダを経由しない）=====
+// 拡張（content_cal.js）が ANA のカレンダー画面を読み、content_8flyer.js がここへ渡す。
+// 同梱の data/award-calendar.json より、あなたが撮ったものを優先する（そちらが新しいため）。
+const AWARD_CAL_LS = 'm8f_award_cal';
+
+// Zone番号 → カレンダー画面の Zone コード（Zone10 だけ ZA）
+function ppZoneCode(iata) {
+  const z = CITIES.find((c) => c.iata === iata)?.zone;
+  if (!z || z === 1) return null;
+  return z === 10 ? 'ZA' : `Z${z}`;
+}
+
+// 「取れる日を撮り直す」。拡張にカレンダーを開かせ、条件も一緒に預ける
+function ppOpenCalendar() {
+  if (!document.documentElement.hasAttribute('data-my8flyer-bridge')) {
+    alert('Chrome拡張「My 8flyer → ANA Bridge」が要ります。\n'
+        + 'Safari では動きません（Chrome拡張のため）。');
+    return;
+  }
+  const zone = ppZoneCode(PP.req?.destination);
+  if (!zone) { alert('目的地のZoneが決まっていません。先に検索してください。'); return; }
+  window.postMessage({ type: 'my8flyer:open-calendar',
+                       request: { zone, cabin: CABIN_JA[PP.req?.cabin] ?? 'エコノミー' } }, '*');
+}
+
+async function ppApplyCalendar(payload, capturedAt) {
+  try {
+    const { toLegs } = await import('./src/award-calendar.js');
+    const built = toLegs(payload, CITIES);
+    // ★空港コードに落とせなかった路線を黙って捨てない。捨てると「面が無い」のか
+    // 「空きが無い」のか区別できなくなる
+    if (built.unresolved.length) {
+      console.warn('[8flyer] 空港コードに落とせない路線:', built.unresolved);
+    }
+    if (!Object.keys(built.legs).length) return false;
+    AWARD_CAL = built;
+    _awardCalPromise = Promise.resolve(true);
+    try { localStorage.setItem(AWARD_CAL_LS, JSON.stringify({ built, capturedAt })); } catch {}
+    if (PP.rows) ppRender();           // 候補一覧が出ていれば取れる日を出し直す
+    return true;
+  } catch (e) {
+    console.warn('[8flyer] 特典カレンダーの取り込みに失敗:', e);
+    return false;
+  }
+}
+
+window.addEventListener('message', (ev) => {
+  if (ev.source !== window) return;
+  if (ev.data?.type !== 'my8flyer:calendar' || !ev.data.payload) return;
+  ppApplyCalendar(ev.data.payload, ev.data.capturedAt);
+});
+
 const CABIN_JA = { eco: 'エコノミー', biz: 'ビジネス' };
-const SEAT_OK = new Set(['2', '3']);      // 2=空席あり 3=十分空席あり（1=残席わずかは含めない）
+const SEAT_OK   = new Set(['2', '3']);        // 2=空席あり 3=十分空席あり
+const SEAT_WAIT = new Set(['1', '2', '3']);   // 1=残席わずか（空席待ち）も含めた広い側
+
+// ★空席待ちが使えるのは ANA特典だけ（ANA公式の実画面：ANA特典=可 / スタアラ特典=不可）。
+// 全区間ANA運航の旅程は ANA国際線特典として扱われる（REQ-60）ので、その旅程では
+// 「残席わずか」の日も狙える。スタアラ特典では待てないので同じ日を数えてはいけない。
+function ppCanWaitlist(w) {
+  return PP.req?.awardType === 'ana' || w?.actualAward === 'ana';
+}
 
 // 旅程1本について「今後180日で往復が成立しそうな日が何日あるか」を数える。
 // 戻り値 null ＝ 面が無い（カレンダーに載っていない区間）。0日とは意味が違う。
@@ -2153,21 +2227,25 @@ function ppSeatDays(w) {
   if (!out && !back) return null;
 
   const total = AWARD_CAL._meta?.days ?? 0;
-  // 片方向しか載っていないときは、その方向だけ数える（往復を騙らない）
-  if (!out || !back) {
-    const only = out || back;
-    const n = [...only.avail].filter((c) => SEAT_OK.has(c)).length;
-    return { days: n, total, partial: true, dir: out ? 'out' : 'in' };
-  }
-  // 往路が空いていて、7〜14日後の復路も空いている日を数える
-  let n = 0;
-  for (let d = 0; d < out.avail.length; d++) {
-    if (!SEAT_OK.has(out.avail[d])) continue;
-    for (let k = 7; k <= 14; k++) {
-      if (SEAT_OK.has(back.avail[d + k] ?? '')) { n++; break; }
+  const wait = ppCanWaitlist(w);
+  const count = (set) => {
+    // 片方向しか載っていないときは、その方向だけ数える（往復を騙らない）
+    if (!out || !back) return [...(out || back).avail].filter((c) => set.has(c)).length;
+    // 往路が空いていて、7〜14日後の復路も空いている日を数える
+    let n = 0;
+    for (let d = 0; d < out.avail.length; d++) {
+      if (!set.has(out.avail[d])) continue;
+      for (let k = 7; k <= 14; k++) {
+        if (set.has(back.avail[d + k] ?? '')) { n++; break; }
+      }
     }
-  }
-  return { days: n, total, partial: false };
+    return n;
+  };
+  const days = count(SEAT_OK);
+  // 空席待ちで狙える日は「広い側の数 − 確実に空いている日」。待てない特典では出さない
+  const waitDays = wait ? Math.max(0, count(SEAT_WAIT) - days) : 0;
+  return { days, waitDays, waitlistable: wait, total,
+           partial: !out || !back, dir: out ? 'out' : 'in' };
 }
 
 // 都市の行は、その都市への行き方のうち一番取りやすいものを代表にする
@@ -2182,10 +2260,12 @@ function ppSeatDaysOfRow(r) {
 // 往復まで確認できた7日より上に出ていた。**数が大きいのではなく、確認が浅いだけ**。
 function ppSeatLabel(sd) {
   if (!sd) return '';
-  if (!sd.partial) return `取れる日 ${sd.days}/${sd.total}日`;
+  // 空席待ちで狙える日は、確実に空いている日と足し合わせない（別物として添える）
+  const plus = sd.waitDays > 0 ? ` ＋空席待ち${sd.waitDays}日` : '';
+  if (!sd.partial) return `取れる日 ${sd.days}/${sd.total}日${plus}`;
   const which = sd.dir === 'out' ? '行き' : '帰り';
   const other = sd.dir === 'out' ? '帰り' : '行き';
-  return `${which}だけ ${sd.days}/${sd.total}日（${other}は未確認）`;
+  return `${which}だけ ${sd.days}/${sd.total}日${plus}（${other}は未確認）`;
 }
 
 // ===== スターアライアンス加盟 IATA コード =====
@@ -3532,7 +3612,26 @@ function ppRender() {
     + (calApplies ? `<br><span class="pp-cal-note">「取れる日」は ANA特典カレンダー`
         + `（${AWARD_CAL._meta.zone_label} / ${AWARD_CAL._meta.cabin} / ${AWARD_CAL._meta.as_of} 時点）`
         + `で往路と復路の両方に空席がある日を数えたもの。<b>目安であって実在庫ではありません</b>`
-        + `（ANA自社便のみ・確定は空席照会で）。</span>` : '');
+        + `（ANA自社便のみ・確定は空席照会で）。</span>` : '')
+    + (rowsAll.some(r => r._sd?.waitDays > 0)
+        ? `<span class="pp-cal-note">「空席待ち」は残席わずかの日。<b>ANA特典でしか待てません</b>`
+        + `（スターアライアンス特典は空席待ち不可）。席が確約された日ではないので、取れる日とは別に数えています。</span>`
+        : '');
+
+  // 撮り直しの導線。拡張が入っているときだけ出す（Safariでは出しても押せない）
+  const calBar = document.getElementById('pp-cal-bar');
+  if (calBar) {
+    const installed = document.documentElement.hasAttribute('data-my8flyer-bridge');
+    const zone = ppZoneCode(PP.req?.destination);
+    calBar.hidden = !installed || !zone;
+    const when = document.getElementById('pp-cal-when');
+    if (when) {
+      when.textContent = AWARD_CAL
+        ? `いまの表：${AWARD_CAL._meta?.zone_label ?? '—'} / ${AWARD_CAL._meta?.cabin ?? '—'}`
+          + `（${AWARD_CAL._meta?.as_of ?? '取得日不明'} 時点）`
+        : 'この目的地・クラスの表はまだありません';
+    }
+  }
 
   // 並び替えの切り替え。カレンダーが効いている検索でだけ出す
   const sortBox = document.getElementById('pp-sort');
