@@ -134,6 +134,24 @@
       cursor: not-allowed;
       box-shadow: none;
     }
+    .ana-dates { margin: 14px 0 8px; padding: 12px; border: 1px solid #dbe4ee;
+                 border-radius: 12px; background: #f7fafd; }
+    .ana-dates-h { font-size: 0.8rem; font-weight: bold; color: #234; margin-bottom: 8px; }
+    .ana-dates-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ana-date-f { flex: 1 1 160px; display: flex; flex-direction: column; gap: 4px; }
+    .ana-date-f span { font-size: 0.72rem; color: #556; }
+    .ana-date-f input { padding: 8px; border: 1px solid #c3d5e6; border-radius: 8px;
+                        font-size: 0.85rem; background: #fff; }
+    .ana-dates-note { font-size: 0.68rem; color: #7a879a; line-height: 1.7; margin: 8px 0 0; }
+    .ana-dates-note.warn { color: #a33; }
+    .ana-pick { margin-top: 10px; }
+    .ana-pick-t { font-size: 0.72rem; color: #556; margin-bottom: 4px; }
+    .ana-pick-row { display: flex; flex-wrap: wrap; gap: 4px; }
+    .ana-pick-row button { font-size: 0.7rem; padding: 3px 7px; border-radius: 6px;
+      background: #e4f4ec; color: #14614a; border: 1px solid #bfe0d1; cursor: pointer;
+      font-variant-numeric: tabular-nums; }
+    .ana-pick-row button:hover { background: #d3ece0; }
+    .ana-pick details summary { font-size: 0.7rem; color: #0057a8; cursor: pointer; margin-top: 4px; }
     .btn-ana-bridge-hint {
       font-size: 0.72rem;
       color: #888;
@@ -797,8 +815,31 @@
     .pp-way .km { font-size: 0.72rem; color: #556; font-variant-numeric: tabular-nums; }
     .pp-foot { font-size: 0.7rem; color: #7a879a; line-height: 1.7; margin-top: 8px; }
     .pp-cal-note { display: block; margin-top: 4px; }
-    .pp-cal-bar { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    /* 画面トップの「往路復路の日程を検索」。候補一覧より先に目に入る位置に置く */
+    .pp-cal-bar { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 4px; }
+    .pp-cal-go {
+      width: 100%; background: linear-gradient(135deg, #0b6b4f, #084d39); color: #fff;
+      border: none; border-radius: 12px; padding: 11px 13px; font-size: 0.82rem;
+      font-weight: bold; cursor: pointer; line-height: 1.45; text-align: left;
+    }
     .pp-cal-when { font-size: 0.7rem; color: #7a879a; }
+    /* 旅程の詳細に出す「空いている日」 */
+    .pp-dates { margin: 12px 0 6px; padding: 12px; border: 1px solid #dbe4ee;
+                border-radius: 12px; background: #f7fafd; }
+    .pp-dates-h { font-size: 0.8rem; font-weight: bold; color: #234; margin-bottom: 8px; }
+    .pp-date-side + .pp-date-side { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #d3dde8; }
+    .pp-date-t { font-size: 0.76rem; color: #556; margin-bottom: 6px; }
+    .pp-date-t b { color: #123; }
+    .pp-date-n { color: #1f6f4a; font-weight: bold; margin-left: 6px; }
+    .pp-date-row { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pp-date { font-size: 0.7rem; padding: 3px 7px; border-radius: 6px; background: #e4f4ec;
+               color: #14614a; border: 1px solid #bfe0d1; font-variant-numeric: tabular-nums; }
+    .pp-date-row.wait .pp-date { background: #fdf3e0; color: #8a5a00; border-color: #e8ceA0; }
+    .pp-date-more { margin-top: 6px; }
+    .pp-date-more summary { font-size: 0.72rem; color: #0057a8; cursor: pointer; }
+    .pp-date-more .pp-date-row { margin-top: 6px; }
+    .pp-dates-none { font-size: 0.72rem; color: #7a879a; margin: 0; line-height: 1.7; }
+    .pp-dates-foot { font-size: 0.68rem; color: #7a879a; line-height: 1.7; margin: 10px 0 0; }
     .pp-seat { color: #1f6f4a; font-weight: 700; }
     .pp-seat.partial { color: #8a6d1f; font-weight: 500; }
     .pp-sort { display: flex; gap: 6px; margin: 10px 0 2px; }
@@ -902,6 +943,10 @@
         <button class="pp-pick dim" id="pp-cond-cabin" onclick="ppEditCondition()">—</button>
         <button class="pp-pick" id="pp-cond-pin" onclick="ppEditCondition()" hidden>—</button>
       </div>
+      <div class="pp-cal-bar" id="pp-cal-bar" hidden>
+        <button class="pp-cal-go" type="button" onclick="ppOpenCalendar()">📅 国内↔海外の空いているANA便の往路復路の日程を検索</button>
+        <span class="pp-cal-when" id="pp-cal-when"></span>
+      </div>
       <div class="pp-back">
         <button class="pp-ghost" onclick="ppGo('s1')">◀ 条件を変える</button>
       </div>
@@ -909,10 +954,6 @@
       <div class="pp-gain"><h3>もう1都市</h3><span id="pp-plus"></span></div>
       <div class="pp-sort" id="pp-sort" hidden></div>
       <ul class="pp-list" id="pp-list"></ul>
-      <div class="pp-cal-bar" id="pp-cal-bar" hidden>
-        <button class="pp-ghost" type="button" onclick="ppOpenCalendar()">📅 取れる日を撮り直す</button>
-        <span class="pp-cal-when" id="pp-cal-when"></span>
-      </div>
       <p class="pp-foot" id="pp-foot"></p>
     </div>
 
@@ -921,6 +962,7 @@
       <div class="pp-gain"><h3 id="pp-s3-title">旅程</h3><span id="pp-s3-miles"></span></div>
       <p class="pp-note" id="pp-s3-note"></p>
       <div class="pp-legs" id="pp-legs"></div>
+      <div class="pp-dates" id="pp-dates" hidden></div>
       <div class="pp-kinds" id="pp-kinds"></div>
       <div class="pp-actions">
         <button class="pp-go" onclick="ppToEditor()">この旅程を「じぶんで組む」に読み込む ▼</button>
@@ -1196,6 +1238,22 @@
 
   <button class="btn-validate" onclick="validate()">ルールを検証する ▶</button>
 
+  <!-- ANAへ渡す日付。ここで入れた日付がANAのフォームに最初から入る -->
+  <div class="ana-dates" id="ana-dates">
+    <div class="ana-dates-h">📅 ANAに入れる日付</div>
+    <div class="ana-dates-row">
+      <label class="ana-date-f">
+        <span>往路日（出発地 → 目的地）</span>
+        <input type="date" id="ana-date-out">
+      </label>
+      <label class="ana-date-f">
+        <span>復路日（目的地 → 帰着地）</span>
+        <input type="date" id="ana-date-in">
+      </label>
+    </div>
+    <div id="ana-date-pick"></div>
+    <p class="ana-dates-note" id="ana-dates-note">空欄のままでも開けます（そのときはANAの画面で日付を入れてください）。</p>
+  </div>
   <button class="btn-ana-bridge" onclick="sendRouteToAnaBridge()" id="btn-ana-bridge">✈️ ANAで空席確認（拡張機能必要）</button>
   <div class="btn-ana-bridge-hint" id="btn-ana-bridge-hint">※ Chrome拡張「My 8flyer → ANA Bridge」をインストールすると有効</div>
 
@@ -1660,6 +1718,7 @@ function updateAllDots() {
   });
   updateSurfaceNote();
   updateTransitCounter();
+  try { renderAnaDatePicks(); } catch (e) { console.warn('日付候補の描画に失敗:', e); }
 }
 
 // 陸路にした区間を機体図の下に文章で出す。
@@ -2189,6 +2248,8 @@ async function ppApplyCalendar(payload, capturedAt) {
     _awardCalPromise = Promise.resolve(true);
     try { localStorage.setItem(AWARD_CAL_LS, JSON.stringify({ built, capturedAt })); } catch {}
     if (PP.rows) ppRender();           // 候補一覧が出ていれば取れる日を出し直す
+    if (PP.chosen) ppRenderDates(PP.chosen);   // 旅程を開いていれば日付も出し直す
+    try { renderAnaDatePicks(); } catch {}
     return true;
   } catch (e) {
     console.warn('[8flyer] 特典カレンダーの取り込みに失敗:', e);
@@ -2206,6 +2267,63 @@ const CABIN_JA = { eco: 'エコノミー', biz: 'ビジネス' };
 const SEAT_OK   = new Set(['2', '3']);        // 2=空席あり 3=十分空席あり
 const SEAT_WAIT = new Set(['1', '2', '3']);   // 1=残席わずか（空席待ち）も含めた広い側
 
+// 旅程の区間のうち、ANA特典カレンダーに載っている「日本発」「日本着」を1つずつ拾う。
+// ★日数の集計（ppSeatDays）と日付の一覧（ppSeatDateLists）が別々の区間を見ないよう、
+//   区間の選び方はこの1か所だけに置く。
+function ppCalLegsOf(w) {
+  const legs = w?.carriersByLeg ?? [];
+  const pick = (dir) => {
+    for (const l of legs) {
+      const key = `${l.from}-${l.to}`;
+      const rec = AWARD_CAL?.legs?.[key];
+      if (rec && rec.dir === dir) return { key, ...rec };
+    }
+    return null;
+  };
+  return { out: pick('out'), back: pick('in') };
+}
+
+const PP_WD = ['日', '月', '火', '水', '木', '金', '土'];
+
+// カレンダーの n 日目（0始まり）が何月何日かを出す。_meta.from が起点
+function ppCalDate(i) {
+  const from = AWARD_CAL?._meta?.from;
+  if (!from) return null;
+  const d = new Date(`${from}T00:00:00`);
+  d.setDate(d.getDate() + i);
+  return d;
+}
+const ppFmtMD  = (d) => `${d.getMonth() + 1}/${d.getDate()}(${PP_WD[d.getDay()]})`;
+const ppFmtIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                      + `-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * 旅程1本について、行き・帰りそれぞれの「空いている日」を実際の日付で並べる。
+ * ★往復の組み合わせは作らない（2026-09-13 ユーザー決定：行きと帰りは別々に見る）。
+ * 戻り値 null ＝ カレンダーが無い／クラスが違う。どちらも「空きが無い」ではない。
+ */
+function ppSeatDateLists(w) {
+  if (!AWARD_CAL || !w) return null;
+  if (CABIN_JA[PP.req?.cabin] !== AWARD_CAL._meta?.cabin) return { cabinMismatch: true };
+
+  const wait = ppCanWaitlist(w);
+  const side = (rec) => {
+    if (!rec) return null;
+    const ok = [], waitList = [];
+    [...rec.avail].forEach((c, i) => {
+      const d = ppCalDate(i);
+      if (!d) return;
+      if (SEAT_OK.has(c)) ok.push(d);
+      else if (wait && SEAT_WAIT.has(c)) waitList.push(d);   // 残席わずか＝空席待ちで狙う日
+    });
+    return { key: rec.key, ok, wait: waitList };
+  };
+  const { out, back } = ppCalLegsOf(w);
+  if (!out && !back) return { uncovered: true };
+  return { out: side(out), back: side(back), waitlistable: wait,
+           total: AWARD_CAL._meta?.days ?? 0, asOf: AWARD_CAL._meta?.as_of ?? null };
+}
+
 // ★空席待ちが使えるのは ANA特典だけ（ANA公式の実画面：ANA特典=可 / スタアラ特典=不可）。
 // 全区間ANA運航の旅程は ANA国際線特典として扱われる（REQ-60）ので、その旅程では
 // 「残席わずか」の日も狙える。スタアラ特典では待てないので同じ日を数えてはいけない。
@@ -2220,10 +2338,7 @@ function ppSeatDays(w) {
   // クラスが違うカレンダーを流用しない（エコノミーの表でビジネスを語らない）
   if (CABIN_JA[PP.req?.cabin] !== AWARD_CAL._meta?.cabin) return null;
 
-  const legs = w.carriersByLeg ?? [];
-  const rec = (l) => AWARD_CAL.legs?.[`${l.from}-${l.to}`];
-  const out = legs.map(rec).find((r) => r && r.dir === 'out');
-  const back = legs.map(rec).find((r) => r && r.dir === 'in');
+  const { out, back } = ppCalLegsOf(w);
   if (!out && !back) return null;
 
   const total = AWARD_CAL._meta?.days ?? 0;
@@ -2678,7 +2793,17 @@ function sendRouteToAnaBridge() {
     return legs;
   };
 
-  const legs = [...pathToLegs(outPath), ...pathToLegs(retPath)];
+  // ★往路の区間には往路日、復路の区間には復路日を付ける（2026-09-13 ユーザー決定）。
+  // 寄り道での滞在日数はここでは指定しない。ANAの画面で区間ごとに直せる
+  const dOut = document.getElementById('ana-date-out')?.value || null;
+  const dIn  = document.getElementById('ana-date-in')?.value || null;
+  if (dOut && dIn && dIn < dOut) {
+    alert('復路日が往路日より前になっています。日付を確かめてください。');
+    return;
+  }
+  const withDate = (arr, date) => arr.map((l) => (date ? { ...l, date } : l));
+  const legs = [...withDate(pathToLegs(outPath), dOut),
+                ...withDate(pathToLegs(retPath), dIn)];
 
   if (legs.length === 0) {
     alert('区間を構成できませんでした');
@@ -2703,6 +2828,69 @@ function sendRouteToAnaBridge() {
       alert('Chrome拡張「My 8flyer → ANA Bridge」が見つかりません。\nGitHubリポジトリのREADMEを参照してインストールしてください。');
     }
   }, 500);
+}
+
+// 「ANAに入れる日付」の下に、カレンダーで空いている日をボタンで並べる。
+// 押すと往路日／復路日の欄に入る（手で打ち込まなくてよい）
+function renderAnaDatePicks() {
+  const box = document.getElementById('ana-date-pick');
+  const note = document.getElementById('ana-dates-note');
+  if (!box) return;
+  box.innerHTML = '';
+  if (note) { note.className = 'ana-dates-note'; }
+
+  if (!AWARD_CAL) {
+    if (note) note.textContent = '「もう1都市」の画面で日程を検索すると、'
+      + '空いている日がここに並びます。空欄のままでも開けます。';
+    return;
+  }
+  // 編集画面そのものはクラスを持たないので、直前の提案条件のクラスで判定する
+  const cabinJa = CABIN_JA[PP.req?.cabin];
+  if (cabinJa && cabinJa !== AWARD_CAL._meta?.cabin) {
+    if (note) {
+      note.textContent = `いま持っている表は${AWARD_CAL._meta?.cabin}のものなので、`
+        + `日程の候補は出していません。`;
+      note.className = 'ana-dates-note warn';
+    }
+    return;
+  }
+
+  const { out, back } = ppCalLegsOf({ carriersByLeg: getExpandedLegs() });
+  if (!out && !back) {
+    if (note) note.textContent = 'この区間は特典カレンダーに載っていないので、'
+      + '候補は出せません（空欄のままANAで確認してください）。';
+    return;
+  }
+
+  const esc = (v) => String(v).replace(/'/g, "\\'");
+  const side = (rec, which, target) => {
+    if (!rec) return '';
+    const days = [...rec.avail].map((c, i) => (SEAT_OK.has(c) ? ppCalDate(i) : null)).filter(Boolean);
+    if (!days.length) {
+      return `<div class="ana-pick"><div class="ana-pick-t">${which} `
+        + `${rec.key}：この180日では空いている日がありません</div></div>`;
+    }
+    const btn = (d) => `<button type="button" onclick="ppPickAnaDate('${target}','${esc(ppFmtIso(d))}')">`
+      + `${ppFmtMD(d)}</button>`;
+    const head = days.slice(0, 10).map(btn).join('');
+    const rest = days.length > 10
+      ? `<details><summary>のこり ${days.length - 10}日</summary>`
+        + `<div class="ana-pick-row">${days.slice(10).map(btn).join('')}</div></details>`
+      : '';
+    return `<div class="ana-pick">
+        <div class="ana-pick-t">${which} <b>${rec.key}</b> が空いている日（${days.length}日）</div>
+        <div class="ana-pick-row">${head}</div>${rest}
+      </div>`;
+  };
+
+  box.innerHTML = side(out, '往路', 'ana-date-out') + side(back, '復路', 'ana-date-in');
+  if (note) note.textContent = `${AWARD_CAL._meta?.as_of ?? ''} 時点の目安です。`
+    + `押すと上の欄に入ります。空欄のままでも開けます。`;
+}
+
+function ppPickAnaDate(targetId, iso) {
+  const el = document.getElementById(targetId);
+  if (el) el.value = iso;
 }
 
 // 拡張インストール状態をUIに反映
@@ -3689,6 +3877,8 @@ function ppShowItinerary(w) {
          ${l.so ? '<span class="who">ここで24時間以上とまる＝途中降機</span>' : ''}</span>
      </div>`).join('');
 
+  ppRenderDates(w);
+
   // どの特典で成立するかを並べる（規約は特典ごとに別物なので、片方だけ通ることがある）
   let kinds = [];
   try {
@@ -3708,6 +3898,69 @@ function ppShowItinerary(w) {
       }).join('')
     : '';
 
+}
+
+// 旅程の詳細で「行き／帰りが空いている日」を実際の日付で出す。
+// ★行きと帰りを足し合わせない・掛け合わせない。カレンダーは方向ごとに別のデータで、
+//   往復そろう日を断定できるのは空席照会だけ（ここは目安）。
+function ppRenderDates(w) {
+  const box = document.getElementById('pp-dates');
+  if (!box) return;
+  const sd = ppSeatDateLists(w);
+  box.hidden = false;
+
+  const head = (body) => `<div class="pp-dates-h">📅 空いている日（ANAの特典カレンダーの目安）</div>${body}`;
+
+  if (!sd) {
+    box.innerHTML = head('<p class="pp-dates-none">まだ読み取っていません。'
+      + '一覧の上の「国内↔海外の空いているANA便の往路復路の日程を検索」から取ってください。</p>');
+    return;
+  }
+  if (sd.cabinMismatch) {
+    box.innerHTML = head(`<p class="pp-dates-none">いま持っている表は`
+      + `<b>${AWARD_CAL._meta?.cabin ?? '—'}</b>のものです。`
+      + `${CABIN_JA[PP.req?.cabin] ?? ''}の日程は、もう一度読み取ってください。</p>`);
+    return;
+  }
+  if (sd.uncovered) {
+    box.innerHTML = head('<p class="pp-dates-none">この旅程の区間は特典カレンダーに載っていません'
+      + '（提携社の運航・海外↔海外・国内線は載りません）。ANAの空席照会で確認してください。</p>');
+    return;
+  }
+
+  const chips = (list) => list.map(d =>
+    `<span class="pp-date">${ppFmtMD(d)}</span>`).join('');
+  const capped = (list, n = 14) => list.length <= n
+    ? `<div class="pp-date-row">${chips(list)}</div>`
+    : `<div class="pp-date-row">${chips(list.slice(0, n))}</div>`
+      + `<details class="pp-date-more"><summary>のこり ${list.length - n}日を見る</summary>`
+      + `<div class="pp-date-row">${chips(list.slice(n))}</div></details>`;
+
+  const side = (rec, which) => {
+    if (!rec) {
+      return `<div class="pp-date-side"><div class="pp-date-t">${which}</div>`
+        + `<p class="pp-dates-none">カレンダーに載っていません（空席照会で確認）</p></div>`;
+    }
+    const [from, to] = rec.key.split('-');
+    const okBody = rec.ok.length
+      ? capped(rec.ok)
+      : '<p class="pp-dates-none">この180日では空いている日がありません</p>';
+    const waitBody = rec.wait.length
+      ? `<details class="pp-date-more"><summary>空席待ちで狙える日 ${rec.wait.length}日を見る</summary>`
+        + `<div class="pp-date-row wait">${chips(rec.wait)}</div></details>`
+      : '';
+    return `<div class="pp-date-side">
+        <div class="pp-date-t">${which}　<b>${ppCityName(from)} → ${ppCityName(to)}</b>
+          <span class="pp-date-n">空いている日 ${rec.ok.length}日</span></div>
+        ${okBody}${waitBody}
+      </div>`;
+  };
+
+  box.innerHTML = head(
+    side(sd.out, '行き') + side(sd.back, '帰り')
+    + `<p class="pp-dates-foot">${sd.asOf ? sd.asOf + ' 時点の表。' : ''}`
+    + `行きと帰りは別々に見ています（往復そろう日はANAの空席照会で確かめてください）。`
+    + `この数字は目安で、実際の予約可能座席数とは異なることがあります。</p>`);
 }
 
 function ppBackToList() { ppGo('s2'); }
