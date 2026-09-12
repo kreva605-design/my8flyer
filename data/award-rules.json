@@ -176,9 +176,9 @@
       "effective_from": "2025-06-24",
       "effective_to": null,
       "fetched_at": "2026-09-07",
-      "verified_at": "2026-09-07",
-      "verified_by": "claude",
-      "note": "スターアライアンス側は複数社を混ぜてよい。★2026-09-07 に一次情報から取得。"
+      "verified_at": "2026-09-12",
+      "verified_by": "user+claude",
+      "note": "スターアライアンス側は複数社を混ぜてよい。★2026-09-07 に一次情報から取得。 ★2026-09-12：ANA運航便が0の旅程（FRA→JFK・LH/UA/SN/VL のみ）でスターアライアンス特典が成立することを実画面で確認。下限（ANA便必須ではない）が一次情報で裏づけられた。→ partner.carriers.star_no_ana_segment_required@2026-09-12"
     },
     "partner.carriers.non_alliance_single_only@2025-06-24": {
       "rule": "partner.carriers.non_alliance_single_only",
@@ -313,6 +313,21 @@
       "verified_at": "2026-09-08",
       "verified_by": "claude",
       "note": "★二次情報。ANA公式は製品名（ANA国際線特典／提携航空会社特典）でしか書いておらず、「ANA便だけの旅程はどちらになるか」を明示していない。実務解説2件が一致：①同記事「羽田→サンフランシスコのANA便だとANA国際線特典航空券のチャートが適用されるのに対して、その後ろにユナイテッド航空のサンフランシスコ→ラスベガスをつけることにより、スターアライアンス特典航空券に変身する」②teamelite.jp「ANA便だけの『ANA国際線特典航空券』は、日本発の旅程では途中降機できません」「日本発でストップオーバーを使いたいなら、こちらの提携航空会社特典航空券を選ぶことが前提になります」（https://teamelite.jp/travel/stopover-guide/・2026-07時点）。ユーザーの実務認識とも一致。公式の確認が取れたら verified_by を更新すること。"
+    },
+    "partner.carriers.star_no_ana_segment_required@2026-09-12": {
+      "rule": "partner.carriers.star_no_ana_segment_required",
+      "value": false,
+      "unit": "可否（スターアライアンス特典の発券に、ANA運航便は必要か）→ 不要",
+      "quote": "スターアライアンス特典／ANA便 利用可／スターアライアンス便 利用可／提携航空会社便 利用不可／空席待ち可否 不可／最低必要マイル数 55,000マイル～",
+      "source_url": "https://aswbe-i.ana.co.jp/rei21b/international_asw/pages/award/search/roundtrip/award_search_roundtrip_result_owd.xhtml",
+      "locator": "特典種別選択パネル（ANA特典の列が無く、スターアライアンス特典のみ）／検索条件＝フランクフルト→ニューヨーク 2026-09-19・復路 2026-09-22・エコノミー・1名",
+      "evidence": "返ってきた9便すべてに ANA運航便フラグ false が付いていた（LH404 / LH986 / UA071 / SN2608 / SN501 / SN502 / SN2609 / UA014 / VL925）。ANA運航便が0でもスターアライアンス特典として成立し、必要マイル 55,000マイル～ が提示され「次へ」で予約へ進める状態だった。",
+      "effective_from": "2025-06-24",
+      "effective_to": null,
+      "fetched_at": "2026-09-12",
+      "verified_at": "2026-09-12",
+      "verified_by": "user+claude",
+      "note": "★一次情報（ANAの実画面）で確定。公式の規約文には『ANA便0区間でも可』という明文が無く、『加盟社であれば自由に組み合わせられる』という書きぶりだけだったため、実際に検索して成立することを実測した。これで partner.carriers.star_alliance_combinable の読み（下限なし）が裏づけられた。★上限側（全区間ANAはスタアラ特典にならない＝star_requires_non_ana_segment）は依然として二次情報＋状況証拠のまま。"
     }
   }
 }
