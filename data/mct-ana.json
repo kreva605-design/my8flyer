@@ -1,7 +1,7 @@
 {
   "_meta": {
     "title": "ANA 乗り継ぎ必要時間（MCT）の正本",
-    "note": "外部サイトの値。コードにハードコードせず、ここを読む。★ANAが公表しているのは日本国内空港・ANAグループ運航便同士だけ。海外空港と他社便との接続は公表されていない（mct.coverage.overseas_unpublished）。",
+    "note": "外部サイトの値。コードにハードコードせず、ここを読む。★ANAが公表しているのは日本国内空港・ANAグループ運航便同士だけ。海外空港と他社便との接続は公表されていない（mct.coverage.overseas_unpublished）。／ 海外空港・他社便には ANA の公表値が無いため、defaults ブロックの既定値を当てる。defaults は ANA の規約ではない。",
     "generated_at": "2026-09-15",
     "snapshots": [
       "data/snapshots/ana-transit-domestic.html",
@@ -347,6 +347,38 @@
       "fetched_at": "2026-09-15",
       "verified_at": "2026-09-15",
       "verified_by": "claude"
+    }
+  },
+  "defaults": {
+    "_note": "★これはANAの規約ではない。8flyer が決めた既定値。ANAは海外空港・他社便との接続の必要時間を公表していない（values の mct.coverage.overseas_unpublished を見よ）ため、判定できないまま出すのではなく 『一般的に言われている、余裕をみた目安』を当てる。★MCT（成立の最低ライン）ではなく、余裕をみた推奨値であることに注意。これを下回る組み合わせも実際には成立しうるので、落とさず『短い』と印を付けて出す。",
+    "decided_by": "user",
+    "decided_at": "2026-09-15",
+    "rationale": "ユーザー判断（2026-09-15）：海外空港ぶんの調査は難しいので、一般的な乗り継ぎ時間（余裕あり）を採用する。",
+    "basis": [
+      {
+        "claim": "国際線同士の乗り継ぎは最低2時間、混雑期や大規模空港は3時間前後が目安",
+        "kind": "一般的な目安（一次情報ではない）",
+        "checked_at": "2026-09-15"
+      }
+    ],
+    "values": {
+      "overseas.intl_to_intl": {
+        "value": 120,
+        "unit": "分",
+        "label": "海外の空港で 国際線 → 国際線",
+        "note": "同一空港内の乗り継ぎを想定。ターミナル移動・入国審査が要る場合はこれでも足りないことがある。"
+      },
+      "overseas.with_immigration": {
+        "value": 180,
+        "unit": "分",
+        "label": "海外の空港で 入国して乗り継ぐ（国内線が絡む・ターミナルが変わる）",
+        "note": "手荷物の受け取り直し・再チェックインが要る場合を想定。"
+      }
+    },
+    "display": {
+      "badge": "8flyerの既定値（ANA公式ではありません）",
+      "short_mark": "△ 短い（ANA公式の定めなし）",
+      "policy": "既定値を下回っても落とさない。印を付けて出す。"
     }
   }
 }
