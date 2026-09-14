@@ -649,3 +649,66 @@ requirements:
   verify_mode: auto
   last_verified: 2026-09-12
   status: green
+
+- id: REQ-81
+  text: 候補一覧の「日程を検索」ボタンは、拡張が入っていない端末でも隠さない。押せないときは押せない状態にして理由を書く。いま使っている特典カレンダーが「あなたが撮ったもの」か「アプリ同梱」かを表示する（撮った表は localStorage にしか残らず端末を越えないため）
+  design_ref: architecture.md#22-8
+  impl_ref: index.html::ppRender(),index.html::loadAwardCal()
+  test_ref: tests/browser_dates.py
+  verify_mode: auto
+  last_verified: 2026-09-15
+  status: green
+
+- id: REQ-82
+  text: 旅程の詳細で、行きと帰りの「空いている日」を実際の日付で別々に出す。往復の組み合わせは作らない（カレンダーは方向ごとに別データで、往復そろう日を断定できるのは空席照会だけ）。空席待ちで狙う日は折りたたみで別扱いにする
+  design_ref: architecture.md#22-8
+  impl_ref: index.html::ppSeatDateLists(),index.html::ppRenderDates(),index.html::ppCalLegsOf()
+  test_ref: tests/browser_dates.py
+  verify_mode: auto
+  last_verified: 2026-09-15
+  status: green
+
+- id: REQ-83
+  text: 「ANAで空席確認」の前に往路日・復路日を指定できるようにし、カレンダーの空き日をワンタップで選べるようにする。指定した日付は往路の区間・復路の区間に振り分けて拡張へ渡す。復路が往路より前なら送らない。日付が空なら date を付けない（拡張の前回値を潰さない）
+  design_ref: architecture.md#22-8
+  impl_ref: index.html::renderAnaDatePicks(),index.html::sendRouteToAnaBridge(),../my8flyer-ana-bridge/content_ana.js
+  test_ref: tests/browser_dates.py,../my8flyer-ana-bridge/tests/e2e_bridge.py
+  verify_mode: auto
+  last_verified: 2026-09-15
+  status: green
+
+- id: REQ-84
+  text: ANA公式の乗り継ぎ必要時間を正本として持つ（data/mct-ana.json）。ANAが公表しているのは日本国内空港・ANAグループ運航便同士の接続だけなので、その範囲自体も値として持ち、海外空港・他社便には 8flyer の既定値（別ブロック defaults）を当てる。公式値を下回る組は落とし、既定値を下回る組は落とさず印を付ける。羽田のようにターミナルで値が分かれる空港は、便データにターミナルが無いので厳しいほうを使う
+  design_ref: architecture.md#23-1
+  impl_ref: data/mct-ana.json,src/combos.js::connectRule()
+  test_ref: tests/combos.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-15
+  status: green
+
+- id: REQ-85
+  text: 旅程が決まったあと、実際に乗り継げる便の組み合わせを区間ごとの一覧の「上に」出す（一覧は消さない）。片道ぶんずつ組む（往復をひとつなぎにすると目的地の滞在が途中降機と判定される）。24時間以上とまる街は 8flyer で選んだ街に固定し、それ以外で24時間を超える組と、選んだ街が24時間に届かない組は落とす。日ずらしは前後2日まで。性格の違う3案（最短／乗り継ぎに余裕／寄り道に長くいられる）を出す
+  design_ref: architecture.md#23-2
+  impl_ref: src/combos.js::buildCombos(),src/combos.js::pickThree(),index.html::renderCombos()
+  test_ref: tests/combos.test.mjs,tests/browser_combos.py
+  verify_mode: auto
+  last_verified: 2026-09-15
+  status: green
+
+- id: REQ-86
+  text: 「乗り継ぎに余裕がある」案を選ぶときの余裕には上限（4時間）を設ける。上限が無いと、空港で23時間待つ案が「いちばん余裕がある」として選ばれる。上限に達した案が複数あるときは合計時間が短いものを採る
+  design_ref: architecture.md#23-2
+  impl_ref: src/combos.js::SLACK_CAP,src/combos.js::pickThree()
+  test_ref: tests/combos.test.mjs
+  verify_mode: auto
+  last_verified: 2026-09-15
+  status: green
+
+- id: REQ-87
+  text: 選んだ組み合わせは「区間ごとの日付」として拡張へ渡す（基準日＋日ずれ）。基準日が未入力なら、そう伝えて止める。ルートを編集したら選んだ組み合わせを捨てる（別の旅程の日付が黙って流れないようにする）
+  design_ref: architecture.md#23-2
+  impl_ref: index.html::comboUse(),index.html::sendRouteToAnaBridge(),index.html::updateAllDots()
+  test_ref: tests/browser_combos.py
+  verify_mode: auto
+  last_verified: 2026-09-15
+  status: green

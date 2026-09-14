@@ -134,6 +134,38 @@
       cursor: not-allowed;
       box-shadow: none;
     }
+    /* つながる便の組み合わせ（区間ごとのリストの上乗せ） */
+    .cb-head { font-size: 0.82rem; font-weight: bold; color: #123; margin: 4px 0 10px; }
+    .cb-head .cb-sub { display: block; font-size: 0.68rem; color: #7a879a; font-weight: normal;
+                       margin-top: 2px; }
+    .cb-dir { margin-bottom: 14px; }
+    .cb-dir-h { font-size: 0.75rem; color: #556; margin-bottom: 6px; }
+    .cb-dir-h span { color: #7a879a; }
+    .cb-dir-h .cb-count { float: right; font-size: 0.68rem; }
+    .cb-card { border: 1px solid #cfe0d6; border-radius: 12px; background: #f4faf7;
+               padding: 10px 12px; margin-bottom: 8px; }
+    .cb-card.soft { border-color: #e8cea0; background: #fdf8ef; }
+    .cb-card-h { display: flex; justify-content: space-between; align-items: baseline;
+                 gap: 8px; margin-bottom: 7px; }
+    .cb-kind { font-size: 0.78rem; font-weight: bold; color: #14614a; }
+    .cb-card.soft .cb-kind { color: #8a5a00; }
+    .cb-total { font-size: 0.7rem; color: #7a879a; font-variant-numeric: tabular-nums; }
+    .cb-seg { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+              font-size: 0.72rem; padding: 3px 0; }
+    .cb-seg b { font-family: ui-monospace, Menlo, monospace; color: #123; }
+    .cb-tm { color: #556; font-variant-numeric: tabular-nums; }
+    .cb-day { font-size: 0.66rem; color: #0057a8; }
+    .cb-conn { display: flex; justify-content: space-between; gap: 8px; font-size: 0.68rem;
+               color: #7a879a; padding: 2px 0 2px 10px; border-left: 2px solid #dbe4ee;
+               margin: 1px 0; }
+    .cb-conn.so { color: #8a5a00; border-left-color: #e8cea0; font-weight: bold; }
+    .cb-conn.ng { color: #a55; border-left-color: #e8b4b4; }
+    .cb-use { width: 100%; margin-top: 8px; padding: 7px; border-radius: 9px; cursor: pointer;
+              border: 1px solid #a8c9b8; background: #fff; color: #14614a;
+              font-size: 0.72rem; font-weight: bold; }
+    .cb-none { font-size: 0.72rem; color: #7a879a; margin: 0 0 8px; line-height: 1.7; }
+    .cb-foot { font-size: 0.66rem; color: #7a879a; line-height: 1.75; margin: 4px 0 10px; }
+
     .ana-dates { margin: 14px 0 8px; padding: 12px; border: 1px solid #dbe4ee;
                  border-radius: 12px; background: #f7fafd; }
     .ana-dates-h { font-size: 0.8rem; font-weight: bold; color: #234; margin-bottom: 8px; }
@@ -1279,6 +1311,7 @@
   <!-- フライト確認カード（旅程確定時に表示） -->
   <div class="card hidden" id="flight-card">
     <div class="card-title">フライト確認</div>
+    <div id="flight-combos"></div>
     <div id="flight-legs"></div>
     <div id="flight-connections"></div>
     <div class="flight-actions">
@@ -1721,6 +1754,9 @@ function updateAllDots() {
   });
   updateSurfaceNote();
   updateTransitCounter();
+  // ★ルートが変わったら、前に選んだ組み合わせは意味を失う。持ち越すと
+  //   別の旅程の日付が黙ってANAへ流れる
+  COMBO_PICK = { out: null, ret: null };
   try { renderAnaDatePicks(); } catch (e) { console.warn('日付候補の描画に失敗:', e); }
 }
 
@@ -2137,6 +2173,17 @@ function ensureRouteDB() {
 // 中身は「区間 → 便 × 飛ぶ曜日」。**特典の空席ではなく、有償運賃の時刻表**。
 // 特典で取れるかは ANA 側でしか分からない（そちらは特典カレンダー／空席照会の担当）。
 // 読めなくてもアプリは止めない（実便欄を出さないだけ）。
+// 乗り継ぎ必要時間の正本。ANA公式(values)と8flyerの既定値(defaults)が別の箱に入っている
+let MCT_DB = null;
+let _mctPromise = null;
+function ensureMct() {
+  if (!_mctPromise) _mctPromise = fetch('data/mct-ana.json', { cache: 'default' })
+    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then((j) => { MCT_DB = j; return true; })
+    .catch((e) => { console.warn('data/mct-ana.json 読込失敗:', e); MCT_DB = null; return false; });
+  return _mctPromise;
+}
+
 let FLIGHTS_DB = null;
 let _flightsDBPromise = null;
 
@@ -2807,9 +2854,17 @@ function sendRouteToAnaBridge() {
     alert('復路日が往路日より前になっています。日付を確かめてください。');
     return;
   }
-  const withDate = (arr, date) => arr.map((l) => (date ? { ...l, date } : l));
-  const legs = [...withDate(pathToLegs(outPath), dOut),
-                ...withDate(pathToLegs(retPath), dIn)];
+  // 組み合わせを選んでいれば**区間ごとの日付**を使う（2026-09-15 ユーザー決定）。
+  // 選んでいなければ従来どおり、その方向ぜんぶに同じ日付を入れる
+  const withDate = (arr, date, dir) => {
+    const pick = COMBO_PICK[dir];
+    if (pick && pick.legs.length === arr.length) {
+      return arr.map((l, i) => ({ ...l, date: addDays(pick.base, pick.legs[i].depDay) }));
+    }
+    return arr.map((l) => (date ? { ...l, date } : l));
+  };
+  const legs = [...withDate(pathToLegs(outPath), dOut, 'out'),
+                ...withDate(pathToLegs(retPath), dIn, 'ret')];
 
   if (legs.length === 0) {
     alert('区間を構成できませんでした');
@@ -3039,7 +3094,7 @@ async function checkFlights(force = false) {
   if (legArr.length === 0) return;
 
   // 路線辞書と実便の読み込みを保証（初回のみネットワーク）
-  await Promise.all([ensureRouteDB(), ensureFlightsDB()]);
+  await Promise.all([ensureRouteDB(), ensureFlightsDB(), ensureMct()]);
 
   // ストップオーバー都市セット（乗り継ぎチェック対象外）
   const soIatas = new Set([
@@ -3063,7 +3118,144 @@ async function checkFlights(force = false) {
     }
   }
   renderFlightCard(legArr, results, soIatas);
+  renderCombos(results).catch((e) => console.warn('組み合わせの描画に失敗:', e));
 }
+
+// ===== つながる便の組み合わせ（区間ごとのリストの「上乗せ」） =====
+// ★区間ごとのリストは消さない。畳んで代表1本にすると、利用者にとって一番よい案が静かに消える。
+let COMBO_PICK = { out: null, ret: null };  // ANAへ渡すときに使う（区間ごとの日付）
+// ★方向の呼び名は getExpandedLegs と同じ 'out' / 'ret' に揃える。
+//   ここだけ 'in' と書いて、区間が1つも取れず「帰りの案が0件」になった（2026-09-15）
+
+const isJapanIata = (iata) => CITIES.find((c) => c.iata === iata)?.type === 'domestic';
+
+// その区間で「特典として乗れる社」の運航コード。区間ごとのリストと同じ判定を使う
+function eligibleCodesOf(results, key) {
+  const d = results?.[key];
+  if (!d || !Array.isArray(d.flights)) return [];
+  return d.flights.filter((f) => f.starAlliance || f.connectingPartner || f.partnerAirline)
+                  .map((f) => f.iata).filter(Boolean);
+}
+
+// 方向ごとの区間を作る。グループ空港は代表空港（ANAへ渡すのと同じもの）を使う
+function comboLegsOf(results, dir) {
+  const seen = new Set();
+  return getExpandedLegs().filter((l) => l.dir === dir).filter((l) => {
+    if (seen.has(l.groupKey)) return false;      // 代表1つだけ
+    seen.add(l.groupKey); return true;
+  }).map((l) => ({ from: l.from, to: l.to, eligible: eligibleCodesOf(results, l.key) }));
+}
+
+async function renderCombos(results) {
+  const box = document.getElementById('flight-combos');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!FLIGHTS_DB || !MCT_DB) return;
+
+  const { buildCombos, fmtDur } = await import('./src/combos.js');
+
+  const soOf = (arr, flags) => new Set(arr.map((v, i) => (v && flags[i] ? v : null)).filter(Boolean));
+  const dirs = [
+    { dir: 'out', title: '行き', legs: comboLegsOf(results, 'out'),
+      so: soOf(STATE.outbound, STATE.outboundSO), dateId: 'ana-date-out' },
+    { dir: 'ret', title: '帰り', legs: comboLegsOf(results, 'ret'),
+      so: soOf(STATE.return, STATE.returnSO), dateId: 'ana-date-in' },
+  ];
+
+  const parts = [];
+  for (const d of dirs) {
+    if (d.legs.length < 2) continue;              // 乗り継ぎが無い方向は組む意味がない
+    const r = buildCombos({ legs: d.legs, flights: FLIGHTS_DB.legs, mct: MCT_DB,
+                            isJapan: isJapanIata, stopovers: d.so, maxDayShift: 2 });
+    parts.push(renderComboDir(d, r, fmtDur));
+  }
+  if (!parts.length) return;
+
+  box.innerHTML = `<div class="cb-head">🔗 つながる便の組み合わせ
+      <span class="cb-sub">下の区間ごとの一覧はそのまま残しています。これは上乗せです</span></div>`
+    + parts.join('') + comboFoot();
+}
+
+function comboFoot() {
+  const off = Object.values(MCT_DB?.values ?? {}).length;
+  return `<p class="cb-foot">乗り継ぎの必要時間：<b>日本国内の空港はANA公式の値</b>（${off}値・下回る組は出しません）。`
+       + `<b>海外の空港はANAが公表していないので8flyerの既定値</b>`
+       + `（国際↔国際 ${MCT_DB?.defaults?.values?.['overseas.intl_to_intl']?.value ?? '—'}分）で、`
+       + `<b>下回っても落とさず「短い」と印を付けます</b>。`
+       + `時刻表の上でつながるという意味で、<b>特典で取れるという意味ではありません</b>。`
+       + `曜日を見ていない区間があるので、その曜日に飛ばないと決めつけないでください。</p>`;
+}
+
+function renderComboDir(d, r, fmtDur) {
+  const name = (i) => ppCityName(i);
+  const path = `${name(d.legs[0].from)} → ${d.legs.map((l) => name(l.to)).join(' → ')}`;
+  if (!r.ok) {
+    return `<div class="cb-dir"><div class="cb-dir-h">${d.title}　<span>${path}</span></div>`
+         + `<p class="cb-none">組み合わせを出せません：${r.reason.join(' ／ ')}</p></div>`;
+  }
+  if (!r.picked.length) {
+    const why = d.so.size
+      ? `${[...d.so].map(name).join('・')}で24時間以上とまる組み合わせが見つかりませんでした`
+      : 'つながる組み合わせが見つかりませんでした';
+    return `<div class="cb-dir"><div class="cb-dir-h">${d.title}　<span>${path}</span></div>`
+         + `<p class="cb-none">${why}（総当たり ${r.counts.candidates}通りを調べました）</p></div>`;
+  }
+
+  const cards = r.picked.map((p, i) => {
+    const pl = p.plan;
+    const rows = [];
+    pl.legs.forEach((l, li) => {
+      rows.push(`<div class="cb-seg"><b>${l.no}</b>`
+        + `<span class="cb-tm">${name(l.from)} ${l.dep} → ${name(l.to)} ${l.arr}</span>`
+        + (l.depDay ? `<span class="cb-day">+${l.depDay}日目</span>` : '') + `</div>`);
+      const c = pl.conns[li];
+      if (!c) return;
+      const cls = c.isStopover ? 'so' : (c.ok ? '' : 'ng');
+      const tag = c.isStopover ? '🛏 途中降機'
+        : (c.ok ? '乗り継ぎ' : `短い（必要${c.need}分・${c.source === 'official' ? 'ANA公式' : '8flyer既定'}）`);
+      rows.push(`<div class="cb-conn ${cls}"><span>${name(c.via)}　${tag}</span>`
+        + `<span class="cb-tm">${fmtDur(c.minutes)}</span></div>`);
+    });
+    return `<div class="cb-card${pl.softNg ? ' soft' : ''}">
+        <div class="cb-card-h"><span class="cb-kind">${p.label}</span>
+          <span class="cb-total">合計 ${fmtDur(pl.totalMin)}</span></div>
+        ${rows.join('')}
+        <button class="cb-use" type="button" onclick="comboUse('${d.dir}',${i})">
+          この組み合わせの日付をANAに入れる</button>
+      </div>`;
+  }).join('');
+
+  COMBO_STORE[d.dir] = r.picked.map((p) => p.plan);
+  return `<div class="cb-dir"><div class="cb-dir-h">${d.title}　<span>${path}</span>
+      <span class="cb-count">${r.plans.length}通りから3案</span></div>${cards}</div>`;
+}
+
+const COMBO_STORE = { out: [], ret: [] };
+
+// 選んだ組み合わせを「区間ごとの日付」としてANAへ渡す用に覚える。
+// 基準日は「ANAに入れる日付」の欄。そこからの日ずれを足して区間ごとの日付にする
+function comboUse(dir, idx) {
+  const plan = COMBO_STORE[dir]?.[idx];
+  if (!plan) return;
+  const base = document.getElementById(dir === 'out' ? 'ana-date-out' : 'ana-date-in')?.value;
+  if (!base) {
+    alert(`先に「ANAに入れる日付」の${dir === 'out' ? '往路日' : '復路日'}を入れてください。\n`
+        + 'その日を1日目として、区間ごとの日付を組み立てます。');
+    return;
+  }
+  COMBO_PICK[dir] = { base, legs: plan.legs.map((l) => ({ no: l.no, depDay: l.depDay })) };
+  const last = plan.legs[plan.legs.length - 1];
+  alert(`${dir === 'out' ? '行き' : '帰り'}の日付を決めました。\n`
+      + plan.legs.map((l, i) => `${i + 1}. ${l.no}　${addDays(base, l.depDay)}`).join('\n')
+      + `\n\n「✈️ ANAで空席確認」を押すと、この日付で入ります。`);
+}
+
+const addDays = (iso, n) => {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + (n || 0));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+       + `-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 function refreshFlights() {
   getExpandedLegs().forEach(l => FLIGHT_CACHE.invalidate(l.key));
