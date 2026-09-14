@@ -1,0 +1,10 @@
+{
+ "url": "https://www.ana.co.jp/ja/jp/guide/boarding-procedures/checkin/international/notice/",
+ "label": "ana-transit-intl",
+ "fetched_at": "2026-09-15T01:53:53",
+ "http_status": 200,
+ "bytes": 528452,
+ "sha256": "e43cdf0e43cdaf117dc4db6c65034a165e06154d23c232b11b53d8abd0ad89e9",
+ "changed_from_previous": true,
+ "lint": []
+}
