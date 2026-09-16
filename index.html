@@ -2174,6 +2174,13 @@ function ensureRouteDB() {
 // 特典で取れるかは ANA 側でしか分からない（そちらは特典カレンダー／空席照会の担当）。
 // 読めなくてもアプリは止めない（実便欄を出さないだけ）。
 // 乗り継ぎ必要時間の正本。ANA公式(values)と8flyerの既定値(defaults)が別の箱に入っている
+// ANAのフォームに入れる地名の表記。8flyer の都市名のままだと検索エラーになる地名がある
+let ANA_LABELS = null;
+fetch('data/ana-labels.json', { cache: 'default' })
+  .then((r) => (r.ok ? r.json() : null))
+  .then((j) => { ANA_LABELS = j?.labels ?? null; })
+  .catch((e) => console.warn('data/ana-labels.json 読込失敗:', e));
+
 let MCT_DB = null;
 let _mctPromise = null;
 function ensureMct() {
@@ -2822,7 +2829,7 @@ function sendRouteToAnaBridge() {
     if (city.group && city.group.length > 0) {
       const members = city.group.map(memIata => {
         const m = CITIES.find(c => c.iata === memIata);
-        return { iata: memIata, name: m ? m.name : memIata };
+        return { iata: memIata, name: m ? m.name : memIata, anaName: ANA_LABELS?.[memIata] };
       });
       const first = members[0];
       // グループ空港: 最初の実空港に展開（HND等）。
@@ -2830,12 +2837,13 @@ function sendRouteToAnaBridge() {
       return {
         iata: first.iata,
         name: first.name,
+        anaName: first.anaName,
         fromGroup: city.iata,
         groupName: city.name,
         groupMembers: members,
       };
     }
-    return { iata: city.iata, name: city.name };
+    return { iata: city.iata, name: city.name, anaName: ANA_LABELS?.[city.iata] };
   };
 
   const pathToLegs = (path) => {
