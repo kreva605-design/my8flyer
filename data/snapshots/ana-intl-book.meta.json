@@ -1,0 +1,10 @@
+{
+ "url": "https://www.ana.co.jp/ja/jp/international/",
+ "label": "ana-intl-book",
+ "fetched_at": "2026-09-17T01:42:11",
+ "http_status": 200,
+ "bytes": 726286,
+ "sha256": "85144bc81df279138fd1f5e469479c84da04d2c63c1038830fed7d007db0cd51",
+ "changed_from_previous": true,
+ "lint": []
+}

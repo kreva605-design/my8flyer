@@ -1,0 +1,10 @@
+{
+ "url": "https://www.ana.co.jp/module/air-booking/js/intwws_airport_json_JA.js",
+ "label": "intwws_airport_json_JA",
+ "fetched_at": "2026-09-17T01:42:45",
+ "http_status": 200,
+ "bytes": 283973,
+ "sha256": "e6049a333aaa49267a4113d456b6cc603c6f80b567d84d2a995b203793201bc4",
+ "changed_from_previous": true,
+ "lint": []
+}

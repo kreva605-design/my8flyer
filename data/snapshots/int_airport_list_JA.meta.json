@@ -1,0 +1,10 @@
+{
+ "url": "https://www.ana.co.jp/module/air-booking/js/int_airport_list_JA.js",
+ "label": "int_airport_list_JA",
+ "fetched_at": "2026-09-17T01:42:35",
+ "http_status": 200,
+ "bytes": 146551,
+ "sha256": "6ebdcc404ddc788c04ff3cb3797a72fb2e68d60ee5f06f2f9774e45aec9f65ce",
+ "changed_from_previous": true,
+ "lint": []
+}

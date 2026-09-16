@@ -1,17 +1,54 @@
 {
   "_meta": {
     "title": "ANAのフォームに入れる地名の表記",
-    "note": "8flyer の都市名（例『ロンドン』）をそのまま入れるとANA側で検索エラーになることがある。ANAの画面が使っている表記に置き換えるための対応表。★推測で足さないこと。ANAの画面（検索履歴・入力候補）に実際に出ている文字列だけを入れる。",
-    "evidence": "ANA特典予約画面の「検索履歴から入力」に表示されている文字列（2026-09-17 ユーザー画面で確認）",
-    "updated_at": "2026-09-17",
-    "how_to_add": "ANAの画面で地名を入力し、候補から選んだときに欄へ入る文字列をそのまま値にする。IATAコードをキーにする。"
+    "note": "8flyer の都市名をそのまま入れるとANA側で検索エラーになる地名がある。ANAの予約エンジンが持っている表記に置き換えるための対応表。★推測で足さないこと。下の source_url のマスタに実在する文字列だけを入れる。8flyer の都市名と同じものは入れていない（置き換える必要がないため）。",
+    "source_url": "https://www.ana.co.jp/module/air-booking/js/intwws_airport_json_JA.js",
+    "locator": "var json = {'data':[ ... ]} の各要素の 'tlettr'（IATA）と 'nameLocal'（日本語表記）",
+    "found_at": "https://www.ana.co.jp/ja/jp/international/ が読み込んでいるスクリプト",
+    "fetched_at": "2026-09-17",
+    "verified_at": "2026-09-17",
+    "snapshot": "data/snapshots/intwws_airport_json_JA.html",
+    "snapshot_sha256": "dedbab0a1c9d53b227267097655dc5316641504fdd13b527405efc571cc32c7c",
+    "master_airports": 1510,
+    "how_to_update": "上の source_url を /scrape-guard で取り直し、このスクリプトを流し直す。"
   },
   "labels": {
-    "LHR": "ロンドン(全て - 英国)"
+    "AMS": "アムステルダム(全て)",
+    "ARN": "ストックホルム(ARN)",
+    "BKK": "バンコク(全て)",
+    "CDG": "パリ(CDG)",
+    "CTS": "札幌(新千歳)",
+    "DFW": "ダラス(全て)",
+    "DXB": "ドバイ(全て)",
+    "HND": "東京(羽田)",
+    "HNL": "ホノルル(オアフ島)",
+    "ICN": "ソウル(仁川)",
+    "IST": "イスタンブール(全て)",
+    "ITM": "大阪(伊丹)",
+    "JFK": "ニューヨーク(JFK)",
+    "KIX": "大阪(関西)",
+    "LAX": "ロサンゼルス(全て)",
+    "LHR": "ロンドン(ヒースロー)",
+    "MLE": "マレ",
+    "MUC": "ミュンヘン(全て)",
+    "NGO": "名古屋(中部)",
+    "NRT": "東京(成田)",
+    "OKA": "沖縄(那覇)",
+    "ORD": "シカゴ(ORD)",
+    "OSA": "大阪(全て)",
+    "OSL": "オスロ(全て)",
+    "PEK": "北京(首都)",
+    "PVG": "上海(浦東)",
+    "SGN": "ホーチミンシティ(全て)",
+    "SYD": "シドニー(全て - オーストラリア)",
+    "TPE": "台北(全て)",
+    "TYO": "東京(全て)",
+    "UKB": "大阪(神戸)"
   },
-  "unverified": {
-    "_note": "下は『たぶんこう』であって、まだANAの画面で確かめていない。確かめるまで labels に入れない。",
-    "CDG": "パリ(全て)",
-    "JFK": "ニューヨーク(全て)"
-  }
+  "not_in_ana_master": [
+    {
+      "iata": "IZO",
+      "name": "出雲"
+    }
+  ]
 }
