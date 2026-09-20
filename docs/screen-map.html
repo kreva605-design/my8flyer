@@ -1,0 +1,575 @@
+<title>My 8flyer 画面遷移マップ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --ground:   #eaf1f8;
+    --surface:  #ffffff;
+    --surface-2:#f5f9fd;
+    --ink:      #12263a;
+    --ink-soft: #55697f;
+    --ink-faint:#8397ab;
+    --brand:    #003270;
+    --brand-2:  #0b5a8a;
+    --line:     #cfe0ee;
+    --line-soft:#e3edf6;
+    --warn:     #a8620a;
+    --warn-bg:  #fdf3e3;
+    --warn-line:#ecd0a3;
+    --ok:       #0b7a52;
+    --ok-bg:    #e7f5ee;
+    --shadow:   0 1px 2px rgba(16,42,67,.06), 0 8px 24px rgba(16,42,67,.07);
+    --radius:   14px;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --disp: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+    --body: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0c151f;
+      --surface:  #14202e;
+      --surface-2:#1a2836;
+      --ink:      #dde8f2;
+      --ink-soft: #93a7bb;
+      --ink-faint:#6b8096;
+      --brand:    #8fbde6;
+      --brand-2:  #6fb0e0;
+      --line:     #2a3d52;
+      --line-soft:#223245;
+      --warn:     #e0a85c;
+      --warn-bg:  #2c2317;
+      --warn-line:#4d3d22;
+      --ok:       #66c79c;
+      --ok-bg:    #162d24;
+      --shadow:   0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0c151f; --surface:#14202e; --surface-2:#1a2836;
+    --ink:#dde8f2; --ink-soft:#93a7bb; --ink-faint:#6b8096;
+    --brand:#8fbde6; --brand-2:#6fb0e0; --line:#2a3d52; --line-soft:#223245;
+    --warn:#e0a85c; --warn-bg:#2c2317; --warn-line:#4d3d22;
+    --ok:#66c79c; --ok-bg:#162d24;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  body { background: var(--ground); color: var(--ink); font-family: var(--body);
+         line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 18px 80px; }
+
+  /* ── ヘッダー ───────────────────────────── */
+  header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 16px;
+               padding-bottom: 14px; border-bottom: 2px solid var(--brand); margin-bottom: 4px; }
+  header.top h1 { font-family: var(--disp); font-weight: 700; font-size: clamp(1.3rem, 3.2vw, 1.7rem);
+                  margin: 0; letter-spacing: .01em; text-wrap: balance; color: var(--brand); }
+  .meta { font-size: .76rem; color: var(--ink-soft); font-family: var(--mono); }
+  .lede { font-size: .87rem; color: var(--ink-soft); max-width: 62ch; margin: 14px 0 0; }
+
+  /* ── ツールバー ─────────────────────────── */
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+         margin: 20px 0 6px; position: sticky; top: 0; z-index: 30;
+         background: color-mix(in srgb, var(--ground) 92%, transparent);
+         backdrop-filter: blur(8px); padding: 10px 0; }
+  .tgl { font: inherit; font-size: .76rem; padding: 6px 13px; border-radius: 999px; cursor: pointer;
+         border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); }
+  .tgl[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--surface); font-weight: 700; }
+  :root[data-theme="dark"] .tgl[aria-pressed="true"],
+  .tgl[aria-pressed="true"] { color: #fff; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .tgl[aria-pressed="true"] { color: #0c151f; }
+  }
+  :root[data-theme="dark"] .tgl[aria-pressed="true"] { color: #0c151f; }
+  .tgl:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+
+  h2.sec { font-family: var(--disp); font-weight: 700; font-size: 1.02rem; margin: 38px 0 4px;
+           color: var(--brand); display: flex; align-items: center; gap: 9px; }
+  h2.sec::before { content: ""; width: 4px; height: 1.05em; background: var(--brand); border-radius: 2px; }
+  .sec-note { font-size: .8rem; color: var(--ink-soft); margin: 0 0 16px; max-width: 70ch; }
+
+  /* ── 全体図 ─────────────────────────────── */
+  .flow { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: 14px; overflow-x: auto; box-shadow: var(--shadow); }
+
+  /* ── 画面カード ─────────────────────────── */
+  .screens { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .screens { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+  .scr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+         box-shadow: var(--shadow); overflow: hidden; scroll-margin-top: 78px;
+         transition: box-shadow .18s, border-color .18s; }
+  .scr.lit { border-color: var(--brand-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-2) 26%, transparent), var(--shadow); }
+  .scr-h { display: flex; align-items: center; gap: 9px; padding: 10px 14px;
+           background: var(--brand); color: #fff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .scr-h { color: #0c151f; } }
+  :root[data-theme="dark"] .scr-h { color: #0c151f; }
+  .scr-id { font-family: var(--mono); font-weight: 600; font-size: .74rem;
+            background: rgba(255,255,255,.22); padding: 1px 7px; border-radius: 5px; }
+  :root[data-theme="dark"] .scr-id { background: rgba(0,0,0,.18); }
+  .scr-h b { font-family: var(--disp); font-size: .9rem; font-weight: 700; }
+  .scr-kind { margin-left: auto; font-size: .66rem; opacity: .85; }
+  .scr-b { padding: 14px; background: var(--surface-2); }
+  .scr-f { padding: 8px 14px 11px; font-family: var(--mono); font-size: .66rem; color: var(--ink-faint);
+           border-top: 1px dashed var(--line-soft); }
+
+  /* アプリ本体の見た目を写したダミー部品 */
+  .m-label { font-size: .68rem; font-weight: 700; color: var(--ink-soft); margin: 9px 0 3px; }
+  .m-sel { border: 1px solid var(--line); background: var(--surface); border-radius: 9px;
+           padding: 7px 10px; font-size: .78rem; color: var(--ink); display: flex; justify-content: space-between; }
+  .m-sel::after { content: "⌄"; color: var(--ink-faint); }
+  .m-hint { font-size: .66rem; color: var(--ink-faint); margin: 5px 0 0; line-height: 1.6; }
+  .m-row { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .m-item { padding: 9px 11px; border-bottom: 1px solid var(--line-soft); font-size: .78rem; }
+  .m-item:last-child { border-bottom: 0; }
+  .m-item .s { display: block; font-size: .66rem; color: var(--ink-faint); }
+  .m-tag { font-size: .62rem; color: var(--brand-2); background: color-mix(in srgb, var(--brand-2) 13%, transparent);
+           border-radius: 999px; padding: 1px 7px; margin-left: 5px; }
+  .m-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .m-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+
+  /* 操作要素 */
+  .op { font: inherit; font-family: var(--body); cursor: pointer; text-align: left; width: 100%;
+        border: 1px solid transparent; background: transparent; color: inherit; border-radius: 9px;
+        padding: 0; position: relative; }
+  .op:focus-visible { outline: 2px solid var(--brand-2); outline-offset: 2px; }
+  body.frames .op { border-color: var(--brand-2); border-style: dashed; }
+  body.frames .op::after { content: attr(data-n); position: absolute; top: -8px; right: -6px;
+        font-family: var(--mono); font-size: .58rem; background: var(--brand-2); color: #fff;
+        border-radius: 999px; padding: 0 5px; line-height: 1.5; }
+  .op.sel { border-color: var(--brand-2) !important; border-style: solid !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-2) 22%, transparent); }
+  .op .prim { display: block; background: linear-gradient(180deg, #0a4a94, #003270); color: #fff;
+              border-radius: 9px; padding: 9px; text-align: center; font-weight: 700; font-size: .8rem; }
+  .op .ghost { display: block; border: 1px solid var(--line); background: var(--surface); border-radius: 9px;
+               padding: 6px 10px; font-size: .74rem; color: var(--brand-2); font-weight: 700; }
+  .op .chip { display: inline-block; border: 1px solid var(--line); background: var(--surface);
+              border-radius: 999px; padding: 3px 10px; font-size: .68rem; }
+  .op .slot { display: block; border: 1px solid var(--line); background: var(--surface); border-radius: 8px;
+              padding: 6px 3px; text-align: center; font-size: .64rem; }
+  .op .cal { display: block; background: #0b5636; color: #fff; border-radius: 9px; padding: 7px 9px;
+             font-size: .7rem; font-weight: 700; }
+  .stack { display: flex; flex-direction: column; gap: 7px; }
+
+  /* 穴マーカー */
+  .hole { display: none; margin-top: 9px; border: 1px solid var(--warn-line); background: var(--warn-bg);
+          color: var(--warn); border-radius: 9px; padding: 7px 10px; font-size: .7rem; line-height: 1.6; }
+  body.holes .hole { display: block; }
+  .hole b { font-family: var(--mono); font-size: .68rem; }
+
+  /* ── インスペクタ ───────────────────────── */
+  .insp { position: sticky; bottom: 12px; margin-top: 20px; background: var(--surface);
+          border: 1px solid var(--brand-2); border-radius: var(--radius); box-shadow: var(--shadow);
+          padding: 13px 15px; z-index: 25; }
+  .insp .ttl { font-family: var(--disp); font-weight: 700; font-size: .9rem; color: var(--brand);
+               display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .insp .arrow { font-family: var(--mono); font-size: .74rem; color: var(--ink-soft); }
+  .insp dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px;
+             margin: 10px 0 0; font-size: .77rem; }
+  .insp dt { color: var(--ink-faint); font-size: .69rem; font-weight: 700; padding-top: .18em; }
+  .insp dd { margin: 0; }
+  .insp code { font-family: var(--mono); font-size: .72rem;
+               background: var(--surface-2); border: 1px solid var(--line-soft);
+               border-radius: 5px; padding: 1px 5px; }
+  .insp .none { color: var(--ink-faint); }
+  .insp .w { color: var(--warn); }
+
+  /* ── 表 ─────────────────────────────────── */
+  .tw { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius);
+        background: var(--surface); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: .78rem; min-width: 560px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-size: .68rem; color: var(--ink-faint); font-weight: 700; white-space: nowrap;
+       background: var(--surface-2); position: sticky; top: 0; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td code, th code { font-family: var(--mono); font-size: .71rem; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ── 所見 ───────────────────────────────── */
+  .finds { display: grid; gap: 12px; }
+  .find { border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: var(--radius);
+          padding: 13px 15px; }
+  .find.clean { border-color: var(--line); background: var(--surface); }
+  .find h3 { font-family: var(--disp); font-size: .88rem; margin: 0 0 6px; color: var(--warn); font-weight: 700; }
+  .find.clean h3 { color: var(--ok); }
+  .find p { margin: 0 0 7px; font-size: .8rem; }
+  .find p:last-child { margin-bottom: 0; }
+  .find .fix { font-size: .76rem; color: var(--ink-soft); border-top: 1px dashed var(--warn-line);
+               padding-top: 7px; margin-top: 9px; }
+  .find.clean .fix { border-color: var(--line-soft); }
+  .sev { font-family: var(--mono); font-size: .64rem; border: 1px solid currentColor; border-radius: 4px;
+         padding: 0 5px; margin-right: 7px; vertical-align: .12em; }
+  code.f { font-family: var(--mono); font-size: .73rem; color: var(--brand-2); }
+
+  footer { margin-top: 44px; padding-top: 14px; border-top: 1px solid var(--line);
+           font-size: .72rem; color: var(--ink-faint); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <h1>My 8flyer 画面遷移マップ</h1>
+  <span class="meta">As-Is / 2026-09-20 / 実装から生成</span>
+</header>
+<p class="lede">
+  稼働中の実装（<code class="f">index.html</code> 1ファイル＋<code class="f">src/*.js</code>＋Cloudflare Workers）から起こした初版。
+  <b>どのボタンがどこへ行き、何を書き込むか</b>をボタン単位で並べています。画面の中のボタンを押すと、下のインスペクタに中身が出ます。
+</p>
+
+<div class="bar">
+  <button class="tgl" id="t-frames" aria-pressed="false">ボタンの枠を出す</button>
+  <button class="tgl" id="t-holes"  aria-pressed="true">⚠ 動線の穴を出す</button>
+  <span class="meta" style="margin-left:auto">画面 4 ・ モーダル 2 ・ 操作 <span class="num">24</span></span>
+</div>
+
+<h2 class="sec">全体の遷移</h2>
+<p class="sec-note">
+  実線＝画面が切り替わる遷移。点線＝モーダル・外部サイト。
+  <b>点線の赤い矢印は「文言だけが案内していて、実際には行けない」動線</b>です。
+</p>
+<div class="flow">
+<pre class="mermaid">
+flowchart TD
+  S1["S1 さがす"] -->|"ルートを提案する ▶"| S2["S2 候補"]
+  S2 -->|"◀ 条件を変える / 条件チップ"| S1
+  S2 -->|"行き方を選ぶ"| S3["S3 旅程"]
+  S3 -->|"◀ 一覧に戻る"| S2
+  S3 -->|"じぶんで組むに読み込む ▼"| S4["S4 じぶんで組む"]
+  S4 -->|"◀ 提案に戻る"| S3
+  S4 -->|"▲ この条件で提案を受ける"| S2
+  S4 -.->|"都市スロット"| M1(["M1 都市を選択"])
+  M1 -.-> S4
+  S4 -.->|"保存ルートの編集"| M2(["M2 ルート編集"])
+  M2 -.-> S4
+  S2 -.->|"📅 空いている日"| EXT["ANA SKY WEB<br/>Chrome拡張が仲介"]
+  S4 -.->|"ANAで空席確認"| EXT
+  S1 -.->|"⚠ 到達手段なし"| S4
+  linkStyle 12 stroke:#b3541e,stroke-width:2px
+</pre>
+</div>
+
+<h2 class="sec">画面と操作</h2>
+<p class="sec-note">
+  <b>5画面すべてが「直書き・非登録」</b>。<code class="f">ppGo()</code> が <code class="f">hidden</code> を付け外しするだけで、
+  URL を持ちません。ルーター登録の画面は 0 件です。
+</p>
+
+<div class="screens">
+
+  <!-- S1 -->
+  <section class="scr" id="scr-S1">
+    <div class="scr-h"><span class="scr-id">S1</span><b>さがす</b><span class="scr-kind">直書き・非登録</span></div>
+    <div class="scr-b">
+      <div class="m-label">出発地（自宅）</div>
+      <div class="m-sel">東京（羽田 / 成田）（TYO）</div>
+      <div class="m-label">目的地</div>
+      <div class="m-sel">アムステルダム（AMS）</div>
+      <div class="m-label">特典の種類</div>
+      <button class="op" data-op="o1" data-n="1"><span style="display:block"><span class="m-sel">提携航空会社（1社だけで組む）</span></span></button>
+      <p class="m-hint">往復の全区間を同じ1社で組みます。スターアライアンス便とは混ぜられません。</p>
+      <div class="m-label">航空会社</div>
+      <div class="m-sel">ベトナム航空（VN）</div>
+      <div class="m-label" style="margin-top:12px">&nbsp;</div>
+      <button class="op" data-op="o2" data-n="2"><span class="prim">ルートを提案する ▶</span></button>
+      <div class="hole"><b>⚠-3</b> 「変えたいときは下の『じぶんで組む』で指定してください」と書いてあるが、この画面に「じぶんで組む」へ行くボタンは無い（実測0件）。</div>
+    </div>
+    <div class="scr-f">index.html:943 <span style="opacity:.6">#pp-s1</span></div>
+  </section>
+
+  <!-- S2 -->
+  <section class="scr" id="scr-S2">
+    <div class="scr-h"><span class="scr-id">S2</span><b>候補（もう1都市）</b><span class="scr-kind">直書き・非登録</span></div>
+    <div class="scr-b">
+      <div class="m-chips" style="margin-bottom:9px">
+        <button class="op" data-op="o3" data-n="3"><span class="chip">出発地 東京（羽田 / 成田）</span></button>
+        <button class="op" data-op="o3" data-n="3"><span class="chip">ベトナム航空のみ</span></button>
+        <button class="op" data-op="o3" data-n="3"><span class="chip">エコノミー</span></button>
+      </div>
+      <button class="op" data-op="o4" data-n="4" style="margin-bottom:9px"><span class="cal">📅 国内↔海外の空いているANA便の往路復路の日程を検索</span></button>
+      <button class="op" data-op="o5" data-n="5" style="width:auto;margin-bottom:11px"><span class="ghost">◀ 条件を変える</span></button>
+      <div class="m-row">
+        <button class="op" data-op="o6" data-n="6"><span class="m-item">もう1都市なし（まっすぐ帰る）<span class="m-tag">ベトナム航空</span><span class="s">62,000 マイル ・ 乗継2回</span></span></button>
+        <button class="op" data-op="o7" data-n="7"><span class="m-item">ハノイ<span class="m-tag">ベトナム航空</span><span class="s">✈️ 行き方1通り ・ 就航27路線</span></span></button>
+      </div>
+    </div>
+    <div class="scr-f">index.html:994 <span style="opacity:.6">#pp-s2</span></div>
+  </section>
+
+  <!-- S3 -->
+  <section class="scr" id="scr-S3">
+    <div class="scr-h"><span class="scr-id">S3</span><b>旅程</b><span class="scr-kind">直書き・非登録</span></div>
+    <div class="scr-b">
+      <div style="font-family:var(--disp);font-weight:700;font-size:.86rem;color:var(--brand)">
+        東京（羽田 / 成田） → アムステルダム <span style="float:right;font-size:.72rem;color:var(--ink-soft);font-weight:400" class="num">62,000 マイル</span>
+      </div>
+      <p class="m-hint" style="margin:7px 0 9px">提携特典・ベトナム航空（VN）1社のみ ／ まっすぐ行って、まっすぐ帰る旅程です。</p>
+      <div class="m-row" style="margin-bottom:10px">
+        <div class="m-item"><code class="f">TYO→HAN</code> 東京（羽田 / 成田） → ハノイ</div>
+        <div class="m-item"><code class="f">HAN→AMS</code> ハノイ → アムステルダム</div>
+      </div>
+      <div class="stack">
+        <button class="op" data-op="o8" data-n="8"><span class="prim">この旅程を「じぶんで組む」に読み込む ▼</span></button>
+        <button class="op" data-op="o9" data-n="9"><span class="ghost" style="text-align:center">◀ もう1都市の一覧に戻る</span></button>
+      </div>
+    </div>
+    <div class="scr-f">index.html:1018 <span style="opacity:.6">#pp-s3</span></div>
+  </section>
+
+  <!-- S4 -->
+  <section class="scr" id="scr-S4">
+    <div class="scr-h"><span class="scr-id">S4</span><b>じぶんで組む</b><span class="scr-kind">直書き・非登録</span></div>
+    <div class="scr-b">
+      <div class="m-chips" style="margin-bottom:10px">
+        <button class="op" data-op="o10" data-n="10" style="width:auto"><span class="ghost">◀ 提案に戻る</span></button>
+        <button class="op" data-op="o11" data-n="11" style="width:auto"><span class="ghost">▲ この条件で提案を受ける</span></button>
+      </div>
+      <div class="hole" style="margin:0 0 10px"><b>⚠-2</b> 「◀ 提案に戻る」の戻り先が S3 に固定。S3 を経ずにここへ来ると、空の画面に着地する。</div>
+      <div class="m-label">都市スロット（8つ）</div>
+      <div class="m-slots" style="margin-bottom:9px">
+        <button class="op" data-op="o12" data-n="12"><span class="slot">出発地</span></button>
+        <button class="op" data-op="o12" data-n="12"><span class="slot">往路1</span></button>
+        <button class="op" data-op="o12" data-n="12"><span class="slot">往路2</span></button>
+        <button class="op" data-op="o12" data-n="12"><span class="slot">目的地</span></button>
+      </div>
+      <div class="stack">
+        <button class="op" data-op="o13" data-n="13"><span class="prim">判定する</span></button>
+        <button class="op" data-op="o14" data-n="14"><span class="ghost" style="text-align:center">ANAで空席確認</span></button>
+        <button class="op" data-op="o15" data-n="15"><span class="ghost" style="text-align:center">このルートを保存</span></button>
+      </div>
+      <div class="m-label" style="margin-top:12px">保存ルート</div>
+      <div class="m-row">
+        <div class="m-item" style="display:flex;gap:6px;align-items:center">
+          <span style="flex:1">広島 → パリ（羽田経由）</span>
+          <button class="op" data-op="o16" data-n="16" style="width:auto"><span class="chip">読込</span></button>
+          <button class="op" data-op="o17" data-n="17" style="width:auto"><span class="chip">✏️</span></button>
+          <button class="op" data-op="o18" data-n="18" style="width:auto"><span class="chip">🗑</span></button>
+        </div>
+      </div>
+      <div class="m-label" style="margin-top:12px">⚙ 設定</div>
+      <div class="stack">
+        <button class="op" data-op="o19" data-n="19"><span class="ghost">特典航空券タイプ（全7条 / 全5条）</span></button>
+        <button class="op" data-op="o20" data-n="20"><span class="ghost">同期トークンを保存</span></button>
+      </div>
+      <div class="hole"><b>⚠-4</b> ここの「特典航空券タイプ」は<b>2択</b>で規約カードの切替。S1 の「特典の種類」（<b>3択</b>・探索の絞り込み）とは別物。</div>
+    </div>
+    <div class="scr-f">index.html:1032 <span style="opacity:.6">#pane-editor</span></div>
+  </section>
+
+  <!-- M1 -->
+  <section class="scr" id="scr-M1">
+    <div class="scr-h"><span class="scr-id">M1</span><b>都市を選択</b><span class="scr-kind">モーダル</span></div>
+    <div class="scr-b">
+      <div class="m-sel" style="margin-bottom:9px">東京（羽田）（HND）</div>
+      <div class="m-chips" style="margin-bottom:9px">
+        <button class="op" data-op="o21" data-n="21" style="width:auto"><span class="chip">乗り継ぎ</span></button>
+        <button class="op" data-op="o21" data-n="21" style="width:auto"><span class="chip">途中降機</span></button>
+      </div>
+      <div class="m-chips">
+        <button class="op" data-op="o22" data-n="22" style="width:auto"><span class="chip">クリア</span></button>
+        <button class="op" data-op="o22" data-n="22" style="width:auto"><span class="chip">閉じる</span></button>
+      </div>
+    </div>
+    <div class="scr-f">index.html:1465 <span style="opacity:.6">#modal-overlay</span></div>
+  </section>
+
+  <!-- M2 -->
+  <section class="scr" id="scr-M2">
+    <div class="scr-h"><span class="scr-id">M2</span><b>保存ルートの編集</b><span class="scr-kind">モーダル</span></div>
+    <div class="scr-b">
+      <div class="m-label">ルート名</div>
+      <div class="m-sel" style="margin-bottom:10px">広島 → パリ（羽田経由）</div>
+      <div class="m-chips">
+        <button class="op" data-op="o23" data-n="23" style="width:auto"><span class="chip">保存</span></button>
+        <button class="op" data-op="o24" data-n="24" style="width:auto"><span class="chip">キャンセル</span></button>
+      </div>
+    </div>
+    <div class="scr-f">index.html:1450 <span style="opacity:.6">#edit-modal-overlay</span></div>
+  </section>
+
+</div>
+
+<div class="insp" id="insp" aria-live="polite">
+  <div class="ttl" id="i-ttl">操作を選んでください</div>
+  <dl id="i-body">
+    <dt>操作</dt><dd class="none">上の画面の中のボタンを押すと、遷移先・呼ぶAPI・書き込む保存先がここに出ます。</dd>
+  </dl>
+</div>
+
+<h2 class="sec">書き込む保存先</h2>
+<p class="sec-note">
+  このアプリは<b>データベースを持ちません</b>。書き込み先はブラウザの <code class="f">localStorage</code> と
+  Cloudflare Workers KV（<code class="f">SAVED_ROUTES</code>）の2つだけです。
+</p>
+<div class="tw">
+<table>
+  <thead><tr><th>保存先</th><th>キー</th><th>書き込む操作</th><th>消えるとどうなるか</th></tr></thead>
+  <tbody>
+    <tr><td>localStorage</td><td><code>pp-origin</code> / <code>pp-dest</code> / <code>pp-award-kind</code> / <code>pp-partner-airline</code></td>
+        <td>ルートを提案する ▶</td><td>次回の検索条件が既定値に戻るだけ</td></tr>
+    <tr><td>localStorage</td><td><code>m8f_saved</code></td><td>このルートを保存 / 🗑 / M2 保存</td>
+        <td>端末内の保存ルートが消える。同期トークンがあれば KV から復元できる</td></tr>
+    <tr><td>localStorage</td><td><code>m8f_token</code></td><td>同期トークンを保存</td>
+        <td>端末間の同期が切れる（端末内の保存ルートは残る）</td></tr>
+    <tr><td>localStorage</td><td><code>m8f_award_type</code> / <code>m8f_group_primary_only</code> / <code>m8f_open_jaw</code></td>
+        <td>⚙ 設定</td><td>設定が既定に戻るだけ</td></tr>
+    <tr><td><b>Workers KV</b></td><td><code>SAVED_ROUTES['routes']</code></td>
+        <td>このルートを保存 / 🗑 / M2 保存（いずれも <code>PUT /saved-routes</code>）</td>
+        <td><b>全端末の保存ルートが消える。</b>1件の削除でも<b>全件を上書き</b>する実装なので、競合時は後勝ち</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 class="sec">動線の穴</h2>
+<p class="sec-note">チェックリスト6項目を機械的に点検した結果。⚠ が実害のあるもの、✅ が点検して問題が無かったもの。</p>
+<div class="finds">
+
+  <div class="find">
+    <h3><span class="sev">⚠-1</span>全画面がURLを持たず、再読込で必ず S1 に戻る</h3>
+    <p><code class="f">ppGo()</code>（index.html:3942）は <code class="f">hidden</code> を付け外しするだけで履歴を積みません。
+       <b>組みかけの旅程・出した候補・開いていた旅程は、再読込した瞬間に全部消えます。</b></p>
+    <p>スマホでは別アプリに切り替えただけでタブが再読込されることがあり、
+       ANAの予約画面と往復しながら使う場面で、戻るたびに条件入力からやり直しになります。</p>
+    <p class="fix"><b>直すなら：</b><code class="f">history.pushState</code> で画面IDを <code class="f">#s2</code> 等として積み、
+       <code class="f">popstate</code> で <code class="f">ppGo</code> を呼ぶ。S1の入力は既に localStorage にあるので復元は安い。</p>
+  </div>
+
+  <div class="find">
+    <h3><span class="sev">⚠-2</span>「◀ 提案に戻る」の戻り先が固定</h3>
+    <p>S4 の戻るボタンは常に <code class="f">ppGo('s3')</code>（index.html:1034）。
+       保存ルートの読込など <b>S3 を経ずに S4 を開いた場合、中身が空の S3 に着地</b>します。</p>
+    <p class="fix"><b>直すなら：</b>直前の画面を覚えて戻す。または S3 が空なら S2（無ければ S1）へ落とす。</p>
+  </div>
+
+  <div class="find">
+    <h3><span class="sev">⚠-3</span>文言だけが案内していて、実際には行けない</h3>
+    <p>S1 のヒント（index.html:956）が「変えたいときは<b>下の</b>『じぶんで組む』で指定してください」と案内していますが、
+       <b>S1 に「じぶんで組む」へ行くボタンはありません</b>（grep で 0 件を実測）。</p>
+    <p>2026-09-09 に「画面をいちどに1つだけ出す」へ変えたとき、S4 は S1 の「下」ではなくなったのに文言が残りました。
+       実際に S4 へ行くには <b>S1 → S2 → S3 →「この旅程を『じぶんで組む』に読み込む」</b> の3手が必要です。</p>
+    <p class="fix"><b>直すなら（2案）：</b>①S1 に「じぶんで組む」ボタンを足す　②文言を実態（「候補から旅程を選んだあとで開けます」）に直す。</p>
+  </div>
+
+  <div class="find">
+    <h3><span class="sev">⚠-4</span>「特典の種類」が2か所にあり、意味が違う</h3>
+    <p>S1 の「特典の種類」は<b>3択</b>（スターアライアンス／提携航空会社1社／ANA便のみ）で<b>探索の絞り込み</b>。
+       S4 設定の「特典航空券タイプ」は<b>2択</b>（提携／ANA便のみ）で<b>規約カードの表示と判定</b>。
+       名前が似ているため、片方を変えればもう片方も変わると誤解しえます。</p>
+    <p class="fix"><b>現状の対処：</b>S4 → S1 へ移るとき <code class="f">partner</code> を <code class="f">star</code> として開く（index.html:4320）。
+       <b>直すなら：</b>S4 側を「規約の種類（全7条／全5条）」に改名して、役割の違いを名前で分ける。</p>
+  </div>
+
+  <div class="find clean">
+    <h3>✅ 点検して問題が無かった項目</h3>
+    <p><b>権限による死に導線</b>：該当なし（認証が無く、全員が全画面を使える）。<br>
+       <b>押せない導線の理由表示</b>：対処済み。📅ボタンは Chrome拡張が無いとグレーアウトし、理由を文章で出す。<br>
+       <b>入口の重複</b>：S2 → S1 が「条件チップ」と「◀ 条件を変える」の2つ。どちらも同じ行き先で害がないため意図的と判定。</p>
+  </div>
+
+</div>
+
+<footer>
+  文章版：<code class="f">claude-vault/projects/my8flyer/screen-map_2026-09-20_my8flyer.md</code><br>
+  実装：<code class="f">projects/my8flyer/index.html</code>・<code class="f">src/*.js</code>　／
+  バックエンド：<code class="f">workers/my8flyer-proxy/index.js</code>（KV <code class="f">SAVED_ROUTES</code>）
+</footer>
+
+</div>
+
+<script>
+  const OPS = {
+    o1:  {name:"特典の種類（選択）", from:"S1", to:"stay", api:null, write:null,
+          note:"「提携航空会社」を選んだときだけ「航空会社」欄が現れる。規約（全7条/全5条）は awardType 側で決まる。"},
+    o2:  {name:"ルートを提案する ▶", from:"S1", to:"S2", api:"同梱JSONの読み込みのみ（routes.json・data/*.json）",
+          write:"localStorage: pp-origin / pp-dest / pp-award-kind / pp-partner-airline",
+          note:"外部通信なし。経路の列挙と規約判定はすべてブラウザ内（ppSearch・index.html:3861）。"},
+    o3:  {name:"条件チップ（出発地 / 特典 / 座席）", from:"S2", to:"S1", api:null, write:null,
+          note:"ppEditCondition。「◀ 条件を変える」と同じ行き先で、入口が2つある（意図的）。"},
+    o4:  {name:"📅 国内↔海外の空いているANA便の往路復路の日程を検索", from:"S2", to:"外部（ANA SKY WEB）",
+          api:"Chrome拡張 → cam.ana.co.jp", write:null,
+          note:"⚠ 拡張が無いと押せない（グレーアウト＋理由を文章で表示）。スマホ・Safariでは使えない。"},
+    o5:  {name:"◀ 条件を変える", from:"S2", to:"S1", api:null, write:null, note:"ppGo('s1')。"},
+    o6:  {name:"もう1都市なし（まっすぐ帰る）の行", from:"S2", to:"S3", api:null, write:null,
+          note:"基準の旅程へ直行する。寄り道でマイルがいくら増えるかを同じ画面で比べるための行。"},
+    o7:  {name:"都市の行 → 行き方（🛬 帰りに降りる / ✈️ 寄り道 / 🏠 自宅で途中降機）", from:"S2", to:"S3",
+          api:null, write:null, note:"行を開くのは stay。行き方を押すと S3 へ（ppShowItinerary）。"},
+    o8:  {name:"この旅程を「じぶんで組む」に読み込む ▼", from:"S3", to:"S4", api:null, write:null,
+          note:"ppToEditor。STATE を上書きする。S4 へ入れる唯一の入口。"},
+    o9:  {name:"◀ もう1都市の一覧に戻る", from:"S3", to:"S2", api:null, write:null, note:"ppBackToList。"},
+    o10: {name:"◀ 提案に戻る", from:"S4", to:"S3", api:null, write:null,
+          note:"⚠-2 行き先が S3 に固定。S3 を経ずに来ると空の画面に着地する。"},
+    o11: {name:"▲ この条件でもう1都市の提案を受ける", from:"S4", to:"S2", api:null, write:null,
+          note:"置いてある経由地が「必ず通る街」（mustVia）として検索条件になる。"},
+    o12: {name:"都市スロット（出発地・目的地・往路3・復路3・帰着地の8つ）", from:"S4", to:"M1",
+          api:null, write:null, note:"openModal(index.html:1194-1278)。"},
+    o13: {name:"判定する", from:"S4", to:"stay", api:null, write:null,
+          note:"validate()。規約7条／5条の判定を出す。通信なし。"},
+    o14: {name:"ANAで空席確認", from:"S4", to:"外部（ANA SKY WEB）", api:"Chrome拡張 → ANA予約フォーム",
+          write:null, note:"sendRouteToAnaBridge。検索ボタンは押さない（入力までを渡す）。"},
+    o15: {name:"このルートを保存", from:"S4", to:"stay", api:"PUT /saved-routes",
+          write:"Workers KV: SAVED_ROUTES['routes'] ＋ localStorage: m8f_saved",
+          note:"同期トークン未設定なら端末内だけに残る。"},
+    o16: {name:"保存ルートの「読込」", from:"S4", to:"stay", api:"GET /saved-routes", write:null,
+          note:"⚠-2 の発火点。ここから S4 に入ると「◀ 提案に戻る」が空の S3 へ飛ぶ。"},
+    o17: {name:"保存ルートの「✏️」", from:"S4", to:"M2", api:null, write:null, note:"editRoute。"},
+    o18: {name:"保存ルートの「🗑」", from:"S4", to:"stay", api:"PUT /saved-routes",
+          write:"Workers KV: SAVED_ROUTES['routes'] ＋ localStorage: m8f_saved",
+          note:"⚠ 1件の削除でも全件を上書きする。別端末で同時に編集すると後勝ちで消える。"},
+    o19: {name:"⚙ 設定 → 特典航空券タイプ", from:"S4", to:"stay", api:null,
+          write:"localStorage: m8f_award_type",
+          note:"⚠-4 S1 の「特典の種類」とは別物。こちらは2択で、規約カードの表示と判定を切り替える。"},
+    o20: {name:"⚙ 設定 → 同期トークンを保存", from:"S4", to:"stay", api:null,
+          write:"localStorage: m8f_token",
+          note:"以後の /saved-routes の Authorization ヘッダに使う。空欄でも端末内では使える。"},
+    o21: {name:"「乗り継ぎ」/「途中降機」", from:"M1", to:"stay", api:null, write:null,
+          note:"そのスロットの扱いを決める。途中降機＝24時間以上とまる。"},
+    o22: {name:"「クリア」/「閉じる」/ 背景タップ", from:"M1", to:"S4", api:null, write:null, note:"closeModal / clearCity。"},
+    o23: {name:"M2「保存」", from:"M2", to:"S4", api:"PUT /saved-routes",
+          write:"Workers KV: SAVED_ROUTES['routes'] ＋ localStorage: m8f_saved", note:"saveEditRoute。"},
+    o24: {name:"M2「キャンセル」", from:"M2", to:"S4", api:null, write:null, note:"closeEditModal。"},
+  };
+
+  const body = document.body;
+  const setTgl = (btn, cls, on) => {
+    btn.setAttribute("aria-pressed", String(on));
+    body.classList.toggle(cls, on);
+  };
+  const tf = document.getElementById("t-frames");
+  const th = document.getElementById("t-holes");
+  setTgl(tf, "frames", false);
+  setTgl(th, "holes", true);
+  tf.addEventListener("click", () => setTgl(tf, "frames", tf.getAttribute("aria-pressed") !== "true"));
+  th.addEventListener("click", () => setTgl(th, "holes",  th.getAttribute("aria-pressed") !== "true"));
+
+  const ttl = document.getElementById("i-ttl");
+  const bodyEl = document.getElementById("i-body");
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+
+  function show(op, el) {
+    const d = OPS[op];
+    if (!d) return;
+    document.querySelectorAll(".op.sel").forEach((n) => n.classList.remove("sel"));
+    el.classList.add("sel");
+    ttl.innerHTML = esc(d.name) + ' <span class="arrow">' + esc(d.from) + " → " + esc(d.to) + "</span>";
+    const rows = [
+      ["遷移先", d.to === "stay" ? '<span class="none">同じ画面にとどまる</span>' : "<b>" + esc(d.to) + "</b>"],
+      ["API", d.api ? "<code>" + esc(d.api) + "</code>" : '<span class="none">通信しない</span>'],
+      ["書き込む保存先", d.write ? "<code>" + esc(d.write) + "</code>" : '<span class="none">書き込みなし</span>'],
+      ["注記", (d.note.indexOf("⚠") >= 0 ? '<span class="w">' : "<span>") + esc(d.note) + "</span>"],
+    ];
+    bodyEl.innerHTML = rows.map((r) => "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>").join("");
+
+    const target = d.to.match(/^(S\d|M\d)$/);
+    document.querySelectorAll(".scr.lit").forEach((n) => n.classList.remove("lit"));
+    if (target) {
+      const scr = document.getElementById("scr-" + target[1]);
+      if (scr) {
+        scr.classList.add("lit");
+        scr.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }
+
+  document.querySelectorAll(".op").forEach((el) => {
+    el.addEventListener("click", () => show(el.dataset.op, el));
+  });
+</script>

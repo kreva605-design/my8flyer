@@ -1,10 +1,26 @@
+# build-manifest.yml — My 8flyer（ANA国際線特典航空券 旅程チェッカー）の整合性の単一情報源
+#
+# 正式設計書（受入条件の正本）:
+#   ~/Library/.../claude-vault/projects/my8flyer/architecture.md
+#
+# ハッシュ確定の根拠:
+#   - 2026-09-20 特典の種類3分割（REQ-88〜90）。architecture.md は §24 を末尾に追記しただけで既存節は未変更。実装・テスト・manifest を同じ作業内で追従させ、単体107/107・画面44/44・smoke15/15・combos24/24・dates30/30・seats20/20 PASS。参照欠損は diff_report.py の解決規約を揃え（REQ-44）、manifest側の記法誤り6件も修正して missing_file 0
+#
 project: my8flyer
 schema_version: 1
+# 画面遷移マップ（画面を持つ案件の必須成果物）。
+# ★sources: には入れない＝画面を触るたび全要件が stale 化するため（verify設計書 §2.4）
+screen_map:
+  html: projects/my8flyer/docs/screen-map.html
+  markdown: claude-vault/projects/my8flyer/screen-map_2026-09-20_my8flyer.md
+  artifact_url: https://claude.ai/code/artifact/ad8fbce6-6d6f-495d-9616-1d7e2f9ce30b
+  mode: close
+  updated_at: 2026-09-20
 updated_at: 2026-09-19
 sources:
   design:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
-    sha256: a9fa7b7dc811e7f4ba02728c98ba094c49da961141b29763d64ab3e87ac01a50
+    sha256: 2852e40c3a7cb7944f9ba7d3e391d5a68de58c506827a7984bebdded1a234a9c
   test_report:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/test_report_2026-05-20_phase11.md
     sha256: 7d049575b537d667ba7f2aa51a6bb5332b19f9a80a1c5fca2397cd429dd6173f
@@ -92,7 +108,7 @@ requirements:
 - id: REQ-11
   text: 【廃止 2026-07-01】2モード切替。静的路線データ化に伴いフライト確認を常時利用可能に一本化（動作モードUI撤去）
   design_ref: architecture.md#14
-  impl_ref: index.html（onModeChange/toggleTokenRow/m8f_mode 削除）
+  impl_ref: index.html
   test_ref: ''
   verify_mode: manual
   last_verified: 2026-07-01
@@ -100,7 +116,7 @@ requirements:
 - id: REQ-12
   text: 飛行機SVGビジュアルUI（タップで都市選択・選択即確定）
   design_ref: architecture.md#5
-  impl_ref: index.html::openModal(),node-departure/destination/arrival
+  impl_ref: index.html::openModal
   test_ref: ''
   verify_mode: manual
   last_verified: 2026-05-20
@@ -164,7 +180,7 @@ requirements:
 - id: REQ-20
   text: 単体テスト 20件全PASS（Playwright・STATE直接書き換え注入方式）
   design_ref: architecture.md#8-9
-  impl_ref: tests/playwright (Phase 11 で実施・恒久化はB)
+  impl_ref: tests/rules-core.test.mjs,tests/proposer.test.mjs
   test_ref: test_report_2026-05-20_phase11.md
   verify_mode: manual
   last_verified: 2026-05-20
@@ -173,7 +189,7 @@ requirements:
   text: 非公表ルール 同一区間 (A→B) の旅程内2回利用検出（PSS実装制約・WARN扱い）
   design_ref: architecture.md#12
   impl_ref: src/rules-core.js::validateItinerary()[unofficial.dup_segment]
-  test_ref: /tmp/test_dup_segments.mjs,/tmp/test_my8flyer_dup_e2e.py,tests/rules-core.test.mjs
+  test_ref: tests/rules-core.test.mjs
   verify_mode: auto
   last_verified: 2026-09-06
   status: green
@@ -469,7 +485,7 @@ requirements:
   text: 途中降機は往路・復路のどちらにも置ける／「後日に飛ぶ」の上限は旅行開始日から1年。この2つを出典・原文つきで正本に持つ
   design_ref: architecture.md#20-1
   impl_ref: data/award-rules.json
-  test_ref: scripts/scrape_guard/guard.py validate
+  test_ref: scripts/scrape_guard/guard.py::validate
   verify_mode: manual
   last_verified: 2026-09-07
   status: green
@@ -501,7 +517,7 @@ requirements:
   text: 「スターアライアンス特典にはANA以外の加盟社便が1区間以上必要」という実務ルールを、出典・原文つきで正本に持つ。公式が製品名でしか書いていないため二次情報であることを明示する
   design_ref: architecture.md#20-7
   impl_ref: data/award-rules.json
-  test_ref: scripts/scrape_guard/guard.py validate
+  test_ref: scripts/scrape_guard/guard.py::validate
   verify_mode: manual
   last_verified: 2026-09-08
   status: yellow

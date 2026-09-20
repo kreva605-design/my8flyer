@@ -821,7 +821,8 @@
       margin: 14px 2px 8px;
     }
     .pp-gain h3 { font-size: 0.86rem; color: #003270; font-weight: bold; }
-    .pp-gain span { font-size: 0.74rem; color: #667; }
+    /* マイル数は途中で折り返さない（「62,000 マイ／ル」と割れて読めなくなる） */
+    .pp-gain span { font-size: 0.74rem; color: #667; white-space: nowrap; margin-left: 10px; }
     .pp-list { list-style: none; border: 1px solid #cfe0ee; border-radius: 12px; overflow: hidden; }
     .pp-list li + li { border-top: 1px solid #e3edf5; }
     .pp-city {
@@ -907,6 +908,10 @@
     .pp-kind { font-size: 0.74rem; color: #556; line-height: 1.6; }
     .pp-kind b { color: #223; }
     .pp-kind-warn { color: #8a5a00; background: #fff6e5; border-radius: 8px; padding: 7px 9px; line-height: 1.7; }
+    /* いま選んでいる特典の目印と、成立する提携社の名前 */
+    .pp-kind-now { font-size: 0.64rem; color: #0b5a8a; background: #e6f1f8;
+                   border-radius: 999px; padding: 1px 7px; margin-left: 4px; white-space: nowrap; }
+    .pp-kind-who { color: #0b7a52; }
     .pp-warn { font-size: 0.68rem; color: #8a5a00; background: #fff1d6; border-radius: 999px;
                padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
     .pp-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
@@ -961,11 +966,15 @@
           <option value="ana">ANA便のみ</option>
         </select>
       </label>
+      <!-- ★説明は「特典の種類」の直下に置く。航空会社の欄を挟んで下に出すと、
+           どちらの欄の説明なのか読み取れない -->
+      <p class="pp-hint" id="pp-award-hint"></p>
+      <!-- ラベルに「この1社で組みます」と書くと、既定の「すべての提携社から探す」を
+           選んでいるときに欄の中身と食い違う。条件は上の説明側で言う -->
       <label class="pp-field" id="pp-airline-field" hidden>
-        <span>航空会社（全区間をこの1社で組みます）</span>
+        <span>航空会社</span>
         <select id="pp-airline" class="pp-sel"></select>
       </label>
-      <p class="pp-hint" id="pp-award-hint"></p>
       <label class="pp-field">
         <span>座席</span>
         <select id="pp-cabin" class="pp-sel">
@@ -3824,12 +3833,14 @@ function ppAwardChange() {
   const hint  = document.getElementById('pp-award-hint');
   if (field) field.hidden = kind !== 'partner';
   if (kind === 'partner') ppFillAirlines();
+  // ★選択肢のラベルで言っていることを繰り返さない。
+  //   ここに書くのは「選んだ結果ここが効く」という、ラベルからは読めないことだけ
   if (hint) {
     hint.innerHTML = kind === 'ana'
-      ? 'ANA運航便だけで組む特典です（全5条）。<b>日本発の途中降機はできません。</b>'
+      ? '<b>日本発の途中降機はできません。</b>'
       : kind === 'partner'
-        ? '<b>スターアライアンス便とは混ぜられません。</b>往復の全区間をこの1社の運航便だけで組む必要があります（全7条）。'
-        : '加盟社を自由に組み合わせられます（全7条）。<b>ANA便だけで組める旅程はANA国際線特典の扱いになります。</b>';
+        ? '往復の全区間を同じ1社で組みます。<b>スターアライアンス便とは混ぜられません。</b>'
+        : '<b>ANA以外の加盟社の便が1区間以上必要です。</b>ANA便だけで組める旅程はANA国際線特典の扱いになり、必要マイルが変わります。';
   }
 }
 
@@ -3946,8 +3957,8 @@ function ppAwardChipLabel() {
   if (kind === 'ana') return 'ANA便のみ';
   if (kind !== 'partner') return 'スターアライアンス';
   const code = PP.req?.partnerAirline;
-  if (!code) return '提携航空会社（すべて）';
-  return '提携 ' + (PP.airlines?.names?.[code] ?? code);
+  if (!code) return '提携航空会社（1社だけ）';
+  return (PP.airlines?.names?.[code] ?? code) + 'のみ';
 }
 
 // 行に出す航空会社の見出し。提携1社のときだけ出す（スタアラは社を1つに決められない）
@@ -4157,9 +4168,12 @@ function ppShowItinerary(w) {
   // 必要マイルのチャートもシーズンの有無も変わるので、黙って提携特典の顔で出さない
   // ★どの特典・どの社のまとまりで飛ぶ旅程かを必ず添える。
   //   同じ区間でもスタアラ便と提携1社では別の特典で、混ぜて発券できない
-  note.textContent = (w.planLabel ? w.planLabel + '。 ' : '')
-    + (w.awardNote ? w.awardNote + ' ' : '')
-    + (k ? (PP_WAY[k]?.full ?? '') : 'まっすぐ行って、まっすぐ帰る旅程です。');
+  // 体言止めの見出し（planLabel）に句点を付けると据わりが悪いので「／」で区切る
+  note.textContent = [
+    w.planLabel,
+    w.awardNote,
+    k ? (PP_WAY[k]?.full ?? '') : 'まっすぐ行って、まっすぐ帰る旅程です。',
+  ].filter(Boolean).join(' ／ ');
   note.className = 'pp-note' + (w.actualAward === 'ana' ? ' pp-kind-warn' : (w.extraVia === 'home' ? '' : ' plain'));
 
   const it = w.itinerary;
@@ -4197,13 +4211,27 @@ function ppShowItinerary(w) {
   } catch (e) { console.warn('特典別の判定に失敗:', e); }
   // ✅／❌ の2値にしない。規約を通っていても、実際に選べる便が1社だけで、
   // その社の規約なら違反になる旅程は「⚠️ 要確認」として出す（成立と言い切らない）
-  document.getElementById('pp-kinds').innerHTML = kinds.length
-    ? kinds.map(x => {
+  //
+  // ★いま選んでいる特典を先頭に出す。固定順（ANA→スタアラ→提携）のままだと、
+  //   提携航空会社で探して出てきた旅程なのに「❌ ❌ ✅」の順に並び、
+  //   この旅程は組めないのだと読めてしまう（実測で確認）
+  const chosenKind = PP.req?.awardKind ?? (PP.req?.awardType === 'ana' ? 'ana' : null);
+  const ordered = [...kinds].sort((a, b) =>
+    (b.kind === chosenKind) - (a.kind === chosenKind));
+  document.getElementById('pp-kinds').innerHTML = ordered.length
+    ? ordered.map(x => {
         const icon = x.ok ? '✅' : '❌';
         const cls  = (!x.ok && x.anaOnly) ? ' pp-kind-warn' : '';
+        const mark = x.kind === chosenKind
+          ? ' <span class="pp-kind-now">いま選んでいる特典</span>' : '';
+        // 成立する提携社は名前を出す（「提携航空会社で組める」だけでは予約に進めない）
+        const who = (x.kind === 'partner' && x.ok && x.airlines?.length)
+          ? `<br><span class="pp-kind-who">組める社：${x.airlines.map(a => a.name).join('・')}</span>` : '';
+        // 往路・復路で同じ理由が並ぶことがあるので重複を落とす
+        const why = [...new Set(x.reasons ?? [])].slice(0, 2).join(' ／ ');
         const body = x.ok ? ''
-          : `<br><span style="color:${x.anaOnly ? '#8a5a00' : '#a55'}">${(x.reasons ?? []).slice(0, 2).join(' ／ ')}</span>`;
-        return `<div class="pp-kind${cls}">${icon} <b>${x.label}</b>${body}</div>`;
+          : `<br><span style="color:${x.anaOnly ? '#8a5a00' : '#a55'}">${why}</span>`;
+        return `<div class="pp-kind${cls}">${icon} <b>${x.label}</b>${mark}${body}${who}</div>`;
       }).join('')
     : '';
 

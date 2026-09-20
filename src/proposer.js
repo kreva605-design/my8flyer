@@ -221,7 +221,8 @@ export function planLabel(planId, airlines) {
   if (planId.startsWith('single:')) {
     const code = planId.slice(7);
     const name = airlines?.names?.[code];
-    return `提携特典・${name ? name + '（' + code + '）' : code} 1社のみ`;
+    // 「（VN） 1社のみ」と空白を入れると画面で間延びするので詰める
+    return `提携特典・${name ? name + '（' + code + '）' : code}1社のみ`;
   }
   return planId;
 }
