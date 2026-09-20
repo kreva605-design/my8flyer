@@ -318,8 +318,10 @@ test('増える都市は1旅程に1つまで（寄り道と帰着地を掛け算
   //   同じ都市が行き方の数だけ出る。畳むのは画面側（都市ごとに1行）
   const { proposals } = propose(
     { origin: 'HND', destination: 'CDG', wantStopover: true }, ctxGeo);
-  const keys = proposals.map((p) => `${p.miles}|${p.extraCity ?? '-'}|${p.extraVia ?? '-'}|${p.homeLeg ?? '-'}`);
-  assert.equal(new Set(keys).size, keys.length, '同じ（増える都市・行き方）が2本出ている');
+  // ★航空会社のまとまり（plan）も別の旅。特典の種類を絞らずに呼ぶと、同じ都市・同じ行き方でも
+  //   スターアライアンスの案と提携1社の案が別々に出る（2026-09-19 の「特典の種類」分割）
+  const keys = proposals.map((p) => `${p.miles}|${p.extraCity ?? '-'}|${p.extraVia ?? '-'}|${p.homeLeg ?? '-'}|${p.plan}`);
+  assert.equal(new Set(keys).size, keys.length, '同じ（増える都市・行き方・航空会社のまとまり）が2本出ている');
   assert.ok(proposals.length < 80, `一覧が長すぎる（${proposals.length}本）`);
   const cities = new Set(proposals.map((p) => p.extraCity ? cityKey(p.extraCity) : '-'));
   assert.ok(cities.size < 40, `都市が多すぎる（${cities.size}都市）`);
@@ -422,8 +424,8 @@ test('同じ街の別空港は「もう1都市」に数えない（羽田と成�
   // 羽田発の旅程で成田に降りても、増えるのは都市ではなく空港でしかない
   for (const o of ['HND', 'KIX']) {
     const { proposals } = propose({ origin: o, destination: 'CDG', wantStopover: true }, ctxGeo);
-    const keys = proposals.map((p) => `${p.miles}|${p.extraCity ? cityKey(p.extraCity) : '-'}|${p.extraVia ?? '-'}|${p.homeLeg ?? '-'}`);
-    assert.equal(new Set(keys).size, keys.length, `${o}発で同じ街・同じ行き方が2行出ている`);
+    const keys = proposals.map((p) => `${p.miles}|${p.extraCity ? cityKey(p.extraCity) : '-'}|${p.extraVia ?? '-'}|${p.homeLeg ?? '-'}|${p.plan}`);
+    assert.equal(new Set(keys).size, keys.length, `${o}発で同じ街・同じ行き方・同じ航空会社のまとまりが2行出ている`);
     for (const p of proposals) {
       if (!p.extraCity) continue;
       assert.notEqual(cityKey(p.extraCity), cityKey(o), `出発地と同じ街（${p.extraCityName}）を増える都市にしている`);
@@ -584,8 +586,10 @@ test('画面に出す形は都市ごとに1行で、行き方は行の中に入�
   const rows = groupByCity(proposals, { airports: COORDS });   // airports.json は座標と国を同じ表に持つ
 
   assert.ok(rows.length < proposals.length, '畳めていない');
-  const names = rows.map((r) => r.iata);
-  assert.equal(new Set(names).size, names.length, '同じ都市が2行ある');
+  // 都市 × 航空会社のまとまりで1行。同じ都市でも、スタアラで行く案とベトナム航空で行く案は
+  //   別の行にする（畳むと、どの社の案なのかが画面から消える）
+  const names = rows.map((r) => `${r.iata}|${r.plan}`);
+  assert.equal(new Set(names).size, names.length, '同じ都市・同じ航空会社のまとまりが2行ある');
 
   // ドイツはフランクフルトとミュンヘンが1行にまとまる（Q10・2026-09-07）
   const de = rows.find((r) => r.country === 'DE');

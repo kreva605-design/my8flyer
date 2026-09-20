@@ -831,6 +831,9 @@
     }
     .pp-city.on { background: #eaf3fb; }
     .pp-city .sub { display: block; font-size: 0.68rem; color: #7a879a; margin-top: 2px; }
+    /* 提携1社の案は、どの社の案かを都市名の横に出す（社が分からない一覧を見せない） */
+    .pp-airline-tag { font-size: 0.66rem; color: #0b5a8a; background: #e6f1f8;
+                      border-radius: 999px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
     .pp-city .km  { font-size: 0.74rem; color: #556; font-variant-numeric: tabular-nums; }
     .pp-ways { background: #f4f9fd; border-top: 1px solid #e3edf5; }
     .pp-way {
@@ -946,13 +949,23 @@
         <select id="pp-arrival" class="pp-sel"></select>
       </label>
       <p class="pp-hint">帰りに降りる場所を指定すると、その街は<b>「もう1都市」には数えません</b>（自分で決めた前提なので）。その分、寄り道の候補がそのまま出ます。<br>帰りに<b>出発する</b>場所（海外側）は提案では目的地に固定します。変えたいときは下の「じぶんで組む」で指定してください。</p>
+      <!-- ★特典の種類は3つ。スターアライアンスと提携航空会社は**混ぜられない別の特典**で、
+           提携社は1社だけで全区間を組む必要がある。1つの「提携航空会社特典」にまとめていた
+           ときは、候補を畳む段で遠回りでないスタアラ便が必ず代表になり、提携1社の案が
+           一覧から消えていた（2026-09-19 分割）。用語は「じぶんで組む」側の判定と同じ -->
       <label class="pp-field">
         <span>特典の種類</span>
-        <select id="pp-award" class="pp-sel">
-          <option value="partner">提携航空会社（スターアライアンス含む）</option>
+        <select id="pp-award" class="pp-sel" onchange="ppAwardChange()">
+          <option value="star">スターアライアンス（加盟社を自由に組み合わせ）</option>
+          <option value="partner">提携航空会社（1社だけで組む）</option>
           <option value="ana">ANA便のみ</option>
         </select>
       </label>
+      <label class="pp-field" id="pp-airline-field" hidden>
+        <span>航空会社（全区間をこの1社で組みます）</span>
+        <select id="pp-airline" class="pp-sel"></select>
+      </label>
+      <p class="pp-hint" id="pp-award-hint"></p>
       <label class="pp-field">
         <span>座席</span>
         <select id="pp-cabin" class="pp-sel">
@@ -3772,8 +3785,52 @@ function ppInitSelects() {
 
   org.value = localStorage.getItem('pp-origin') ?? 'HND';
   dst.value = localStorage.getItem('pp-dest')   ?? 'CDG';
+  // ★保存キーは pp-award-kind（3択）。旧 pp-award は2択（partner/ana）で値の意味が違うので読まない
   const aw = document.getElementById('pp-award');
-  if (aw) aw.value = localStorage.getItem('pp-award') ?? 'partner';
+  if (aw) {
+    const saved = localStorage.getItem('pp-award-kind');
+    aw.value = ['star', 'partner', 'ana'].includes(saved) ? saved : 'star';
+  }
+  ppFillAirlines();                    // 提携社の一覧は airlines.json が正本（非同期）
+  ppAwardChange();
+}
+
+// 提携航空会社の選択肢を作る。正本は data/airlines.json の ana_partners で、
+// スターアライアンス加盟社は star 側で扱うのでここには出さない
+async function ppFillAirlines() {
+  const sel = document.getElementById('pp-airline');
+  if (!sel || sel.dataset.filled) return;
+  try {
+    const airlines = PP.airlines ?? await fetch('data/airlines.json').then((r) => r.json());
+    PP.airlines = airlines;
+    const sa = new Set(airlines.star_alliance ?? []);
+    const singles = (airlines.ana_partners ?? []).filter((a) => !sa.has(a));
+    sel.innerHTML = '<option value="">すべての提携社から探す</option>'
+      + singles.map((a) => `<option value="${a}">${airlines.names?.[a] ?? a}（${a}）</option>`).join('');
+    sel.dataset.filled = '1';
+    const saved = localStorage.getItem('pp-partner-airline') ?? '';
+    if ([...sel.options].some((o) => o.value === saved)) sel.value = saved;
+  } catch (e) {
+    // 読めないまま「すべて」だけ出して黙って動かさない。選べない理由を画面に出す
+    sel.innerHTML = '<option value="">航空会社の一覧を読めませんでした</option>';
+    console.warn('airlines.json を読めませんでした:', e);
+  }
+}
+
+// 特典の種類を変えたら、航空会社の欄の出し入れと説明文を切り替える
+function ppAwardChange() {
+  const kind = document.getElementById('pp-award')?.value ?? 'star';
+  const field = document.getElementById('pp-airline-field');
+  const hint  = document.getElementById('pp-award-hint');
+  if (field) field.hidden = kind !== 'partner';
+  if (kind === 'partner') ppFillAirlines();
+  if (hint) {
+    hint.innerHTML = kind === 'ana'
+      ? 'ANA運航便だけで組む特典です（全5条）。<b>日本発の途中降機はできません。</b>'
+      : kind === 'partner'
+        ? '<b>スターアライアンス便とは混ぜられません。</b>往復の全区間をこの1社の運航便だけで組む必要があります（全7条）。'
+        : '加盟社を自由に組み合わせられます（全7条）。<b>ANA便だけで組める旅程はANA国際線特典の扱いになります。</b>';
+  }
 }
 
 // 提案に必要なものを一度だけ読む。路線データは既存の ROUTE_DB を使い回す
@@ -3812,10 +3869,16 @@ async function ppSearch() {
     const origin = document.getElementById('pp-origin').value;
     const arrival = document.getElementById('pp-arrival').value || null;
 
+    // 特典の種類は3つ（star / partner / ana）。規約（全7条・全5条）は awardType 側で選ぶ
+    const awardKind = document.getElementById('pp-award').value;
+    const partnerAirline = awardKind === 'partner'
+      ? (document.getElementById('pp-airline').value || null) : null;
     const req = {
       origin,
       destination: document.getElementById('pp-dest').value,
-      awardType:   document.getElementById('pp-award').value,
+      awardKind,
+      partnerAirline,
+      awardType:   awardKind === 'ana' ? 'ana' : 'partner',
       cabin:       document.getElementById('pp-cabin').value,
       wantStopover: true,
     };
@@ -3825,7 +3888,8 @@ async function ppSearch() {
 
     localStorage.setItem('pp-origin', req.origin);
     localStorage.setItem('pp-dest',   req.dest ?? req.destination);
-    localStorage.setItem('pp-award',  req.awardType);
+    localStorage.setItem('pp-award-kind', req.awardKind);
+    localStorage.setItem('pp-partner-airline', req.partnerAirline ?? '');
     PP.req = req;
 
     const { proposals, stats } = PP.mod.propose(req, {
@@ -3841,7 +3905,8 @@ async function ppSearch() {
     PP.base = proposals.filter(p => p.extraCity == null && within(p))
                        .sort((a, b) => a.transits - b.transits)[0] ?? null;
     PP.rows = PP.mod.groupByCity(proposals.filter(within), { airports: PP.airports });
-    PP.selKey = PP.rows[0]?.iata ?? null; PP.way = 0; PP.showFar = false;
+    PP.selKey = PP.rows[0] ? `${PP.rows[0].iata ?? '__base__'}|${PP.rows[0].plan ?? '-'}` : null;
+    PP.way = 0; PP.showFar = false;
 
     msg.textContent = '';
     ppRender();
@@ -3874,11 +3939,30 @@ function ppGo(screen) {
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
+// 条件バーに出す「特典の種類」の見出し。提携1社のときは社名まで出す
+//（どの社で探した結果なのかが分からないまま一覧を見せない）
+function ppAwardChipLabel() {
+  const kind = PP.req?.awardKind ?? (PP.req?.awardType === 'ana' ? 'ana' : 'star');
+  if (kind === 'ana') return 'ANA便のみ';
+  if (kind !== 'partner') return 'スターアライアンス';
+  const code = PP.req?.partnerAirline;
+  if (!code) return '提携航空会社（すべて）';
+  return '提携 ' + (PP.airlines?.names?.[code] ?? code);
+}
+
+// 行に出す航空会社の見出し。提携1社のときだけ出す（スタアラは社を1つに決められない）
+function ppRowAirline(r) {
+  const code = (r?.plan ?? '').startsWith('single:') ? r.plan.slice(7) : null;
+  if (!code) return '';
+  return `<span class="pp-airline-tag">${PP.airlines?.names?.[code] ?? code}</span>`;
+}
+
 function ppRender() {
   // ★「もう1都市なし」も選べる行にする。上の枠に出すだけだと、
   // まっすぐ帰る旅程を選んで先へ進むことができなかった
   const baseRow = PP.base ? [{
     city: 'もう1都市なし（まっすぐ帰る）', iata: null, country: null,
+    plan: PP.base.plan ?? null, planLabel: PP.base.planLabel ?? null,
     miles: PP.base.miles, hub: 0, detour: PP.base.detourKm ?? 0,
     effort: PP.base.effort ?? 'ほぼ通り道', sameCountry: [], ways: [PP.base],
   }] : [];
@@ -3904,13 +3988,14 @@ function ppRender() {
   const far  = ordered.filter(r => r.effort === '大回り');
   const list = PP.showFar ? [...near, ...far] : near;
   // ★選択は都市で持つ。行数が変わっても選び直しにならない
-  const keyOf = (r) => r.iata ?? '__base__';
+  // ★選択は「都市 × 航空会社のまとまり」で持つ。提携社をすべて出すときは
+  //   同じ都市が社ごとに複数行になるため、都市だけでは行を一意に選べない
+  const keyOf = (r) => `${r.iata ?? '__base__'}|${r.plan ?? '-'}`;
   const cur = list.find((r) => keyOf(r) === PP.selKey) ?? null;
   if (cur && PP.way >= cur.ways.length) PP.way = 0;
 
   document.getElementById('pp-cond-origin').textContent = '出発地 ' + ppCityName(PP.req.origin);
-  document.getElementById('pp-cond-award').textContent  =
-    PP.req.awardType === 'ana' ? 'ANA便のみ' : '提携航空会社特典';
+  document.getElementById('pp-cond-award').textContent  = ppAwardChipLabel();
   document.getElementById('pp-cond-cabin').textContent  =
     PP.req.cabin === 'biz' ? 'ビジネス' : 'エコノミー';
   // 帰りの場所を指定していたら条件バーに出す（黙って効かせない）
@@ -3954,7 +4039,7 @@ function ppRender() {
     const sub   = (r.iata === null
       ? `${ppMi(r.miles)} マイル ・ 乗継${r.ways[0].transits}回`
       : `${icons} 行き方${r.ways.length}通り ・ 就航${r.hub}路線${same}`) + seat;
-    btn.innerHTML = `<span>${r.city}<span class="sub">${sub}</span></span>`
+    btn.innerHTML = `<span>${r.city}${ppRowAirline(r)}<span class="sub">${sub}</span></span>`
       + `<span class="km">${ppKm(r.detour)}</span><span class="km">${on ? '▾' : '›'}</span>`;
     btn.addEventListener('click', () => {
       if (r.iata === null) { ppShowItinerary(r.ways[0]); return; }   // 基準はそのまま旅程へ
@@ -4070,7 +4155,10 @@ function ppShowItinerary(w) {
   const note = document.getElementById('pp-s3-note');
   // ANA便だけで組める旅程は、提携特典ではなくANA国際線特典として扱われる。
   // 必要マイルのチャートもシーズンの有無も変わるので、黙って提携特典の顔で出さない
-  note.textContent = (w.awardNote ? w.awardNote + ' ' : '')
+  // ★どの特典・どの社のまとまりで飛ぶ旅程かを必ず添える。
+  //   同じ区間でもスタアラ便と提携1社では別の特典で、混ぜて発券できない
+  note.textContent = (w.planLabel ? w.planLabel + '。 ' : '')
+    + (w.awardNote ? w.awardNote + ' ' : '')
     + (k ? (PP_WAY[k]?.full ?? '') : 'まっすぐ行って、まっすぐ帰る旅程です。');
   note.className = 'pp-note' + (w.actualAward === 'ana' ? ' pp-kind-warn' : (w.extraVia === 'home' ? '' : ' plain'));
 
@@ -4201,7 +4289,10 @@ async function ppFromEditor() {
   }
   document.getElementById('pp-origin').value = STATE.departure;
   document.getElementById('pp-dest').value   = STATE.destination;
-  document.getElementById('pp-award').value  = STATE.awardType;
+  // 「じぶんで組む」側の設定は規約2種（全7条／全5条）なので、提携はスタアラとして開く。
+  // 提携1社で探したいときは、提案画面で「提携航空会社」に切り替えてもらう
+  document.getElementById('pp-award').value  = STATE.awardType === 'ana' ? 'ana' : 'star';
+  ppAwardChange();
   document.getElementById('pp-arrival').value =
     (STATE.arrival && STATE.arrival !== STATE.departure) ? STATE.arrival : '';
   // いま置いてある経由地を条件にする（目的地・出発地・帰着地は条件ではない）

@@ -1,6 +1,6 @@
 project: my8flyer
 schema_version: 1
-updated_at: 2026-09-07
+updated_at: 2026-09-19
 sources:
   design:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
@@ -711,4 +711,31 @@ requirements:
   test_ref: tests/browser_combos.py
   verify_mode: auto
   last_verified: 2026-09-15
+  status: green
+
+- id: REQ-88
+  text: 「特典の種類」を3つ（スターアライアンス／提携航空会社1社／ANA便のみ）に分けて検索できる。スターアライアンス便と非加盟の提携社便は混ぜて発券できない別の特典なので、1つの「提携航空会社特典」にまとめて探さない。提携航空会社を選んだときは航空会社を1社指定できる（未指定なら提携社すべてを別々に探す）。提携社の一覧は data/airlines.json の ana_partners が正本で、画面に書き写さない
+  design_ref: architecture.md#24-2
+  impl_ref: src/proposer.js::carrierPlans(),src/proposer.js::propose()[awardKind],index.html::ppAwardChange(),index.html::ppFillAirlines()
+  test_ref: tests/proposer.test.mjs,tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-19
+  status: green
+
+- id: REQ-89
+  text: 候補を畳むとき、航空会社のまとまり（plan）が違えば別の案として残す。マイル数と寄り道先だけで畳むと、同じ条件では必ず遠回りでないスターアライアンス便が代表になり、提携1社の案が一覧から消える（成田→アムステルダムでベトナム航空の案が47本中45番目に埋没していた）。画面の行も都市×航空会社のまとまりで持ち、提携1社の行には社名を出す
+  design_ref: architecture.md#24-1,24-2
+  impl_ref: src/proposer.js::propose()[keep.key],src/proposer.js::groupByCity(),index.html::ppRowAirline()
+  test_ref: tests/proposer.test.mjs,tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-19
+  status: green
+
+- id: REQ-90
+  text: グループ空港（東京（羽田 / 成田）・大阪（関空 / 伊丹 / 神戸））を出発地に選んでも候補が出る。routes.json は実空港しか持たないため、路線はグループ空港のノードにも張る。ただしグループ空港は利用者が自分で選ぶ端点としてだけ使い、乗り継ぎ地・帰着地の候補にはしない（同じ街に2回降りる旅程や、同じ東京が3行に増えることを防ぐ）。経路の探索では同じ街を2回通らない
+  design_ref: architecture.md#24-3
+  impl_ref: src/proposer.js::buildGraph()[nodesOf],src/proposer.js::enumeratePaths()[cityKey],src/proposer.js::propose()[usableDomestic]
+  test_ref: tests/proposer.test.mjs,tests/browser_propose.py
+  verify_mode: auto
+  last_verified: 2026-09-19
   status: green

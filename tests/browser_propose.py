@@ -31,7 +31,7 @@ try:
 
         pg.select_option("#pp-origin", "HND")
         pg.select_option("#pp-dest", "CDG")
-        pg.select_option("#pp-award", "partner")
+        pg.select_option("#pp-award", "star")   # 2026-09-19 以降 partner は「提携1社」の意味
         t0 = time.time()
         pg.click("#pp-go")
         pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
@@ -48,7 +48,7 @@ try:
         found = pg.evaluate("""() => {
             const i = PP.rows.findIndex(r => r.ways.some(w => w.extraVia === 'home'));
             if (i < 0) return null;
-            PP.selKey = PP.rows[i].iata; PP.way = 0; ppRender();
+            PP.selKey = PP.rows[i].iata + '|' + (PP.rows[i].plan ?? '-'); PP.way = 0; ppRender();
             const r = PP.rows[i];
             return { city: r.city, ways: r.ways.map(w => w.extraVia + (w.homeLeg ? ':' + w.homeLeg : '')) };
         }""")
@@ -112,7 +112,7 @@ try:
         info = pg.evaluate("""() => {
             const i = PP.rows.findIndex(r => r.ways.some(w => w.actualAward === 'ana'));
             if (i < 0) return null;
-            PP.selKey = PP.rows[i].iata; PP.way = PP.rows[i].ways.findIndex(w => w.actualAward === 'ana'); ppRender();
+            PP.selKey = PP.rows[i].iata + '|' + (PP.rows[i].plan ?? '-'); PP.way = PP.rows[i].ways.findIndex(w => w.actualAward === 'ana'); ppRender();
             const w = PP.rows[i].ways[PP.way];
             return { city: PP.rows[i].city, miles: w.miles, note: w.milesNote };
         }""")
@@ -135,7 +135,7 @@ try:
         pg.select_option("#pp-origin", "HND"); pg.select_option("#pp-dest", "CDG")
         pg.click("#pp-go"); pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
         check("検索すると「候補」に切り替わる", vis("pp-s2") and not vis("pp-s1"), None)
-        pg.evaluate("() => { PP.selKey = PP.rows[0].iata; PP.way = 0; ppRender(); }")
+        pg.evaluate("() => { PP.selKey = PP.rows[0].iata + '|' + (PP.rows[0].plan ?? '-'); PP.way = 0; ppRender(); }")
         pg.click(".pp-way")
         pg.wait_for_selector("#pp-s3:not([hidden])", timeout=5000)
         check("行き方を選ぶと「旅程」に切り替わる", vis("pp-s3") and not vis("pp-s2"), None)
@@ -152,7 +152,7 @@ try:
         out = pg.evaluate("""() => {
             const i = PP.rows.findIndex(r => r.ways.some(w => w.homeLeg === 'out'));
             if (i < 0) return null;
-            PP.selKey = PP.rows[i].iata; PP.way = PP.rows[i].ways.findIndex(w => w.homeLeg === 'out'); ppRender();
+            PP.selKey = PP.rows[i].iata + '|' + (PP.rows[i].plan ?? '-'); PP.way = PP.rows[i].ways.findIndex(w => w.homeLeg === 'out'); ppRender();
             const el = document.querySelector('.pp-way.on .wd');
             return { text: el ? el.textContent : null, route0: PP.rows[i].ways[PP.way].route[0] };
         }""")
@@ -197,6 +197,59 @@ try:
             .every(w => JSON.stringify(w.itinerary).includes('FRA'))""")
         check("じぶんで組む画面から提案を受けられる", pg.is_visible("#pp-s2"), None)
         check("置いてある経由地が条件になる", "フランクフルト" in pin and okvia, pin)
+
+        # ══ 特典の種類を3つに分ける（2026-09-19）══════════════════════
+        # ①「東京（羽田 / 成田）」を選んでも候補が出ること（以前はどの行き先でも0件だった）
+        # ②「提携航空会社 → ベトナム航空」で、成田/羽田→ハノイ→アムステルダムが出ること
+        # 直前の検査で「フランクフルトを必ず通る」が条件に残っているので外す
+        pg.evaluate("() => { PP.mustVia = []; ppGo('s1'); }")
+        pg.select_option("#pp-origin", "TYO")
+        pg.select_option("#pp-dest", "AMS")
+        pg.select_option("#pp-arrival", "")
+        pg.select_option("#pp-award", "star")
+        pg.click("#pp-go")
+        pg.wait_for_function("PP.req && PP.req.destination === 'AMS' && PP.req.awardKind === 'star'", timeout=60000)
+        pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        base_t = pg.inner_text("#pp-base")
+        rows_t = pg.eval_on_selector_all("#pp-list .pp-city", "els => els.length")
+        check("グループ空港（東京 羽田/成田）発でも基準の旅程が作れる",
+              "作れませんでした" not in base_t, base_t.replace("\n", " ")[:80])
+        check("グループ空港発でも候補が出る", rows_t >= 1, f"{rows_t}行")
+        no_transit = pg.evaluate("""() => PP.rows.concat(PP.base ? [{ways:[PP.base]}] : [])
+            .flatMap(r => r.ways)
+            .filter(w => [...w.itinerary.outbound, ...w.itinerary.return]
+                          .filter(Boolean).some(i => ['TYO','OSA'].includes(i))).length""")
+        check("グループ空港を乗り継ぎ地に使わない", no_transit == 0, f"{no_transit}本")
+
+        # 航空会社の欄は「提携航空会社」のときだけ出る
+        pg.evaluate("ppGo('s1')")
+        check("スタアラでは航空会社の欄を出さない", not pg.is_visible("#pp-airline-field"), None)
+        pg.select_option("#pp-award", "partner")
+        check("提携航空会社では航空会社の欄が出る", pg.is_visible("#pp-airline-field"), None)
+        opts = pg.eval_on_selector_all("#pp-airline option", "els => els.map(e => e.value)")
+        check("提携社の一覧が airlines.json から入る", "VN" in opts and "UA" not in opts, str(opts))
+
+        pg.select_option("#pp-airline", "VN")
+        pg.click("#pp-go")
+        # ★PP.req は propose() を呼ぶ**前**に入るので、これで待つと検索前の結果を読む。
+        #   検索が終わった印は PP.stats（propose の戻り値）で取る
+        pg.wait_for_function("PP.stats && PP.stats.partnerAirline === 'VN'", timeout=60000)
+        vn = pg.evaluate("""() => {
+            const ways = PP.rows.concat(PP.base ? [{ways:[PP.base]}] : []).flatMap(r => r.ways);
+            const one = ways.find(w => (w.plan ?? '') === 'single:VN');
+            if (!one) return null;
+            return { plan: one.plan, label: one.planLabel, miles: one.miles,
+                     route: one.route.join(' / '),
+                     onlyVN: ways.every(w => w.plan === 'single:VN'),
+                     carriers: [...new Set(one.carriersByLeg.flatMap(l => l.airlines))] };
+        }""")
+        check("ベトナム航空だけで組む旅程が出る", vn is not None, str(vn))
+        if vn:
+            check("全区間がベトナム航空", vn["carriers"] == ["VN"], str(vn["carriers"]))
+            check("ハノイ経由になる", "ハノイ" in vn["route"], vn["route"])
+            check("他社の案が混ざらない", vn["onlyVN"], str(vn["onlyVN"]))
+            check("条件バーに航空会社が出る", "ベトナム" in pg.inner_text("#pp-cond-award"),
+                  pg.inner_text("#pp-cond-award"))
 
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()

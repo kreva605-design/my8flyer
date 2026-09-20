@@ -12,7 +12,13 @@ const pos  = argv.filter((a, i) => !a.startsWith('--') && !(i > 0 && argv[i - 1]
 
 const origin      = pos[0] ?? 'HIJ';
 const destination = pos[1] ?? 'CDG';
-const awardType   = flag('--ana') ? 'ana' : 'partner';
+// 特典の種類（画面と同じ3つ）。--ana は従来どおり残す
+//   --kind star     … スターアライアンス（加盟社を自由に組み合わせ）
+//   --kind partner  … 提携航空会社1社だけ（--airline VN で社を指定・省略で9社ぶん）
+//   --kind ana / --ana … ANA便のみ
+const awardKind   = flag('--ana') ? 'ana' : (val('--kind', null));
+const partnerAirline = val('--airline', null);
+const awardType   = awardKind === 'ana' ? 'ana' : 'partner';
 const cabin       = flag('--biz') ? 'biz' : 'eco';
 const top         = Number(val('--top', 10));
 
@@ -23,7 +29,7 @@ const tGraph = Date.now() - t0;
 
 const t1 = Date.now();
 const { proposals, stats } = propose({
-  origin, destination, awardType, cabin,
+  origin, destination, awardType, awardKind, partnerAirline, cabin,
   returnDep: val('--openjaw', undefined),
   wantStopover: flag('--stopover'),
   maxTransits: Number(val('--max', 3)),
@@ -33,7 +39,7 @@ const { proposals, stats } = propose({
 const tRun = Date.now() - t1;
 
 const name = (i) => CITIES.find((c) => c.iata === i)?.name ?? i;
-console.log(`\n■ ${name(origin)} → ${name(destination)}（${awardType} / ${cabin}${flag('--stopover') ? ' / 寄り道あり' : ''}）`);
+console.log(`\n■ ${name(origin)} → ${name(destination)}（${awardKind ?? '絞り込みなし'}${partnerAirline ? ':' + partnerAirline : ''} / ${cabin}${flag('--stopover') ? ' / 寄り道あり' : ''}）`);
 console.log(`  路線グラフ: ${graph.stats.kept}区間・${graph.stats.nodes}空港（対象社が飛ばない区間 ${graph.stats.dropped} を除外）— ${tGraph}ms`);
 console.log(`  経路列挙: 往路${stats.outPathsFound}通り・復路${stats.retPathsFound}通り → 都市ごとの最短だけ残して 往路${stats.outPaths}×復路${stats.retPaths} = ${stats.combinations}組`);
 console.log(`  規約判定: ${stats.validated}件 → 合格 ${stats.passed}件 → 集約して ${stats.shown}本（合格の組み合わせ ${stats.raw}）` +
@@ -48,6 +54,7 @@ proposals.slice(0, top).forEach((p, i) => {
               `${p.detourKm != null ? `  飛行距離 ${p.detourKm >= 0 ? '+' : ''}${p.detourKm.toLocaleString()}km（${p.effort}）` : ''}` +
               `${p.hubRoutes ? `  就航${p.hubRoutes}路線` : ''}` +
               `${p.variants > 1 ? `  ／別 ${p.variants.toLocaleString()}` : ''}`);
+  console.log(`    ${p.planLabel}`);
   console.log(`    往路 ${p.route[0]}`);
   console.log(`    復路 ${p.route[1]}`);
   if (p.milesNote) console.log(`    ${p.milesNote}`);
