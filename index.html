@@ -1684,6 +1684,11 @@ const SLOT_META = {
 // ===== アプリ状態 =====
 const STATE = {
   awardType:   'partner',  // 'partner' (提携航空会社・全7条) | 'ana' (ANA便のみ・全5条)
+  // ★さがす画面で選んだ「特典の種類」（3択）と航空会社。規約判定の awardType（2値）とは別物で、
+  //   片方から他方を導かない。持たせていなかったため、じぶんで組むを往復すると
+  //   「提携1社（ベトナム航空）」が「スターアライアンス」に化けていた（REQ-95）
+  awardKind:   null,   // 'star' | 'partner' | 'ana' | null（さがす画面を経ていない）
+  partnerAirline: null,// 提携1社のときの社コード（例 'VN'）
   departure:   null,
   destination: null,
   arrival:     null,
@@ -3673,6 +3678,8 @@ async function loadRoute(id) {
   // 保存時点に無かったキーは前のルートの値が残るので、代入前に既定へ戻す
   STATE.outboundSurface = [false, false, false];
   STATE.returnSurface   = [false, false, false];
+  STATE.awardKind       = null;
+  STATE.partnerAirline  = null;
   Object.assign(STATE, route.state);
   (route.flightData ?? []).forEach(({ leg, data }) => { if (data) FLIGHT_CACHE.set(leg, data); });
   updateAllDots();
@@ -3911,6 +3918,11 @@ async function ppSearch() {
     localStorage.setItem('pp-award-kind', req.awardKind);
     localStorage.setItem('pp-partner-airline', req.partnerAirline ?? '');
     PP.req = req;
+    // ★特典の種類と社は STATE にも同期する（REQ-95）。
+    //   ppToEditor（旅程を持ち帰る）だけで写すと、旅程を開かずに「じぶんで組む」へ
+    //   入ったときに前回の検索条件が残り、戻ったときに別の特典で探してしまう
+    STATE.awardKind      = req.awardKind;
+    STATE.partnerAirline = req.partnerAirline;
 
     const { proposals, stats } = PP.mod.propose(req, {
       rules: RULES_CFG, charts: PP.charts, cities: CITIES, graph: PP.graph,
@@ -4379,14 +4391,31 @@ async function ppFromEditor() {
   }
   document.getElementById('pp-origin').value = STATE.departure;
   document.getElementById('pp-dest').value   = STATE.destination;
-  // 「じぶんで組む」側の設定は規約2種（全7条／全5条）なので、提携はスタアラとして開く。
-  // 提携1社で探したいときは、提案画面で「提携航空会社」に切り替えてもらう
-  document.getElementById('pp-award').value  = STATE.awardType === 'ana' ? 'ana' : 'star';
+  // 「この条件で」と書いてある以上、特典の種類と航空会社を作り直さない（REQ-95）。
+  // じぶんで組む側の設定は規約2値（全7条／全5条）しか持たないので、
+  // 3択（star / partner / ana）と社コードは STATE に持ち帰ったものから戻す
+  const awardEl = document.getElementById('pp-award');
+  if (STATE.awardType === 'ana') {
+    awardEl.value = 'ana';                       // 規約を全5条にしたなら特典もANA便のみ
+  } else if (STATE.awardKind && STATE.awardKind !== 'ana') {
+    awardEl.value = STATE.awardKind;             // さがす画面で選んだものをそのまま戻す
+  } else if (awardEl.value === 'ana') {
+    awardEl.value = 'star';                      // 規約は全7条なのに「ANA便のみ」は成り立たない
+  }
+  // ★ここまでで STATE に手がかりが無い場合（保存ルートの読込など）は画面の値を上書きしない。
+  //   その値は ppInitSelects が localStorage から戻した「前回の選択」である
   ppAwardChange();
+  if (awardEl.value === 'partner') {
+    await ppFillAirlines();                      // 選択肢が並ぶ前に value を入れても入らない
+    const airEl = document.getElementById('pp-airline');
+    const code  = STATE.partnerAirline;
+    if (airEl && code && [...airEl.options].some(o => o.value === code)) airEl.value = code;
+  }
   document.getElementById('pp-arrival').value =
     (STATE.arrival && STATE.arrival !== STATE.departure) ? STATE.arrival : '';
   // いま置いてある経由地を条件にする（目的地・出発地・帰着地は条件ではない）
-  PP.mustVia = [...STATE.outbound, ...STATE.return].filter(Boolean)
+  // 往路と復路で同じ街を通る旅程は多い。重ねると条件バーに「ハノイ・ハノイ」と出るので畳む（REQ-96）
+  PP.mustVia = [...new Set([...STATE.outbound, ...STATE.return].filter(Boolean))]
     .filter(i => i !== STATE.destination && i !== STATE.departure && i !== STATE.arrival);
   ppGo('s1');
   await ppSearch();
@@ -4404,6 +4433,7 @@ function ppToEditor() {
   if (!w) return;
   const it = w.itinerary;
   STATE.awardType   = PP.req.awardType;
+  // 特典の種類（3択）と社は ppSearch が STATE へ同期している。ここで作り直さない
   STATE.departure   = it.departure;
   STATE.destination = it.destination;
   STATE.arrival     = it.arrival ?? null;

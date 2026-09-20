@@ -311,6 +311,89 @@ try:
               "特典航空券タイプ" not in settings and "どちらの規約で判定するか" in settings,
               settings.replace("\n", " ")[:80])
 
+        # ══ 画面を往復しても「特典の種類」を保つ（2026-09-20・REQ-95／96）══
+        # ★契機＝提携航空会社（ベトナム航空）で探した旅程を「じぶんで組む」へ読み込み、
+        #   「この条件でもう1都市の提案を受ける」を押すと、スターアライアンス便の候補が出ていた。
+        #   3択（star/partner/ana）を規約2値に畳んで戻すときに、社の指定ごと落ちていた
+        pg.evaluate("() => { PP.mustVia = []; PP.chosen = null; ppGo('s1'); }")
+        pg.select_option("#pp-origin", "TYO")
+        pg.select_option("#pp-dest", "AMS")
+        pg.select_option("#pp-arrival", "")
+        pg.select_option("#pp-award", "partner")
+        pg.wait_for_selector("#pp-airline option[value='VN']", state="attached", timeout=10000)
+        pg.select_option("#pp-airline", "VN")
+        pg.click("#pp-go")
+        pg.wait_for_function("PP.stats && PP.stats.partnerAirline === 'VN'", timeout=60000)
+
+        opened = pg.evaluate("""() => {
+            const r = PP.rows.find(x => x.iata === 'HAN') ?? PP.rows[0];
+            PP.selKey = (r.iata ?? '__base__') + '|' + (r.plan ?? '-'); PP.way = 0; ppRender();
+            ppShowItinerary(r.ways[0]);
+            return { city: r.city, plan: r.plan };
+        }""")
+        check("提携1社の旅程を開ける", opened and opened.get("plan") == "single:VN", str(opened))
+
+        pg.evaluate("() => ppToEditor()")
+        pg.wait_for_selector("#pane-editor:not([hidden])", timeout=5000)
+        st = pg.evaluate("() => ({ kind: STATE.awardKind, air: STATE.partnerAirline })")
+        check("じぶんで組むへ渡すとき特典の種類と社を持ち帰る",
+              st == {"kind": "partner", "air": "VN"}, str(st))
+
+        pg.evaluate("async () => { await ppFromEditor(); }")
+        back = pg.evaluate("""() => ({
+            kind: PP.req.awardKind, air: PP.req.partnerAirline,
+            dom: document.getElementById('pp-award').value,
+            domAir: document.getElementById('pp-airline').value,
+            chip: ppAwardChipLabel(),
+            mustVia: PP.req.mustVia ?? [],
+            plans: [...new Set(PP.rows.map(r => r.plan))]
+        })""")
+        check("もう1都市の提案を受け直しても提携1社のまま",
+              back["kind"] == "partner" and back["air"] == "VN", str(back)[:120])
+        check("画面の「特典の種類」と航空会社も戻っている",
+              back["dom"] == "partner" and back["domAir"] == "VN",
+              f'{back["dom"]}/{back["domAir"]}')
+        check("条件バーに社名が出る", "ベトナム" in back["chip"], back["chip"])
+        check("スターアライアンスの案が混ざらない",
+              back["plans"] == ["single:VN"], str(back["plans"]))
+        check("経由地の条件が重複しない（ハノイ・ハノイにならない）",
+              len(back["mustVia"]) == len(set(back["mustVia"])), str(back["mustVia"]))
+
+        # 旅程を開かずに「じぶんで組む」へ入ったときも、直前に実行した検索の条件で戻る
+        # （STATE への同期を ppToEditor だけに置くと、ここで前回の条件が残る）
+        pg.evaluate("() => { PP.mustVia = []; ppGo('s1'); }")
+        pg.select_option("#pp-award", "star")
+        pg.click("#pp-go")
+        pg.wait_for_function("PP.stats && !PP.stats.partnerAirline", timeout=60000)
+        pg.evaluate("async () => { ppGo('editor'); await ppFromEditor(); }")
+        skip = pg.evaluate("() => ({ kind: PP.req.awardKind, air: PP.req.partnerAirline })")
+        check("旅程を開かずにじぶんで組むへ入っても、直前の検索条件で戻る",
+              skip == {"kind": "star", "air": None}, str(skip))
+
+        # 規約を全5条（ANA便のみ）に変えたら、特典の種類もANA便のみへ揃える
+        pg.evaluate("""async () => {
+            PP.mustVia = []; STATE.awardType = 'ana'; await ppFromEditor();
+        }""")
+        ana = pg.evaluate("() => ({ kind: PP.req.awardKind, dom: document.getElementById('pp-award').value })")
+        check("規約をANA便のみにしたら特典の種類もANA便のみになる",
+              ana == {"kind": "ana", "dom": "ana"}, str(ana))
+
+        # 旅程を経ずに入った場合（保存ルートの読込など）は、画面にいまある選択を上書きしない
+        pg.evaluate("""() => {
+            STATE.awardType = 'partner'; STATE.awardKind = null; STATE.partnerAirline = null;
+            PP.mustVia = [];
+            document.getElementById('pp-award').value = 'partner';
+            ppAwardChange();
+        }""")
+        pg.wait_for_selector("#pp-airline option[value='VN']", state="attached", timeout=10000)
+        pg.evaluate("""async () => {
+            document.getElementById('pp-airline').value = 'VN';
+            await ppFromEditor();
+        }""")
+        keep = pg.evaluate("() => ({ kind: PP.req.awardKind, air: PP.req.partnerAirline })")
+        check("手がかりが無いときは画面の選択を既定で上書きしない",
+              keep == {"kind": "partner", "air": "VN"}, str(keep))
+
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()
 finally:

@@ -501,7 +501,7 @@ flowchart TD
     o10: {name:"◀ 提案に戻る", from:"S4", to:"S3", api:null, write:null,
           note:"ppBackFromEditor（2026-09-20）。旅程があれば旅程・候補があれば候補・どちらも無ければさがすへ戻る。"},
     o11: {name:"▲ この条件でもう1都市の提案を受ける", from:"S4", to:"S2", api:null, write:null,
-          note:"置いてある経由地が「必ず通る街」（mustVia）として検索条件になる。"},
+          note:"置いてある経由地が「必ず通る街」（mustVia）として検索条件になる（同じ街は畳む・REQ-96）。さがすで選んだ特典の種類と航空会社は STATE.awardKind／partnerAirline から戻す（REQ-95）。"},
     o12: {name:"都市スロット（出発地・目的地・往路3・復路3・帰着地の8つ）", from:"S4", to:"M1",
           api:null, write:null, note:"openModal(index.html:1194-1278)。"},
     o13: {name:"判定する", from:"S4", to:"stay", api:null, write:null,
