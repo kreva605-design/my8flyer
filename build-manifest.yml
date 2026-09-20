@@ -5,6 +5,7 @@
 #
 # ハッシュ確定の根拠:
 #   - 2026-09-20 特典の種類3分割（REQ-88〜90）。architecture.md は §24 を末尾に追記しただけで既存節は未変更。実装・テスト・manifest を同じ作業内で追従させ、単体107/107・画面44/44・smoke15/15・combos24/24・dates30/30・seats20/20 PASS。参照欠損は diff_report.py の解決規約を揃え（REQ-44）、manifest側の記法誤り6件も修正して missing_file 0
+#   - 2026-09-20 画面遷移マップが見つけた動線の穴4件を是正（REQ-91〜94）。architecture.md は §25 を末尾に追記しただけで既存節は未変更。実装・テスト・manifest・マップを同じ作業内で追従させ、単体107/107・画面55/55（⚠の検査11件を追加）・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
 #
 project: my8flyer
 schema_version: 1
@@ -20,7 +21,7 @@ updated_at: 2026-09-19
 sources:
   design:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
-    sha256: 2852e40c3a7cb7944f9ba7d3e391d5a68de58c506827a7984bebdded1a234a9c
+    sha256: f3deea251d880bf1186518bc35093164daa0821d00d8faca8f713698648ac268
   test_report:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/test_report_2026-05-20_phase11.md
     sha256: 7d049575b537d667ba7f2aa51a6bb5332b19f9a80a1c5fca2397cd429dd6173f
@@ -754,4 +755,48 @@ requirements:
   test_ref: tests/proposer.test.mjs,tests/browser_propose.py
   verify_mode: auto
   last_verified: 2026-09-19
+  status: green
+
+- id: REQ-91
+  text: 画面に URL を持たせ、ブラウザの戻る・進む・再読込で画面を復帰できる。さがす=#search／候補=#candidates／旅程=#itinerary／じぶんで組む=#editor。候補の一覧は計算結果で保存されていないため、候補より先の画面をハッシュ付きで開いたときは検索条件（localStorage）から作り直し、どの旅程を開いていたかまでは復元できないので候補で止める。履歴APIが使えない環境でも画面の切替自体は止めない
+  design_ref: architecture.md#25-1
+  impl_ref: index.html::ppGo,index.html::ppShow,index.html::ppRestore
+  test_ref: tests/browser_propose.py
+  test_kind: suite
+  tested_at: "2026-09-20"
+  verify_mode: auto
+  last_verified: 2026-09-20
+  status: green
+
+- id: REQ-92
+  text: 「じぶんで組む」の「◀ 提案に戻る」は、直前に見ていた内容に応じて戻り先を決める。旅程を選んでいれば旅程へ、候補があれば候補へ、どちらも無ければさがすへ落とす。保存ルートの読込など旅程を経ずに入った場合に、中身が空の旅程画面へ着地させない
+  design_ref: architecture.md#25-2
+  impl_ref: index.html::ppBackFromEditor
+  test_ref: tests/browser_propose.py
+  test_kind: suite
+  tested_at: "2026-09-20"
+  verify_mode: auto
+  last_verified: 2026-09-20
+  status: green
+
+- id: REQ-93
+  text: さがす画面から「じぶんで組む」へ直接行ける入口を置く。画面の文言が案内している行き先には、その画面から到達できなければならない（案内だけがあって手段が無い状態を作らない）。あわせて位置に依存した案内（「下の」）を書かない
+  design_ref: architecture.md#25-3
+  impl_ref: index.html
+  test_ref: tests/browser_propose.py
+  test_kind: suite
+  tested_at: "2026-09-20"
+  verify_mode: auto
+  last_verified: 2026-09-20
+  status: green
+
+- id: REQ-94
+  text: 役割の違う2つの設定に、取り違える名前を付けない。さがす画面の「特典の種類」はどの航空会社で探すかの指定、じぶんで組む画面の設定はどちらの規約（全7条／全5条）で判定するかの切替であり、後者の見出しを役割そのものにして区別する
+  design_ref: architecture.md#25-4
+  impl_ref: index.html
+  test_ref: tests/browser_propose.py
+  test_kind: suite
+  tested_at: "2026-09-20"
+  verify_mode: auto
+  last_verified: 2026-09-20
   status: green

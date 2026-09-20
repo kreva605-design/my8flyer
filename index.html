@@ -953,7 +953,7 @@
         <span>帰りに降りる場所（省略すると出発地と同じ）</span>
         <select id="pp-arrival" class="pp-sel"></select>
       </label>
-      <p class="pp-hint">帰りに降りる場所を指定すると、その街は<b>「もう1都市」には数えません</b>（自分で決めた前提なので）。その分、寄り道の候補がそのまま出ます。<br>帰りに<b>出発する</b>場所（海外側）は提案では目的地に固定します。変えたいときは下の「じぶんで組む」で指定してください。</p>
+      <p class="pp-hint">帰りに降りる場所を指定すると、その街は<b>「もう1都市」には数えません</b>（自分で決めた前提なので）。その分、寄り道の候補がそのまま出ます。<br>帰りに<b>出発する</b>場所（海外側）は提案では目的地に固定します。変えたいときは「じぶんで組む」で指定してください。</p>
       <!-- ★特典の種類は3つ。スターアライアンスと提携航空会社は**混ぜられない別の特典**で、
            提携社は1社だけで全区間を組む必要がある。1つの「提携航空会社特典」にまとめていた
            ときは、候補を畳む段で遠回りでないスタアラ便が必ず代表になり、提携1社の案が
@@ -987,6 +987,12 @@
         <input id="pp-miles" class="pp-sel" type="number" inputmode="numeric" placeholder="空欄なら全部出します">
       </label>
       <button class="pp-go" id="pp-go" onclick="ppSearch()">ルートを提案する ▶</button>
+      <!-- ★「じぶんで組む」への入口（2026-09-20）。
+           上のヒントがここへ行くよう案内しているのに、この画面にはボタンが無く、
+           実際には 候補 → 旅程 →「読み込む」の3手を踏まないと到達できなかった -->
+      <div class="pp-back" style="margin-top:10px">
+        <button class="pp-ghost" onclick="ppGo('editor')">じぶんで組む（8つのスロットに自分で入れる） ▸</button>
+      </div>
       <div class="pp-msg" id="pp-msg"></div>
     </div>
 
@@ -1031,7 +1037,7 @@
   <!-- ══ S4 じぶんで組む（従来の判定UI）。提案の画面とは行き来で切り替える ══ -->
   <div id="pane-editor" hidden>
   <div class="pp-back">
-    <button class="pp-ghost" onclick="ppGo('s3')">◀ 提案に戻る</button>
+    <button class="pp-ghost" onclick="ppBackFromEditor()">◀ 提案に戻る</button>
     <button class="pp-ghost" onclick="ppFromEditor()">▲ この条件でもう1都市の提案を受ける</button>
   </div>
 
@@ -1042,8 +1048,9 @@
       <span id="settings-chevron">▼</span>
     </div>
     <div id="settings-body" class="settings-body" style="display:none">
-      <!-- 特典航空券タイプ -->
-      <div style="font-size:0.72rem;color:#667;font-weight:bold;margin-bottom:6px">特典航空券タイプ</div>
+      <!-- ★「特典の種類」（さがす画面・3択・探索の絞り込み）と紛らわしかったので、
+           こちらは役割そのもの＝どちらの規約で判定するかを名前にした（2026-09-20） -->
+      <div style="font-size:0.72rem;color:#667;font-weight:bold;margin-bottom:6px">どちらの規約で判定するか</div>
       <div class="mode-options">
         <label class="mode-option">
           <input type="radio" name="awardType" value="partner" onchange="onAwardTypeChange()">
@@ -1057,6 +1064,8 @@
       <div id="award-type-note" style="font-size:0.7rem;color:#88a;line-height:1.6;margin:-4px 0 10px 4px">
         提携航空会社：途中降機1回・乗換 国内1+海外2/方向、エリア制限あり<br>
         ANA便のみ：日本発SO不可・乗換 国内1/方向のみ<br>
+        <span style="color:#667">※「さがす」画面の<b>特典の種類</b>（スターアライアンス／提携航空会社／ANA便のみ）は
+        <b>どの航空会社で探すか</b>の指定です。こちらは<b>判定に使う規約</b>の切り替えで、別のものです。</span><br>
         <span style="color:#a55;font-weight:bold">※本ツールは日本発着の旅程専用です。海外発の場合は未対応です。</span>
       </div>
       <hr class="settings-divider">
@@ -3939,7 +3948,15 @@ function ppEditCondition() {
 
 // 画面はいちどに1つだけ出す。ボタンが全部同じ画面に並ぶと、
 // どれが「いま押すもの」なのか分からなくなる
-function ppGo(screen) {
+// ★画面に URL を持たせる（2026-09-20）。
+// それまで ppGo は hidden を付け外しするだけで履歴を積まなかったため、
+// **ブラウザの戻る・再読込で必ず「さがす」に戻り、組みかけの旅程が消えていた**。
+// スマホは別アプリに切り替えただけでタブが再読込されることがあり、実害が出ていた。
+const PP_HASH = { s1: '#search', s2: '#candidates', s3: '#itinerary', editor: '#editor' };
+const PP_SCREEN = Object.fromEntries(Object.entries(PP_HASH).map(([k, v]) => [v, k]));
+
+// 画面を切り替えるだけ（履歴には触らない）
+function ppShow(screen) {
   const on = (id, yes) => { const el = document.getElementById(id); if (el) el.hidden = !yes; };
   on('pp-s1', screen === 's1');
   on('pp-s2', screen === 's2');
@@ -3947,7 +3964,52 @@ function ppGo(screen) {
   on('pane-editor', screen === 'editor');
   const pp = document.getElementById('pp');
   if (pp) pp.hidden = screen === 'editor';
+  PP.screen = screen;
   window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function ppGo(screen, opts = {}) {
+  ppShow(screen);
+  const hash = PP_HASH[screen] ?? PP_HASH.s1;
+  try {
+    // 復元中は履歴を積まない（戻るボタンが同じ画面を往復するだけになるため）
+    if (opts.replace || PP.restoring) history.replaceState({ screen }, '', hash);
+    else if (location.hash !== hash) history.pushState({ screen }, '', hash);
+  } catch (e) {
+    // file:// で開いた等で履歴APIが使えなくても、画面の切替そのものは止めない
+    console.warn('履歴を更新できませんでした:', e);
+  }
+}
+
+// 戻る・進む・再読込で「さがす」より先の画面へ入るときの復元。
+// ★候補の一覧は計算結果なので保存されていない。条件は localStorage にあるので、
+//   無ければ作り直す。どの旅程を開いていたかまでは復元できないので候補で止める。
+async function ppRestore(screen) {
+  if (screen === 's1' || PP.base || PP.rows?.length) { ppShow(screen); return; }
+  PP.restoring = true;
+  try {
+    await ppSearch();                       // 条件は前回の入力が復元されている
+    if (screen === 's3' || screen === 'editor') ppGo('s2', { replace: true });
+  } catch (e) {
+    console.warn('前の画面を復元できませんでした:', e);
+    ppGo('s1', { replace: true });
+  } finally {
+    PP.restoring = false;
+  }
+}
+
+window.addEventListener('popstate', (ev) => {
+  const screen = ev.state?.screen ?? PP_SCREEN[location.hash] ?? 's1';
+  ppRestore(screen);
+});
+
+// ★「◀ 提案に戻る」の戻り先（2026-09-20）。
+// それまで常に s3 へ戻していたため、保存ルートの読込など **s3 を経ずに
+// じぶんで組むを開いた場合、中身が空の画面に着地**していた。
+function ppBackFromEditor() {
+  if (PP.chosen) { ppGo('s3'); return; }
+  if (PP.base || PP.rows?.length) { ppGo('s2'); return; }
+  ppGo('s1');
 }
 
 // 条件バーに出す「特典の種類」の見出し。提携1社のときは社名まで出す
@@ -4363,7 +4425,13 @@ function ppToEditor() {
 updateAllDots();
 initSettings();
 ppInitSelects();
-ppGo('s1');            // 起動時は「さがす」だけを出す
+// 起動時。URLにハッシュがあればその画面へ戻す（再読込・共有リンク・戻るボタン）
+// ★ハッシュは ppGo より先に読む。ppGo が replaceState で書き換えてしまうため
+{
+  const booted = PP_SCREEN[location.hash] ?? 's1';
+  ppGo('s1', { replace: true });
+  if (booted !== 's1') ppRestore(booted);
+}
 // 規約データ（data/award-rules.json）は非同期に読む。
 // 届いてから乗り換え上限カウンタを描き直す（それまで上限は表示しない）
 rulesReady.then(() => updateTransitCounter());

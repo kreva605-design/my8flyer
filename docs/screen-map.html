@@ -154,6 +154,8 @@
   .hole { display: none; margin-top: 9px; border: 1px solid var(--warn-line); background: var(--warn-bg);
           color: var(--warn); border-radius: 9px; padding: 7px 10px; font-size: .7rem; line-height: 1.6; }
   body.holes .hole { display: block; }
+  .hole.fixed { border-color: color-mix(in srgb, var(--ok) 42%, transparent);
+                background: var(--ok-bg); color: var(--ok); }
   .hole b { font-family: var(--mono); font-size: .68rem; }
 
   /* ── インスペクタ ───────────────────────── */
@@ -186,14 +188,15 @@
 
   /* ── 所見 ───────────────────────────────── */
   .finds { display: grid; gap: 12px; }
-  .find { border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: var(--radius);
-          padding: 13px 15px; }
+  .find { border: 1px solid color-mix(in srgb, var(--ok) 38%, transparent); background: var(--ok-bg);
+          border-radius: var(--radius); padding: 13px 15px; }
+  .find h3 .sev.done { color: var(--ok); }
   .find.clean { border-color: var(--line); background: var(--surface); }
-  .find h3 { font-family: var(--disp); font-size: .88rem; margin: 0 0 6px; color: var(--warn); font-weight: 700; }
+  .find h3 { font-family: var(--disp); font-size: .88rem; margin: 0 0 6px; color: var(--ok); font-weight: 700; }
   .find.clean h3 { color: var(--ok); }
   .find p { margin: 0 0 7px; font-size: .8rem; }
   .find p:last-child { margin-bottom: 0; }
-  .find .fix { font-size: .76rem; color: var(--ink-soft); border-top: 1px dashed var(--warn-line);
+  .find .fix { font-size: .76rem; color: var(--ink-soft); border-top: 1px dashed color-mix(in srgb, var(--ok) 34%, transparent);
                padding-top: 7px; margin-top: 9px; }
   .find.clean .fix { border-color: var(--line-soft); }
   .sev { font-family: var(--mono); font-size: .64rem; border: 1px solid currentColor; border-radius: 4px;
@@ -209,23 +212,23 @@
 
 <header class="top">
   <h1>My 8flyer 画面遷移マップ</h1>
-  <span class="meta">As-Is / 2026-09-20 / 実装から生成</span>
+  <span class="meta">As-Is / 2026-09-20 / 動線の穴4件は是正済み</span>
 </header>
 <p class="lede">
   稼働中の実装（<code class="f">index.html</code> 1ファイル＋<code class="f">src/*.js</code>＋Cloudflare Workers）から起こした初版。
-  <b>どのボタンがどこへ行き、何を書き込むか</b>をボタン単位で並べています。画面の中のボタンを押すと、下のインスペクタに中身が出ます。
+  <b>どのボタンがどこへ行き、何を書き込むか</b>をボタン単位で並べています。画面の中のボタンを押すと、下のインスペクタに中身が出ます。<br>初版で見つけた<b>動線の穴4件は同じ日に是正済み</b>です（下段に、何が起きていてどう直したかを残しています）。
 </p>
 
 <div class="bar">
   <button class="tgl" id="t-frames" aria-pressed="false">ボタンの枠を出す</button>
   <button class="tgl" id="t-holes"  aria-pressed="true">⚠ 動線の穴を出す</button>
-  <span class="meta" style="margin-left:auto">画面 4 ・ モーダル 2 ・ 操作 <span class="num">24</span></span>
+  <span class="meta" style="margin-left:auto">画面 4 ・ モーダル 2 ・ 操作 <span class="num">25</span></span>
 </div>
 
 <h2 class="sec">全体の遷移</h2>
 <p class="sec-note">
   実線＝画面が切り替わる遷移。点線＝モーダル・外部サイト。
-  <b>点線の赤い矢印は「文言だけが案内していて、実際には行けない」動線</b>です。
+  さがす → じぶんで組む の直通は 2026-09-20 に新設したもの（それまで文言だけが案内していて、行く手段がありませんでした）。
 </p>
 <div class="flow">
 <pre class="mermaid">
@@ -243,8 +246,7 @@ flowchart TD
   M2 -.-> S4
   S2 -.->|"📅 空いている日"| EXT["ANA SKY WEB<br/>Chrome拡張が仲介"]
   S4 -.->|"ANAで空席確認"| EXT
-  S1 -.->|"⚠ 到達手段なし"| S4
-  linkStyle 12 stroke:#b3541e,stroke-width:2px
+  S1 -->|"じぶんで組む ▸（2026-09-20 新設）"| S4
 </pre>
 </div>
 
@@ -271,7 +273,8 @@ flowchart TD
       <div class="m-sel">ベトナム航空（VN）</div>
       <div class="m-label" style="margin-top:12px">&nbsp;</div>
       <button class="op" data-op="o2" data-n="2"><span class="prim">ルートを提案する ▶</span></button>
-      <div class="hole"><b>⚠-3</b> 「変えたいときは下の『じぶんで組む』で指定してください」と書いてあるが、この画面に「じぶんで組む」へ行くボタンは無い（実測0件）。</div>
+      <button class="op" data-op="o25" data-n="25" style="margin-top:7px"><span class="ghost">じぶんで組む（8つのスロットに自分で入れる） ▸</span></button>
+      <div class="hole fixed"><b>⚠-3 是正済み</b> 案内だけがあってボタンが無かった。入口を新設し、位置に依存した「下の」という言い方をやめた。</div>
     </div>
     <div class="scr-f">index.html:943 <span style="opacity:.6">#pp-s1</span></div>
   </section>
@@ -323,7 +326,7 @@ flowchart TD
         <button class="op" data-op="o10" data-n="10" style="width:auto"><span class="ghost">◀ 提案に戻る</span></button>
         <button class="op" data-op="o11" data-n="11" style="width:auto"><span class="ghost">▲ この条件で提案を受ける</span></button>
       </div>
-      <div class="hole" style="margin:0 0 10px"><b>⚠-2</b> 「◀ 提案に戻る」の戻り先が S3 に固定。S3 を経ずにここへ来ると、空の画面に着地する。</div>
+      <div class="hole fixed" style="margin:0 0 10px"><b>⚠-2 是正済み</b> 戻り先を内容で決めるようにした（旅程があれば旅程・候補があれば候補・どちらも無ければさがす）。</div>
       <div class="m-label">都市スロット（8つ）</div>
       <div class="m-slots" style="margin-bottom:9px">
         <button class="op" data-op="o12" data-n="12"><span class="slot">出発地</span></button>
@@ -350,7 +353,7 @@ flowchart TD
         <button class="op" data-op="o19" data-n="19"><span class="ghost">特典航空券タイプ（全7条 / 全5条）</span></button>
         <button class="op" data-op="o20" data-n="20"><span class="ghost">同期トークンを保存</span></button>
       </div>
-      <div class="hole"><b>⚠-4</b> ここの「特典航空券タイプ」は<b>2択</b>で規約カードの切替。S1 の「特典の種類」（<b>3択</b>・探索の絞り込み）とは別物。</div>
+      <div class="hole fixed"><b>⚠-4 是正済み</b> 見出しを「どちらの規約で判定するか」に変え、S1 の「特典の種類」（どの航空会社で探すか）との違いを注記した。</div>
     </div>
     <div class="scr-f">index.html:1032 <span style="opacity:.6">#pane-editor</span></div>
   </section>
@@ -419,43 +422,43 @@ flowchart TD
 </table>
 </div>
 
-<h2 class="sec">動線の穴</h2>
-<p class="sec-note">チェックリスト6項目を機械的に点検した結果。⚠ が実害のあるもの、✅ が点検して問題が無かったもの。</p>
+<h2 class="sec">動線の穴と、その是正</h2>
+<p class="sec-note">チェックリスト6項目を機械的に点検して4件を検出し、<b>同じ日にすべて是正しました</b>（REQ-91〜94）。何が起きていたかは記録として残します。</p>
 <div class="finds">
 
   <div class="find">
-    <h3><span class="sev">⚠-1</span>全画面がURLを持たず、再読込で必ず S1 に戻る</h3>
+    <h3><span class="sev done">⚠-1 是正済み / REQ-91</span>全画面がURLを持たず、再読込で必ず S1 に戻る</h3>
     <p><code class="f">ppGo()</code>（index.html:3942）は <code class="f">hidden</code> を付け外しするだけで履歴を積みません。
        <b>組みかけの旅程・出した候補・開いていた旅程は、再読込した瞬間に全部消えます。</b></p>
     <p>スマホでは別アプリに切り替えただけでタブが再読込されることがあり、
        ANAの予約画面と往復しながら使う場面で、戻るたびに条件入力からやり直しになります。</p>
-    <p class="fix"><b>直すなら：</b><code class="f">history.pushState</code> で画面IDを <code class="f">#s2</code> 等として積み、
+    <p class="fix"><b>直した内容：</b><code class="f">history.pushState</code> で画面IDを <code class="f">#s2</code> 等として積み、
        <code class="f">popstate</code> で <code class="f">ppGo</code> を呼ぶ。S1の入力は既に localStorage にあるので復元は安い。</p>
   </div>
 
   <div class="find">
-    <h3><span class="sev">⚠-2</span>「◀ 提案に戻る」の戻り先が固定</h3>
+    <h3><span class="sev done">⚠-2 是正済み / REQ-92</span>「◀ 提案に戻る」の戻り先が固定</h3>
     <p>S4 の戻るボタンは常に <code class="f">ppGo('s3')</code>（index.html:1034）。
        保存ルートの読込など <b>S3 を経ずに S4 を開いた場合、中身が空の S3 に着地</b>します。</p>
-    <p class="fix"><b>直すなら：</b>直前の画面を覚えて戻す。または S3 が空なら S2（無ければ S1）へ落とす。</p>
+    <p class="fix"><b>直した内容：</b>直前の画面を覚えて戻す。または S3 が空なら S2（無ければ S1）へ落とす。</p>
   </div>
 
   <div class="find">
-    <h3><span class="sev">⚠-3</span>文言だけが案内していて、実際には行けない</h3>
+    <h3><span class="sev done">⚠-3 是正済み / REQ-93</span>文言だけが案内していて、実際には行けない</h3>
     <p>S1 のヒント（index.html:956）が「変えたいときは<b>下の</b>『じぶんで組む』で指定してください」と案内していますが、
        <b>S1 に「じぶんで組む」へ行くボタンはありません</b>（grep で 0 件を実測）。</p>
     <p>2026-09-09 に「画面をいちどに1つだけ出す」へ変えたとき、S4 は S1 の「下」ではなくなったのに文言が残りました。
        実際に S4 へ行くには <b>S1 → S2 → S3 →「この旅程を『じぶんで組む』に読み込む」</b> の3手が必要です。</p>
-    <p class="fix"><b>直すなら（2案）：</b>①S1 に「じぶんで組む」ボタンを足す　②文言を実態（「候補から旅程を選んだあとで開けます」）に直す。</p>
+    <p class="fix"><b>直した内容：</b>さがす画面に入口を新設し、位置に依存した「下の」という言い方をやめた。</p>
   </div>
 
   <div class="find">
-    <h3><span class="sev">⚠-4</span>「特典の種類」が2か所にあり、意味が違う</h3>
+    <h3><span class="sev done">⚠-4 是正済み / REQ-94</span>「特典の種類」が2か所にあり、意味が違う</h3>
     <p>S1 の「特典の種類」は<b>3択</b>（スターアライアンス／提携航空会社1社／ANA便のみ）で<b>探索の絞り込み</b>。
        S4 設定の「特典航空券タイプ」は<b>2択</b>（提携／ANA便のみ）で<b>規約カードの表示と判定</b>。
        名前が似ているため、片方を変えればもう片方も変わると誤解しえます。</p>
-    <p class="fix"><b>現状の対処：</b>S4 → S1 へ移るとき <code class="f">partner</code> を <code class="f">star</code> として開く（index.html:4320）。
-       <b>直すなら：</b>S4 側を「規約の種類（全7条／全5条）」に改名して、役割の違いを名前で分ける。</p>
+    <p class="fix"><b>直した内容：</b>設定側の見出しを「どちらの規約で判定するか」に変え、「特典の種類」との違いを注記した。
+       S4 → S1 へ移るとき <code class="f">partner</code> を <code class="f">star</code> として開く扱いは従来どおり。</p>
   </div>
 
   <div class="find clean">
@@ -496,7 +499,7 @@ flowchart TD
           note:"ppToEditor。STATE を上書きする。S4 へ入れる唯一の入口。"},
     o9:  {name:"◀ もう1都市の一覧に戻る", from:"S3", to:"S2", api:null, write:null, note:"ppBackToList。"},
     o10: {name:"◀ 提案に戻る", from:"S4", to:"S3", api:null, write:null,
-          note:"⚠-2 行き先が S3 に固定。S3 を経ずに来ると空の画面に着地する。"},
+          note:"ppBackFromEditor（2026-09-20）。旅程があれば旅程・候補があれば候補・どちらも無ければさがすへ戻る。"},
     o11: {name:"▲ この条件でもう1都市の提案を受ける", from:"S4", to:"S2", api:null, write:null,
           note:"置いてある経由地が「必ず通る街」（mustVia）として検索条件になる。"},
     o12: {name:"都市スロット（出発地・目的地・往路3・復路3・帰着地の8つ）", from:"S4", to:"M1",
@@ -509,14 +512,14 @@ flowchart TD
           write:"Workers KV: SAVED_ROUTES['routes'] ＋ localStorage: m8f_saved",
           note:"同期トークン未設定なら端末内だけに残る。"},
     o16: {name:"保存ルートの「読込」", from:"S4", to:"stay", api:"GET /saved-routes", write:null,
-          note:"⚠-2 の発火点。ここから S4 に入ると「◀ 提案に戻る」が空の S3 へ飛ぶ。"},
+          note:"以前はここから入ると「◀ 提案に戻る」が空の旅程画面へ飛んでいた（⚠-2・是正済み）。"},
     o17: {name:"保存ルートの「✏️」", from:"S4", to:"M2", api:null, write:null, note:"editRoute。"},
     o18: {name:"保存ルートの「🗑」", from:"S4", to:"stay", api:"PUT /saved-routes",
           write:"Workers KV: SAVED_ROUTES['routes'] ＋ localStorage: m8f_saved",
-          note:"⚠ 1件の削除でも全件を上書きする。別端末で同時に編集すると後勝ちで消える。"},
+          note:"⚠ 1件の削除でも全件を上書きする。別端末で同時に編集すると後勝ちで消える（未対応）。"},
     o19: {name:"⚙ 設定 → 特典航空券タイプ", from:"S4", to:"stay", api:null,
           write:"localStorage: m8f_award_type",
-          note:"⚠-4 S1 の「特典の種類」とは別物。こちらは2択で、規約カードの表示と判定を切り替える。"},
+          note:"見出しは「どちらの規約で判定するか」。S1 の「特典の種類」（どの航空会社で探すか）とは別物（⚠-4・是正済み）。"},
     o20: {name:"⚙ 設定 → 同期トークンを保存", from:"S4", to:"stay", api:null,
           write:"localStorage: m8f_token",
           note:"以後の /saved-routes の Authorization ヘッダに使う。空欄でも端末内では使える。"},
@@ -525,6 +528,8 @@ flowchart TD
     o22: {name:"「クリア」/「閉じる」/ 背景タップ", from:"M1", to:"S4", api:null, write:null, note:"closeModal / clearCity。"},
     o23: {name:"M2「保存」", from:"M2", to:"S4", api:"PUT /saved-routes",
           write:"Workers KV: SAVED_ROUTES['routes'] ＋ localStorage: m8f_saved", note:"saveEditRoute。"},
+    o25: {name:"じぶんで組む（8つのスロットに自分で入れる） ▸", from:"S1", to:"S4", api:null, write:null,
+          note:"2026-09-20 新設（⚠-3 の是正）。ヒントが案内している行き先へ、この画面から直接行けるようにした。"},
     o24: {name:"M2「キャンセル」", from:"M2", to:"S4", api:null, write:null, note:"closeEditModal。"},
   };
 

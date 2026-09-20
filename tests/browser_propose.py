@@ -127,10 +127,13 @@ try:
             check("旅程画面にANA特典扱いの理由が出る", "ANA国際線特典として扱われます" in note, note[:80])
 
         # 画面がいちどに1つだけ出ること（2026-09-09）
-        pg.reload()
+        # ★2026-09-20 に画面へ URL を持たせたので、ハッシュ付きで再読込すると
+        #   その画面へ復帰する。ここは「まっさらに開いたとき」の検査なので、
+        #   ハッシュを外した URL で開き直す（復帰そのものは後段で別に検査する）
+        pg.goto(f"http://127.0.0.1:{PORT}/index.html")
         pg.wait_for_function("typeof rulesReady !== 'undefined'", timeout=15000)
         vis = lambda i: pg.is_visible(f"#{i}")
-        check("起動時は「さがす」だけ", vis("pp-s1") and not vis("pp-s2") and not vis("pp-s3")
+        check("ハッシュ無しで開いたら「さがす」だけ", vis("pp-s1") and not vis("pp-s2") and not vis("pp-s3")
               and not vis("pane-editor"), None)
         pg.select_option("#pp-origin", "HND"); pg.select_option("#pp-dest", "CDG")
         pg.click("#pp-go"); pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
@@ -142,7 +145,7 @@ try:
         pg.click("button[onclick='ppToEditor()']")
         time.sleep(0.8)
         check("読み込むと「じぶんで組む」に切り替わる", vis("pane-editor") and not vis("pp-s3"), None)
-        pg.click("button[onclick=\"ppGo('s3')\"]")
+        pg.click("button[onclick='ppBackFromEditor()']")
         time.sleep(0.4)
         check("提案に戻れる", vis("pp-s3") and not vis("pane-editor"), None)
 
@@ -250,6 +253,63 @@ try:
             check("他社の案が混ざらない", vn["onlyVN"], str(vn["onlyVN"]))
             check("条件バーに航空会社が出る", "ベトナム" in pg.inner_text("#pp-cond-award"),
                   pg.inner_text("#pp-cond-award"))
+
+        # ══ 動線の穴の是正（2026-09-20・画面遷移マップ ⚠-1〜⚠-4）══
+        # ⚠-1 画面に URL が付き、戻る・進む・再読込で復帰できる
+        pg.evaluate("() => { PP.mustVia = []; ppGo('s1'); }")
+        pg.select_option("#pp-origin", "HND")
+        pg.select_option("#pp-dest", "CDG")
+        pg.select_option("#pp-award", "star")
+        pg.select_option("#pp-arrival", "")
+        check("さがす画面のURLは #search", pg.evaluate("location.hash") == "#search",
+              pg.evaluate("location.hash"))
+        pg.click("#pp-go")
+        pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        check("候補へ進むとURLが #candidates になる", pg.evaluate("location.hash") == "#candidates",
+              pg.evaluate("location.hash"))
+        pg.go_back()
+        time.sleep(0.6)
+        check("ブラウザの「戻る」でさがす画面に戻る",
+              vis("pp-s1") and not vis("pp-s2"), pg.evaluate("location.hash"))
+        pg.go_forward()
+        time.sleep(0.6)
+        check("「進む」で候補に戻る", vis("pp-s2") and not vis("pp-s1"), pg.evaluate("location.hash"))
+
+        # ★再読込：候補は計算結果なので保存されていない。条件から作り直せること
+        pg.reload()
+        pg.wait_for_function("typeof rulesReady !== 'undefined'", timeout=15000)
+        pg.wait_for_selector("#pp-list .pp-city", timeout=60000)
+        check("再読込しても候補の画面に戻る（条件から作り直す）",
+              vis("pp-s2") and not vis("pp-s1"), pg.evaluate("location.hash"))
+        hist = pg.eval_on_selector_all("#pp-list .pp-city", "els => els.length")
+        check("作り直した候補が空でない", hist >= 1, f"{hist}行")
+
+        # ⚠-2 「◀ 提案に戻る」が、旅程を経ていないときに空の画面へ落ちない
+        pg.evaluate("() => { PP.chosen = null; ppGo('editor'); }")
+        time.sleep(0.4)
+        pg.click("button[onclick='ppBackFromEditor()']")
+        time.sleep(0.5)
+        check("旅程を選ばずに「じぶんで組む」へ入っても、空の旅程画面に着地しない",
+              vis("pp-s2") and not vis("pp-s3"), pg.evaluate("location.hash"))
+
+        # ⚠-3 さがす画面から「じぶんで組む」へ直接行ける（文言が案内している行き先）
+        pg.evaluate("ppGo('s1')")
+        time.sleep(0.3)
+        has_entry = pg.eval_on_selector_all(
+            "#pp-s1 button[onclick=\"ppGo('editor')\"]", "els => els.length")
+        check("さがす画面に「じぶんで組む」への入口がある", has_entry == 1, f"{has_entry}件")
+        hint = pg.inner_text("#pp-s1")
+        check("「下の」という位置の案内が残っていない", "下の「じぶんで組む」" not in hint, None)
+        pg.click("#pp-s1 button[onclick=\"ppGo('editor')\"]")
+        time.sleep(0.5)
+        check("そのボタンで「じぶんで組む」へ行ける", vis("pane-editor"), pg.evaluate("location.hash"))
+
+        # ⚠-4 「特典の種類」と規約の切替が名前で区別できる
+        settings = pg.inner_text("#settings-body") if pg.is_visible("#settings-body") else \
+            pg.evaluate("document.getElementById('settings-body').innerText")
+        check("設定側の見出しが「特典航空券タイプ」ではなくなっている",
+              "特典航空券タイプ" not in settings and "どちらの規約で判定するか" in settings,
+              settings.replace("\n", " ")[:80])
 
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()
