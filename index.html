@@ -947,13 +947,19 @@
       </label>
       <label class="pp-field">
         <span>目的地</span>
-        <select id="pp-dest" class="pp-sel"></select>
+        <select id="pp-dest" class="pp-sel" onchange="ppDestChange()"></select>
       </label>
       <label class="pp-field">
         <span>帰りに降りる場所（省略すると出発地と同じ）</span>
         <select id="pp-arrival" class="pp-sel"></select>
       </label>
-      <p class="pp-hint">帰りに降りる場所を指定すると、その街は<b>「もう1都市」には数えません</b>（自分で決めた前提なので）。その分、寄り道の候補がそのまま出ます。<br>帰りに<b>出発する</b>場所（海外側）は提案では目的地に固定します。変えたいときは「じぶんで組む」で指定してください。</p>
+      <!-- ★帰りに出発する場所（オープンジョー・2026-09-21 新設）。
+           選択肢は目的地と同じエリアだけに絞る＝第6条で組めない街を選ばせないため -->
+      <label class="pp-field">
+        <span>帰りに出発する場所（海外側・省略すると目的地と同じ）</span>
+        <select id="pp-return-dep" class="pp-sel"><option value="">目的地と同じ</option></select>
+      </label>
+      <p class="pp-hint">帰りに降りる場所・出発する場所を指定すると、その街は<b>「もう1都市」には数えません</b>（自分で決めた前提なので）。その分、寄り道の候補がそのまま出ます。<br>帰りに<b>出発する</b>場所に出てくるのは<b>目的地と同じエリアの街だけ</b>です（規約第6条。例：アムステルダム着ならパリは可・ハノイは不可）。</p>
       <!-- ★特典の種類は3つ。スターアライアンスと提携航空会社は**混ぜられない別の特典**で、
            提携社は1社だけで全区間を組む必要がある。1つの「提携航空会社特典」にまとめていた
            ときは、候補を畳む段で遠回りでないスタアラ便が必ず代表になり、提携1社の案が
@@ -3818,7 +3824,52 @@ function ppInitSelects() {
   }
   ppFillAirlines();                    // 提携社の一覧は airlines.json が正本（非同期）
   ppAwardChange();
+  // 復路出発地は目的地のエリアに依存するので、選択肢を作ってから前回の値を戻す
+  ppFillReturnDeps().then(() => {
+    const rd = document.getElementById('pp-return-dep');
+    const saved = localStorage.getItem('pp-return-dep') ?? '';
+    if (rd && [...rd.options].some((o) => o.value === saved)) rd.value = saved;
+  });
 }
+
+// ===== オープンジョー（帰りに出発する場所）＝規約第6条（2026-09-21・REQ-97）=====
+// 往路到着地（目的地）と復路出発地は**同一エリア内**でなければならない。
+// エリアの対応表は src/rules-core.js の zoneToArea() が正本＝ここに書き写さない。
+// 判定できないとき（規約データ未読）は null を返す。推測で「組める」と言わない
+function ppSameArea(a, b) {
+  if (!RULES_CORE) return null;
+  const za = CITIES.find((c) => c.iata === a)?.zone;
+  const zb = CITIES.find((c) => c.iata === b)?.zone;
+  if (za == null || zb == null) return null;
+  return RULES_CORE.zoneToArea(za) === RULES_CORE.zoneToArea(zb);
+}
+
+// 目的地と同じエリアの海外都市だけを並べる。
+// 組めない街を選ばせてから0件を返すのは、利用者の時間を使わせて何も教えないのと同じ
+async function ppFillReturnDeps() {
+  const sel = document.getElementById('pp-return-dep');
+  if (!sel) return;
+  const dest = document.getElementById('pp-dest')?.value;
+  const keep = sel.value;                       // いま選んでいるもの（作り直しても残す）
+  await rulesReady;                             // zoneToArea は rules-core にある
+  const head = '<option value="">目的地と同じ</option>';
+  if (!RULES_CORE || !dest) {
+    // 規約データを読めていないなら選択肢を作らない（推測で並べない）
+    sel.innerHTML = head;
+    sel.value = '';
+    return;
+  }
+  const opts = CITIES
+    .filter((c) => c.type === 'overseas' && !c.group && c.iata !== dest
+                   && ppSameArea(dest, c.iata) === true)
+    .map((c) => `<option value="${c.iata}">${c.name}（${c.iata}）</option>`);
+  sel.innerHTML = head + opts.join('');
+  // 目的地を変えて前の選択がエリア外になったら「目的地と同じ」へ戻す（黙って効かせ続けない）
+  sel.value = [...sel.options].some((o) => o.value === keep) ? keep : '';
+}
+
+// 目的地を変えたら、帰りに出発できる街の顔ぶれも変わる
+function ppDestChange() { ppFillReturnDeps(); }
 
 // 提携航空会社の選択肢を作る。正本は data/airlines.json の ana_partners で、
 // スターアライアンス加盟社は star 側で扱うのでここには出さない
@@ -3911,12 +3962,26 @@ async function ppSearch() {
     };
     // 指定があるときだけ渡す（空欄なら従来どおり自動で候補を出す）
     if (arrival && arrival !== origin) req.arrival = arrival;
+    // 帰りに出発する場所（オープンジョー・REQ-97）。目的地と同じなら条件にしない
+    const retDep = document.getElementById('pp-return-dep')?.value || null;
+    if (retDep && retDep !== req.destination) {
+      // 第6条を満たさない指定は、黙って外さずここで止める（理由を出すため）
+      if (ppSameArea(req.destination, retDep) !== true) {
+        const e = new Error(`${ppCityName(req.destination)} と ${ppCityName(retDep)} は同じエリアではないため、`
+          + `この組み合わせでは特典を組めません（規約第6条）。`
+          + `「帰りに出発する場所」を目的地と同じに戻すか、同じエリアの街を選んでください。`);
+        e.userInput = true;      // 不具合ではなく入力の誤り。ログには流さない（本物の例外が埋もれる）
+        throw e;
+      }
+      req.returnDep = retDep;
+    }
     if (PP.mustVia && PP.mustVia.length) req.mustVia = PP.mustVia;
 
     localStorage.setItem('pp-origin', req.origin);
     localStorage.setItem('pp-dest',   req.dest ?? req.destination);
     localStorage.setItem('pp-award-kind', req.awardKind);
     localStorage.setItem('pp-partner-airline', req.partnerAirline ?? '');
+    localStorage.setItem('pp-return-dep', req.returnDep ?? '');
     PP.req = req;
     // ★特典の種類と社は STATE にも同期する（REQ-95）。
     //   ppToEditor（旅程を持ち帰る）だけで写すと、旅程を開かずに「じぶんで組む」へ
@@ -3944,9 +4009,9 @@ async function ppSearch() {
     ppRender();
     ppGo('s2');                       // さがす → 候補（画面を切り替える）
   } catch (e) {
-    console.error(e);
+    if (!e.userInput) console.error(e);      // 想定内の入力誤りはログに出さない
     msg.className = 'pp-msg';
-    msg.textContent = '提案を作れませんでした：' + e.message;
+    msg.textContent = e.userInput ? e.message : '提案を作れませんでした：' + e.message;
   } finally {
     btn.disabled = false;
   }
@@ -4087,6 +4152,7 @@ function ppRender() {
   const pin = document.getElementById('pp-cond-pin');
   const bits = [];
   if (PP.req.arrival)   bits.push(ppCityName(PP.req.arrival) + 'に帰着');
+  if (PP.req.returnDep) bits.push(ppCityName(PP.req.returnDep) + '発で帰る');
   if (PP.req.mustVia?.length) bits.push(PP.req.mustVia.map(ppCityName).join('・') + 'を必ず通る');
   pin.textContent = bits.join(' ・ ');
   pin.hidden = bits.length === 0;
@@ -4105,11 +4171,27 @@ function ppRender() {
   ul.innerHTML = '';
   if (!list.length) {
     // 黙って空にしない。何が効いて0件になったのかと、その外し方を出す
-    ul.innerHTML = PP.req.mustVia?.length
-      ? `<li style="padding:12px;font-size:0.8rem;color:#7a879a">`
-        + `${PP.req.mustVia.map(ppCityName).join('・')} を必ず通る案がありませんでした。`
-        + `<br><button class="pp-ghost" style="margin-top:8px" onclick="ppClearVia()">経由地の条件を外してさがす</button></li>`
-      : '<li style="padding:12px;font-size:0.8rem;color:#7a879a">もう1都市を足せる案がありません</li>';
+    const lead = 'padding:12px;font-size:0.8rem;color:#7a879a';
+    // ★効いている条件を**全部**挙げて、それぞれに外すボタンを出す。
+    //   先に見つかった1つだけを出すと、条件が2つ効いているときに
+    //   片方を外しても0件のままで、利用者は何が残っているのか分からない
+    const blockers = [];
+    if (PP.req.mustVia?.length) blockers.push({
+      why: `${PP.req.mustVia.map(ppCityName).join('・')} を必ず通る`,
+      label: '経由地の条件を外してさがす', fn: 'ppClearVia()',
+    });
+    if (PP.req.returnDep) blockers.push({
+      why: `${ppCityName(PP.req.returnDep)} 発で帰る`,
+      label: '帰りに出発する場所の条件を外してさがす', fn: 'ppClearReturnDep()',
+    });
+    ul.innerHTML = blockers.length
+      ? `<li style="${lead}">次の条件に合う案がありませんでした：`
+        + blockers.map((b) => b.why).join(' ／ ')
+        + `<br><span style="color:#9aa7b8">その街から帰る便が路線データに無いか、規約に合いません。</span>`
+        + blockers.map((b) =>
+            `<br><button class="pp-ghost" style="margin-top:8px" onclick="${b.fn}">${b.label}</button>`).join('')
+        + `</li>`
+      : `<li style="${lead}">もう1都市を足せる案がありません</li>`;
   }
   list.forEach((r, i) => {
     const li = document.createElement('li');
@@ -4413,6 +4495,20 @@ async function ppFromEditor() {
   }
   document.getElementById('pp-arrival').value =
     (STATE.arrival && STATE.arrival !== STATE.departure) ? STATE.arrival : '';
+  // 帰りに出発する場所（オープンジョー）も引き継ぐ（REQ-98）。
+  // 目的地を入れ替えたので選択肢を作り直してから入れる
+  const rdEl = document.getElementById('pp-return-dep');
+  if (rdEl) {
+    await ppFillReturnDeps();
+    const rd = (STATE.returnDep && STATE.returnDep !== STATE.destination) ? STATE.returnDep : '';
+    // ★第6条を満たさない指定は選択肢に無い＝そのままでは value に入らず、黙って条件が外れる。
+    //   選べる形にしておき、組めるかどうかの判定と文言は ppSearch の1か所に任せる
+    if (rd && ![...rdEl.options].some((o) => o.value === rd)) {
+      rdEl.insertAdjacentHTML('beforeend',
+        `<option value="${rd}">${ppCityName(rd)}（${rd}）</option>`);
+    }
+    rdEl.value = rd;
+  }
   // いま置いてある経由地を条件にする（目的地・出発地・帰着地は条件ではない）
   // 往路と復路で同じ街を通る旅程は多い。重ねると条件バーに「ハノイ・ハノイ」と出るので畳む（REQ-96）
   PP.mustVia = [...new Set([...STATE.outbound, ...STATE.return].filter(Boolean))]
@@ -4424,6 +4520,13 @@ async function ppFromEditor() {
 // 経由地の条件を外してもう一度さがす
 async function ppClearVia() {
   PP.mustVia = [];
+  await ppSearch();
+}
+
+// 帰りに出発する場所の条件を外してもう一度さがす（REQ-99）
+async function ppClearReturnDep() {
+  const rd = document.getElementById('pp-return-dep');
+  if (rd) rd.value = '';
   await ppSearch();
 }
 

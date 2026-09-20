@@ -394,6 +394,103 @@ try:
         check("手がかりが無いときは画面の選択を既定で上書きしない",
               keep == {"kind": "partner", "air": "VN"}, str(keep))
 
+        # ══ オープンジョー（帰りに出発する場所）＝規約第6条（2026-09-21・REQ-97〜99）══
+        pg.evaluate("() => { PP.mustVia = []; PP.chosen = null; ppGo('s1'); }")
+        pg.select_option("#pp-origin", "TYO")
+        pg.select_option("#pp-dest", "AMS")
+        pg.select_option("#pp-arrival", "")
+        pg.select_option("#pp-award", "star")
+        pg.wait_for_function("document.querySelectorAll('#pp-return-dep option').length > 1", timeout=10000)
+        opts = pg.eval_on_selector_all("#pp-return-dep option", "e => e.map(x => x.value)")
+        check("復路出発地は目的地と同じエリアだけ出す（第6条）",
+              "CDG" in opts and "HAN" not in opts and "AMS" not in opts,
+              f"{len(opts)}件 CDG={'CDG' in opts} HAN={'HAN' in opts}")
+
+        pg.select_option("#pp-dest", "HAN")
+        pg.wait_for_function(
+            "[...document.querySelectorAll('#pp-return-dep option')].every(o => o.value !== 'CDG')",
+            timeout=10000)
+        opts2 = pg.eval_on_selector_all("#pp-return-dep option", "e => e.map(x => x.value)")
+        check("目的地を変えると選べる街も入れ替わる", "SIN" in opts2 and "CDG" not in opts2,
+              f"{len(opts2)}件 SIN={'SIN' in opts2}")
+
+        # エリア外になった選択は「目的地と同じ」へ戻す（黙って効かせ続けない）
+        pg.select_option("#pp-dest", "AMS")
+        pg.wait_for_function("[...document.querySelectorAll('#pp-return-dep option')].some(o => o.value === 'CDG')", timeout=10000)
+        pg.select_option("#pp-return-dep", "CDG")
+        pg.select_option("#pp-dest", "HAN")
+        pg.wait_for_function("document.getElementById('pp-return-dep').value === ''", timeout=10000)
+        check("エリア外になった指定は目的地と同じへ戻る",
+              pg.input_value("#pp-return-dep") == "", pg.input_value("#pp-return-dep"))
+
+        pg.select_option("#pp-dest", "AMS")
+        pg.wait_for_function("[...document.querySelectorAll('#pp-return-dep option')].some(o => o.value === 'CDG')", timeout=10000)
+        pg.select_option("#pp-return-dep", "CDG")
+        pg.evaluate("() => { PP.stats = null; }")   # ★前の検索の結果を読まないよう消してから押す
+        pg.click("#pp-go")
+        pg.wait_for_function("PP.stats", timeout=60000)
+        oj = pg.evaluate("""() => ({
+            rd: PP.req.returnDep, chip: document.getElementById('pp-cond-pin').textContent,
+            ret: PP.base ? PP.base.route[1] : null, rows: PP.rows.length
+        })""")
+        check("復路出発地が検索条件に載る", oj["rd"] == "CDG", str(oj)[:110])
+        check("条件バーに「パリ発で帰る」と出る", "パリ発で帰る" in oj["chip"], oj["chip"])
+        check("基準の旅程がパリ発になる", (oj["ret"] or "").startswith("パリ"), str(oj["ret"]))
+
+        # 再読込（REQ-91 の復元）でも条件が残る
+        pg.reload()
+        pg.wait_for_function("typeof rulesReady !== 'undefined'", timeout=15000)
+        pg.wait_for_function("PP.stats", timeout=60000)
+        check("再読込しても復路出発地が残る", pg.evaluate("() => PP.req.returnDep") == "CDG",
+              str(pg.evaluate("() => PP.req.returnDep")))
+
+        # じぶんで組むを往復しても残る（REQ-98）
+        pg.evaluate("""() => { const r = PP.rows[0];
+            PP.selKey = (r.iata ?? '__base__') + '|' + (r.plan ?? '-'); PP.way = 0; ppRender();
+            ppShowItinerary(r.ways[0]); ppToEditor(); }""")
+        check("じぶんで組むへ渡すとき復路出発地を持ち帰る",
+              pg.evaluate("() => STATE.returnDep") == "CDG", str(pg.evaluate("() => STATE.returnDep")))
+        pg.evaluate("async () => { PP.mustVia = []; await ppFromEditor(); }")
+        check("もう1都市の提案を受け直しても復路出発地が残る",
+              pg.evaluate("() => PP.req.returnDep") == "CDG", str(pg.evaluate("() => PP.req.returnDep")))
+
+        # 第6条を満たさない指定を持ち込んだら、黙って外さず理由を出して止める
+        pg.evaluate("async () => { STATE.returnDep = 'HAN'; PP.mustVia = []; await ppFromEditor(); }")
+        ng = pg.evaluate("""() => ({ msg: document.getElementById('pp-msg').textContent,
+            s1: !document.getElementById('pp-s1').hidden })""")
+        check("エリア違いの指定は検索せず理由を出す",
+              "第6条" in ng["msg"] and "ハノイ" in ng["msg"] and ng["s1"], ng["msg"][:80])
+
+        # 0件になったら、外してさがし直すボタンを出す（REQ-99）
+        pg.evaluate("() => { STATE.returnDep = null; ppGo('s1'); }")
+        pg.select_option("#pp-award", "partner")
+        pg.wait_for_selector("#pp-airline option[value='VN']", state="attached", timeout=10000)
+        pg.select_option("#pp-airline", "VN")
+        pg.wait_for_function("[...document.querySelectorAll('#pp-return-dep option')].some(o => o.value === 'LIS')", timeout=10000)
+        pg.select_option("#pp-return-dep", "LIS")
+        pg.evaluate("() => { PP.stats = null; }")
+        pg.click("#pp-go")
+        pg.wait_for_function("PP.stats && PP.req.returnDep === 'LIS'", timeout=60000)
+        empty = pg.inner_text("#pp-list")
+        # 経由地の条件も効いている状態＝2つとも挙げて、2つとも外せること
+        check("0件のとき、効いている条件を全部挙げる",
+              "リスボン" in empty and "フランクフルト" in empty, empty.replace("\n", " ")[:90])
+        check("0件のとき、条件ごとに外すボタンを出す",
+              pg.eval_on_selector_all("#pp-list button", "e => e.length") == 2,
+              str(pg.eval_on_selector_all("#pp-list button", "e => e.map(x => x.textContent)")))
+
+        pg.click("#pp-list button[onclick='ppClearVia()']")
+        pg.wait_for_function("!PP.req.mustVia", timeout=60000)
+        only = pg.inner_text("#pp-list")
+        check("片方を外しても、残っている条件は挙げ続ける",
+              "リスボン" in only and "フランクフルト" not in only, only.replace("\n", " ")[:90])
+
+        pg.click("#pp-list button[onclick='ppClearReturnDep()']")
+        pg.wait_for_function("!PP.req.returnDep && PP.rows.length > 0", timeout=60000)
+        check("最後の条件を外すと候補が出る",
+              pg.eval_on_selector_all("#pp-list .pp-city", "e => e.length") >= 1,
+              f'{pg.eval_on_selector_all("#pp-list .pp-city", "e => e.length")}行')
+
         check("JSエラーが出ない", len(errors) == 0, " / ".join(errors[:3]))
         b.close()
 finally:

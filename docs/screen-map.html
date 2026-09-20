@@ -212,7 +212,7 @@
 
 <header class="top">
   <h1>My 8flyer 画面遷移マップ</h1>
-  <span class="meta">As-Is / 2026-09-20 / 動線の穴4件は是正済み</span>
+  <span class="meta">As-Is / 2026-09-21 / 動線の穴4件は是正済み・オープンジョー対応（REQ-97〜99）</span>
 </header>
 <p class="lede">
   稼働中の実装（<code class="f">index.html</code> 1ファイル＋<code class="f">src/*.js</code>＋Cloudflare Workers）から起こした初版。
@@ -266,6 +266,11 @@ flowchart TD
       <div class="m-sel">東京（羽田 / 成田）（TYO）</div>
       <div class="m-label">目的地</div>
       <div class="m-sel">アムステルダム（AMS）</div>
+      <div class="m-label">帰りに降りる場所（省略すると出発地と同じ）</div>
+      <div class="m-sel">出発地と同じ</div>
+      <div class="m-label">帰りに出発する場所（海外側・2026-09-21 新設）</div>
+      <div class="m-sel">パリ（CDG）</div>
+      <p class="m-hint">選択肢は<b>目的地と同じエリアの街だけ</b>（規約第6条）。目的地を変えると作り直し、エリア外になった指定は「目的地と同じ」へ戻る。</p>
       <div class="m-label">特典の種類</div>
       <button class="op" data-op="o1" data-n="1"><span style="display:block"><span class="m-sel">提携航空会社（1社だけで組む）</span></span></button>
       <p class="m-hint">往復の全区間を同じ1社で組みます。スターアライアンス便とは混ぜられません。</p>
@@ -500,8 +505,11 @@ flowchart TD
     o9:  {name:"◀ もう1都市の一覧に戻る", from:"S3", to:"S2", api:null, write:null, note:"ppBackToList。"},
     o10: {name:"◀ 提案に戻る", from:"S4", to:"S3", api:null, write:null,
           note:"ppBackFromEditor（2026-09-20）。旅程があれば旅程・候補があれば候補・どちらも無ければさがすへ戻る。"},
+    o26: {name:"経由地の条件を外してさがす／帰りに出発する場所の条件を外してさがす（0件のとき）", from:"S2", to:"S2",
+          api:null, write:null,
+          note:"ppClearVia / ppClearReturnDep（REQ-99）。0件のときは効いている条件を全部挙げ、条件ごとにこのボタンを出す。"},
     o11: {name:"▲ この条件でもう1都市の提案を受ける", from:"S4", to:"S2", api:null, write:null,
-          note:"置いてある経由地が「必ず通る街」（mustVia）として検索条件になる（同じ街は畳む・REQ-96）。さがすで選んだ特典の種類と航空会社は STATE.awardKind／partnerAirline から戻す（REQ-95）。"},
+          note:"置いてある経由地が「必ず通る街」（mustVia）として検索条件になる（同じ街は畳む・REQ-96）。さがすで選んだ特典の種類と航空会社は STATE.awardKind／partnerAirline から戻す（REQ-95）。復路出発地（オープンジョー）も引き継ぐ。エリア違いなら検索せず理由を出して止める（REQ-98）。"},
     o12: {name:"都市スロット（出発地・目的地・往路3・復路3・帰着地の8つ）", from:"S4", to:"M1",
           api:null, write:null, note:"openModal(index.html:1194-1278)。"},
     o13: {name:"判定する", from:"S4", to:"stay", api:null, write:null,
