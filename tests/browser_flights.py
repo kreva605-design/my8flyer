@@ -83,6 +83,39 @@ try:
         results.append(("LH運航の区間を含むなら指摘しない",
                         "ANA国際線特典" not in t, t[:80].replace("\n", " ")))
 
+        # ===== 実便を持っていない区間の言い方（2026-09-22・REQ-100／101）=====
+        # ★「まだ取得していません」だけだと「押せば取れる」と読め、実際には押しても増えない。
+        #   何が確認済みで何が未確認かと、利用者にできることを書く。
+        #   検査は実便データから区間をわざと外して「持っていない状態」を作る（実データの増減に左右されない）
+        t = pg.evaluate("""async () => {
+            const keys = ['HND-CDG', 'CDG-HND'];
+            const saved = {};
+            keys.forEach((k) => { saved[k] = FLIGHTS_DB.legs[k]; delete FLIGHTS_DB.legs[k]; });
+            Object.assign(STATE, {
+              awardType:'partner', departure:'HND', destination:'CDG', arrival:null, returnDep:null,
+              outbound:[null,null,null], return:[null,null,null], outboundSO:[false,false,false],
+              returnSO:[false,false,false], outboundSurface:[false,false,false], returnSurface:[false,false,false],
+            });
+            await checkFlights(true);
+            const out = { legs: document.getElementById('flight-legs').innerText,
+                          note: document.getElementById('flight-connections').innerText };
+            keys.forEach((k) => { FLIGHTS_DB.legs[k] = saved[k]; });
+            return out;
+        }""")
+        results.append(("持っていない区間は「路線としては飛ぶ」ことを併記する",
+                        "路線としては飛びます" in t["legs"] and "まだ取得していません" not in t["legs"],
+                        t["legs"][:110].replace("\n", " ")))
+        results.append(("まとめに、確認済みのことと未確認のことを両方書く",
+                        "路線辞書で確認" in t["note"] and "裏取り" in t["note"],
+                        t["note"][:110].replace("\n", " ")))
+        results.append(("まとめに、利用者にできることを書く",
+                        "Googleフライトで便名を見る" in t["note"], t["note"][-70:].replace("\n", " ")))
+
+        # ボタンは押しても実便が増えない。「再取得」という名前を付けない
+        label = pg.evaluate("document.querySelector('.btn-refresh').textContent.trim()")
+        results.append(("押しても外から取ってこないボタンを「再取得」と名乗らない",
+                        "再取得" not in label and label != "", label))
+
         results.append(("JSエラーなし", not errors, str(errors[:3])))
         b.close()
 finally:

@@ -516,6 +516,8 @@ flowchart TD
           note:"validate()。規約7条／5条の判定を出す。通信なし。"},
     o14: {name:"ANAで空席確認", from:"S4", to:"外部（ANA SKY WEB）", api:"Chrome拡張 → ANA予約フォーム",
           write:null, note:"sendRouteToAnaBridge。検索ボタンは押さない（入力までを渡す）。"},
+    o27: {name:"🔄 表示を作り直す（旧「🔄 再取得」）", from:"S4", to:"stay", api:null, write:null,
+          note:"refreshFlights（REQ-101）。手元の routes.json を引き直すだけで外へ出ない＝押しても結果は変わらない。実便（data/flights.json）は静的ファイルで、増やすのは scripts/my8flyer/fetch_flights.py の仕事。"},
     o15: {name:"このルートを保存", from:"S4", to:"stay", api:"PUT /saved-routes",
           write:"Workers KV: SAVED_ROUTES['routes'] ＋ localStorage: m8f_saved",
           note:"同期トークン未設定なら端末内だけに残る。"},

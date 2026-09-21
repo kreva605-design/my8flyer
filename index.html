@@ -1352,7 +1352,10 @@
     <div id="flight-legs"></div>
     <div id="flight-connections"></div>
     <div class="flight-actions">
-      <button class="btn-refresh" onclick="refreshFlights()">🔄 再取得</button>
+      <!-- ★「再取得」という名前だったが、実際には手元の路線辞書を引き直すだけで
+           外から便を取ってこない＝押しても結果が変わらない。設定を変えたときに
+           表示へ反映させるためのボタンなので、名前を役割に合わせた（REQ-101） -->
+      <button class="btn-refresh" onclick="refreshFlights()" title="設定（代表空港のみ表示など）を変えたときに押します。実便のデータは手元のファイルなので、押しても増えません">🔄 表示を作り直す</button>
       <button class="btn-save-route" onclick="saveRoute()">💾 このルートを保存</button>
     </div>
   </div>
@@ -2813,9 +2816,12 @@ function toggleResultCard() {
   chevron.textContent   = closing ? '▼' : '▲';
 }
 
-// ===== フライトキャッシュ（localStorage・7日TTL／API節約） =====
-// 永続キャッシュ: タブを閉じても残り、TTL内の同一区間はAviationStackを再消費しない。
-// 「🔄再取得」(refreshFlights) は force でキャッシュを無効化し最新化できる。
+// ===== フライトキャッシュ（localStorage・7日TTL） =====
+// ★かつて外部API（AviationStack）を叩いていたときの名残。
+//   いまの fetchLeg は手元の routes.json を引くだけで外に出ないため、
+//   このキャッシュは結果を変えない。「🔄 表示を作り直す」も同じで、
+//   実便（data/flights.json）は静的ファイルなので画面からは増やせない
+//   （増やすのは scripts/my8flyer/fetch_flights.py の仕事）。
 const FLIGHT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7日（フライト時刻表は数日単位で安定）
 const FLIGHT_CACHE = {
   get(key) {
@@ -3377,7 +3383,7 @@ function renderFlightCard(legArr, results, soIatas) {
     if (!FLIGHTS_DB) return '';
     const rec = FLIGHTS_DB.legs?.[`${from}-${to}`];
     const win = FLIGHTS_DB.window?.from ? `${FLIGHTS_DB.window.from} の週` : '';
-    if (!rec)                    return `<div class="rf-note">実便：この区間はまだ取得していません</div>`;
+    if (!rec)                    return `<div class="rf-note">実便：この区間は手元に持っていません（<b>路線としては飛びます</b>。実際の便は上の「Googleフライトで便名を見る」で確かめられます）</div>`;
     if (rec.status === 'error')  return `<div class="rf-note">実便：取得不可（Googleフライト側の都合。時間を置いて取り直します）</div>`;
     const all = rec.flights ?? [];
     if (!all.length)             return `<div class="rf-note">実便：${win}に直行便は見つかりませんでした</div>`;
@@ -3561,8 +3567,13 @@ function renderFlightCard(legArr, results, soIatas) {
              + `この旅程は <b>ANA国際線特典</b>として扱われます（必要マイルが変わります）。</div>`);
     }
     if (unknown) {
-      out.push(`<div class="rf-note">実便を取っていない区間が ${unknown} あります`
-             + `（その区間は運航会社での再判定をしていません）</div>`);
+      // ★「取っていない」だけでは、便が無いのか確かめていないのかが読めない。
+      //   何が確認済みで何が未確認かと、利用者にできることを書く
+      out.push(`<div class="rf-note"><b>実便を手元に持っていない区間が ${unknown} あります。</b>`
+             + `路線として飛ぶことは路線辞書で確認できていますが、`
+             + `<b>実際の便での裏取り（運航会社の確かめ直し）をしていません</b>`
+             + `（路線辞書が言う社と、実際に飛ばしている社が食い違うことがあります）。`
+             + `<br>各区間の「🔍 Googleフライトで便名を見る」から実際の便を確認できます。</div>`);
     }
     return out.join('');
   };
