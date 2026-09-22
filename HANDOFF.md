@@ -498,7 +498,7 @@ cd ../my8flyer-ana-bridge
 | 出す前の確認 | 単体107/107・画面133/133・拡張e2e 17/17／秘密情報の走査0件／`flights-raw.json`・`legs.json`・`snapshots/*.html`・`.venv-flights` は本番で **404 を実測** |
 | 出したあとの実測 | 配信バイト数が手元と一致（`index.html` 195,113B／`src/combos.js` 12,683B／`data/mct-ana.json` 19,962B）。本番URLで①乗継時間26値＋既定2値②組み合わせ5件③区間ごとの一覧6区間を残す④行き/帰り別⑤3案＋2案⑥羽田はANA公式⑦ロンドンは既定値⑧短い印1案⑨JSエラーなし |
 
-**まだユーザーの手が要るもの：** 拡張の更新（v0.7.0）とANAタブの開き直し／実機（スマホ）での目視／
+**まだユーザーの手が要るもの：** 拡張の更新（**v0.9.1**）とANAタブの開き直し／実機（スマホ）での目視／
 **実際に特典を取ってみる**。**Claude は実機も予約も実行できない。**
 
 ---
@@ -532,7 +532,7 @@ cd ../my8flyer-ana-bridge
 | 組み合わせのテスト | [tests/combos.test.mjs](tests/combos.test.mjs) **21件**（落とすべきを落とし、落としてはいけないものを残すか）／[tests/browser_combos.py](tests/browser_combos.py) **24件** |
 | **拡張そのもののテスト** | [../my8flyer-ana-bridge/tests/e2e_bridge.py](../my8flyer-ana-bridge/tests/e2e_bridge.py) **17件**。本物の `content_*.js` を Chrome に読み込む（差し替えるのは manifest と background の URL 定数だけ） |
 | 組み合わせの設計記録 | Vault `projects/my8flyer/combo-mock.html`（実データつき）／公開 https://claude.ai/code/artifact/e441bef7-d421-4626-b341-6e25d5aff20e |
-| **拡張の操作手順書** | [../my8flyer-ana-bridge/docs/manual.html](../my8flyer-ana-bridge/docs/manual.html) **v1.3**（正本）。公開＝https://claude.ai/code/artifact/32faf61c-9056-405d-9a61-775ae0f3537b （**同じURLに出し直す**）。画面のラベル・位置・メッセージを変えたら同じ作業内で改訂履歴も更新する |
+| **拡張の操作手順書** | [../my8flyer-ana-bridge/docs/manual.html](../my8flyer-ana-bridge/docs/manual.html) **v1.6**（正本・対象拡張 v0.9.1）。公開＝https://claude.ai/code/artifact/32faf61c-9056-405d-9a61-775ae0f3537b （**同じURLに出し直す**）。画面のラベル・位置・メッセージを変えたら同じ作業内で改訂履歴も更新する |
 | 空席確認の設計（読み物） | https://claude.ai/code/artifact/6d419296-a12e-404a-ac89-6a66fbff5715 |
 | 特典カレンダーの解析 | `scripts/my8flyer/parse_award_calendar.py`（拡張が保存したJSON→路線×日付×空席区分） |
 | 特典カレンダーの調査用拡張 | [spike-ana-calendar/](spike-ana-calendar/)（**役目終了**。v0.5.0 で本体に統合済み・Chromeからは削除してよい） |
@@ -601,7 +601,7 @@ cd ../my8flyer-ana-bridge
 
 ### 残作業
 
-残作業 6件 — **あなたの対応は4件です**（内訳：1番=Claudeがやる 1件 / 3番=あなたがやる 4件 / 5番=放置でよい 2件）。
+残作業 7件 — **あなたの対応は4件です**（内訳：1番=Claudeがやる 2件 / 3番=あなたがやる 4件 / 5番=放置でよい 2件）。
 
 **2026-09-23 08:20 時点。** 前回あった「曜日の穴」（要件外-リスク）と「manifest の sha256 未確定」（REQ-待ち）は
 **どちらも解消済み**なので落とした（下の「片付いたもの」参照）。
@@ -611,6 +611,7 @@ cd ../my8flyer-ana-bridge
 | # | 判定 | やるか | 内容 | 放置するとどうなるか |
 |---|---|---|---|---|
 | 1 | `REQ-未達` | ✅ **Claudeがやる** | **曜日を考慮した提案の実装（REQ-104〜106）。** 利用者の依頼「曜日によってルート有無も考慮した提案にして欲しい」の本体。設計＝Vault `architecture.md` §29（1902行〜）。**前提データは揃っている**（下の実測値）。あわせて **REQ-104〜106 を `build-manifest.yml` へ登録する**（現在 REQ-103 までしか無い） | 週2便の区間（ハノイ⇄アムステルダム＝火・土の VN83/VN82 など）を曜日を見ずに提案し続ける。利用者はANAの画面で0件になって初めて気づく |
+| 1 | `REQ-未達` | ✅ **Claudeがやる** | **手順書 v1.6 を公開 Artifact へ出し直す。** 正本 `docs/manual.html` は v1.6 だが、公開版（https://claude.ai/code/artifact/32faf61c-9056-405d-9a61-775ae0f3537b ）が v1.6 で出し直されたか記録がない。**09-23 にヘッダーの版表示が v1.5 のままだったのを v1.6 へ是正済み**（履歴表だけ v1.6 が足されていた） | 手順書を開いた人が、自分が読んでいるのが拡張 v0.9.1 対応版かどうか判断できない |
 | 3 | `REQ-人手` | 👤 **あなたがやる** | **拡張を v0.9.1 へ再読み込みし、ANAのタブを開き直す。** `chrome://extensions` で ↻ → ANAタブで ⌘R | モーダルで直した日付が巻き戻る不具合（REQ-18/19）の是正が**効かないまま**。更新ボタンだけでは古いコードが残る |
 | 3 | `REQ-人手` | 👤 **あなたがやる** | **公開URLでの動作確認5項目**（③「最初の15分」に列挙。#candidates のURL／戻る・再読込／じぶんで組むボタン／ベトナム航空で 成田→ハノイ→アムステルダム／条件バーがベトナム航空のまま） | 09-20〜09-22 の是正が実機で効いているかを誰も確かめていない |
 | 3 | `REQ-人手` | 👤 **あなたがやる** | **実機（スマホ）で目視。** 候補一覧トップのボタン・旅程の詳細の日付・組み合わせの表示 | 実機特有の不具合に気づけない（09-13 に実際ここでボタンが出ない件が見つかった） |
