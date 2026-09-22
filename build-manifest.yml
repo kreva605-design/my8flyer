@@ -10,6 +10,7 @@
 #   - 2026-09-20 画面を往復すると特典の種類が消えていた欠陥の是正（REQ-95・96）。architecture.md は §26 を末尾に追記しただけで既存節は未変更。実装・テスト・manifest・画面遷移マップを同じ作業内で追従させ、単体107/107・画面65/65（REQ-95/96の検査10件を追加）・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
 #   - 2026-09-21 オープンジョー（帰りに出発する場所）を提案でも指定できるようにした（REQ-97〜99）。architecture.md は §27 を末尾に追記しただけで既存節は未変更。実装・テスト・manifest・画面遷移マップを同じ作業内で追従させ、単体107/107・画面79/79（検査14件を追加）・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
 #   - 2026-09-22 実便を持っていない区間の言い方とボタン名の是正（REQ-100・101）、実便の収集対象の拡大（REQ-102）。architecture.md は §28 を末尾に追記しただけで既存節は未変更。単体107/107・実便15/15（検査4件追加）・画面79/79・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
+#   - 2026-09-22 実便まわりの是正（REQ-100〜103）。実便を295区間→751区間へ拡大し、区間ごとの seen（見た曜日）を索引に残して「見ていない」を「飛ばない」と書かないようにした。architecture.md は §28 を末尾に追記しただけで既存節は未変更。実便19/19（検査8件追加）・単体107/107・画面79/79・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
 #
 project: my8flyer
 schema_version: 1
@@ -25,7 +26,7 @@ updated_at: 2026-09-19
 sources:
   design:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
-    sha256: 244e2a9d38081587a9224fa72b79a9bb74a1468c9b492b58c92248c9d9998c59
+    sha256: 9649d95e4289a550dc989609a7ee72372d2f8703c187bfe961ca48afe21e8f99
   test_report:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/test_report_2026-05-20_phase11.md
     sha256: 7d049575b537d667ba7f2aa51a6bb5332b19f9a80a1c5fca2397cd429dd6173f
@@ -888,5 +889,16 @@ requirements:
   impl_ref: scripts/my8flyer/collect_legs.mjs,scripts/my8flyer/fetch_flights.py,projects/my8flyer/data/legs.json
   test_ref: projects/my8flyer/data/flights.json
   verify_mode: manual
+  last_verified: 2026-09-22
+  status: green
+
+- id: REQ-103
+  text: 実便の欄には「見た範囲」をそのまま書く。見た範囲は区間ごとに違う（2段階取得で1日ぶんの区間と7日ぶんの区間が混ざる）ため、索引に区間ごとの seen（月火水木金土日 の7文字・1=見た/?=見ていない）を残し、それを見て書き分ける。便が0本の区間は days を持てないので、seen が無いと「飛ばない」のか「見ていない」のか区別できない。0本でも見ていない曜日があるならそう書き、7日ぶん見たときだけ「直行便はありません」と言い切る。実測：ハノイ⇄アムステルダムは火・土の週2便で、月曜だけ見て0本になっていた
+  design_ref: architecture.md#28-4
+  impl_ref: index.html::renderFlightCard()[renderRealFlights],scripts/my8flyer/build_flights_index.py
+  test_ref: tests/browser_flights.py
+  test_kind: suite
+  tested_at: "2026-09-22"
+  verify_mode: auto
   last_verified: 2026-09-22
   status: green

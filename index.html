@@ -3382,11 +3382,29 @@ function renderFlightCard(legArr, results, soIatas) {
   const renderRealFlights = (from, to, eligibleCodes) => {
     if (!FLIGHTS_DB) return '';
     const rec = FLIGHTS_DB.legs?.[`${from}-${to}`];
-    const win = FLIGHTS_DB.window?.from ? `${FLIGHTS_DB.window.from} の週` : '';
+    // ★見た範囲は**区間ごとに違う**（seen＝月火水木金土日 の7文字・1=見た / ?=見ていない）。
+    //   全体の window で「◯◯の週」と書くと、1日しか見ていない区間まで週ぶん見たことになる。
+    //   実測：ハノイ⇄アムステルダムは火・土の週2便で、月曜だけ見ると0本になっていた
+    const winFrom = FLIGHTS_DB.window?.from || '';
+    const seen = rec?.seen ?? '';
+    const seenN = seen ? [...seen].filter((c) => c === '1').length : 0;
+    const unseen = !seen || seen.includes('?');
+    const win = !winFrom ? ''
+      : !seen ? `${winFrom} の週`
+      : seenN >= 7 ? `${winFrom} の週（7日ぶん）`
+      : `${winFrom} から ${seenN}日ぶん`;
     if (!rec)                    return `<div class="rf-note">実便：この区間は手元に持っていません（<b>路線としては飛びます</b>。実際の便は上の「Googleフライトで便名を見る」で確かめられます）</div>`;
     if (rec.status === 'error')  return `<div class="rf-note">実便：取得不可（Googleフライト側の都合。時間を置いて取り直します）</div>`;
     const all = rec.flights ?? [];
-    if (!all.length)             return `<div class="rf-note">実便：${win}に直行便は見つかりませんでした</div>`;
+    if (!all.length) {
+      // ★「見ていない」を「飛ばない」と書かない。見ていない曜日が残っているなら、
+      //   そこに飛んでいる可能性もそのまま残っている
+      const maybe = unseen
+        ? `<br><b>見ていない曜日があります</b>（週に数便だけの路線はここで0本になります）。`
+          + `上の「🔍 Googleフライトで便名を見る」で日を変えて確かめられます。`
+        : `<br>7日ぶん見てこの結果なので、<b>この区間に直行便はありません</b>（乗り継ぎ便は別です）。`;
+      return `<div class="rf-note">実便：${win}に直行便は見つかりませんでした${maybe}</div>`;
+    }
 
     const elig = new Set(eligibleCodes ?? []);
     const usable = all.filter(f => elig.has(String(f.no).slice(0, 2)));

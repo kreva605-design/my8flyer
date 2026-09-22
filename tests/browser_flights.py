@@ -111,7 +111,52 @@ try:
         results.append(("まとめに、利用者にできることを書く",
                         "Googleフライトで便名を見る" in t["note"], t["note"][-70:].replace("\n", " ")))
 
-        # ボタンは押しても実便が増えない。「再取得」という名前を付けない
+        # ===== 見た範囲は区間ごとに違う（2026-09-22・REQ-103）=====
+        # ★全体の window で「◯◯の週」と書くと、1日しか見ていない区間まで週ぶん見たことになる。
+        #   実測：ハノイ⇄アムステルダムは火・土の週2便で、月曜だけ見ると0本だった
+        t2 = pg.evaluate("""async () => {
+            const k = 'HND-CDG';
+            const saved = FLIGHTS_DB.legs[k];
+            const read = async (rec) => {
+                FLIGHTS_DB.legs[k] = rec;
+                Object.assign(STATE, {
+                  awardType:'partner', departure:'HND', destination:'CDG', arrival:null, returnDep:null,
+                  outbound:[null,null,null], return:[null,null,null], outboundSO:[false,false,false],
+                  returnSO:[false,false,false], outboundSurface:[false,false,false], returnSurface:[false,false,false],
+                });
+                await checkFlights(true);
+                return document.getElementById('flight-legs').innerText;
+            };
+            const out = {
+              // 1日しか見ていない区間で0本
+              partial: await read({ status:'no_nonstop', seen:'1??????', flights:[] }),
+              // 7日ぶん見て0本
+              full:    await read({ status:'no_nonstop', seen:'1111111', flights:[] }),
+            };
+            FLIGHTS_DB.legs[k] = saved;
+            return out;
+        }""")
+        results.append(("1日しか見ていない区間で「の週」と書かない",
+                        "の週" not in t2["partial"] and "1日ぶん" in t2["partial"],
+                        t2["partial"][:110].replace("\n", " ")))
+        results.append(("0本でも、見ていない曜日があるならそう書く",
+                        "見ていない曜日があります" in t2["partial"],
+                        t2["partial"][:140].replace("\n", " ")))
+        results.append(("7日ぶん見て0本なら、直行便が無いと言い切る",
+                        "直行便はありません" in t2["full"] and "見ていない曜日" not in t2["full"],
+                        t2["full"][:140].replace("\n", " ")))
+
+        # 実データで確かめる：ハノイ⇄アムステルダムは週2便（火・土）で、飛ぶ日が出る
+        han = pg.evaluate("""() => {
+            const r = FLIGHTS_DB.legs['HAN-AMS'];
+            return r ? { status: r.status, seen: r.seen, days: (r.flights[0]||{}).days,
+                         no: (r.flights[0]||{}).no } : null;
+        }""")
+        results.append(("★ハノイ→アムステルダムに実便がある（1日だけ見て0本と書いていた区間）",
+                        bool(han) and han["status"] == "ok" and han["days"].count("1") >= 1,
+                        str(han)))
+
+        # ボタンは押しても実便が増えない。「再取得」という名前を付けない        # ボタンは押しても実便が増えない。「再取得」という名前を付けない
         label = pg.evaluate("document.querySelector('.btn-refresh').textContent.trim()")
         results.append(("押しても外から取ってこないボタンを「再取得」と名乗らない",
                         "再取得" not in label and label != "", label))
