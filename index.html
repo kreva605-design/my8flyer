@@ -880,6 +880,17 @@
     .pp-dates-foot { font-size: 0.68rem; color: #7a879a; line-height: 1.7; margin: 10px 0 0; }
     .pp-seat { color: #1f6f4a; font-weight: 700; }
     .pp-seat.partial { color: #8a6d1f; font-weight: 500; }
+    /* 曜日（REQ-104〜106）。実便の運航曜日であって、特典の空席ではない */
+    .pp-wd { font-size: 0.68rem; color: #1f6f4a; font-weight: 700; white-space: nowrap; }
+    .pp-wd.unsure { color: #8a6d1f; font-weight: 500; }
+    .pp-wd.none   { color: #a3352f; font-weight: 700; }
+    .pp-wday { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 2px; }
+    .pp-wday label { font-size: 0.72rem; color: #566; }
+    .pp-wday select {
+      font-size: 0.72rem; padding: 4px 8px; border-radius: 8px;
+      border: 1px solid #cdd6e0; background: #fff; color: #334; font-family: inherit;
+    }
+    .pp-wday .hit { font-size: 0.7rem; color: #7a879a; }
     .pp-sort { display: flex; gap: 6px; margin: 10px 0 2px; }
     .pp-sort-btn {
       font-size: 0.72rem; padding: 5px 11px; border-radius: 999px; cursor: pointer;
@@ -1022,6 +1033,7 @@
       <div class="pp-base" id="pp-base"></div>
       <div class="pp-gain"><h3>もう1都市</h3><span id="pp-plus"></span></div>
       <div class="pp-sort" id="pp-sort" hidden></div>
+      <div class="pp-wday" id="pp-wday" hidden></div>
       <ul class="pp-list" id="pp-list"></ul>
       <p class="pp-foot" id="pp-foot"></p>
     </div>
@@ -2274,6 +2286,40 @@ function daysLabel(days) {
   }
   if (!on.length) return '運休';
   return on.length === 7 ? '毎日' : on.join('');
+}
+
+// ===== 曜日（REQ-104〜106）=====
+// 候補ごとの「飛べる曜日」。**実便（有償の時刻表）の話であって、特典の空席ではない。**
+// 乗り継ぎは日をまたぐことがある（実測：VN82 16:00→09:10+1）ので、
+// ここで出すのは**出発日ベースの目安**。厳密につながるかは「つながる便の組み合わせ」が担当。
+function ppWeekLabel(w) {
+  if (!w || typeof w.days !== 'string') return null;
+  const d = w.days;
+  const on = [...d].map((c, i) => (c === '1' ? WEEK_JA[i] : null)).filter(Boolean);
+  const unseen = d.includes('?');
+  if (!unseen) {
+    if (!on.length) {
+      // 飛べる日が1日も無い。原因が「乗れる便が無い区間」なら、そう言う
+      if (!w.blockedLegs?.length) return { text: '飛べる曜日なし', cls: 'none' };
+      // 原因で書き分ける。「乗れる社がいない」と「直行便が無い」は別のこと
+      return w.blockedByCarrier
+        ? { text: 'この特典で乗れる便が無い区間があります', cls: 'none' }
+        : { text: '直行便が見つかっていない区間があります', cls: 'none' };
+    }
+    return { text: on.length === 7 ? '毎日飛べる' : `${on.join('')}に飛べる`, cls: '' };
+  }
+  // 見ていない曜日がある。見ていないことを「飛ばない」と読ませない
+  return on.length
+    ? { text: `${on.join('')}に飛べる（他の曜日は未確認）`, cls: 'unsure' }
+    : { text: '曜日は未確認', cls: 'unsure' };
+}
+
+// 行（都市）としての曜日。行き方ごとに曜日が違うときは、1つに代表させない
+function ppRowWeekLabel(r) {
+  const labels = (r.ways ?? []).map((w) => ppWeekLabel(w.weekdays)).filter(Boolean);
+  if (!labels.length || labels.length !== (r.ways ?? []).length) return null;
+  const uniq = [...new Set(labels.map((l) => l.text))];
+  return uniq.length === 1 ? labels[0] : null;
 }
 
 // ===== 特典カレンダー（S-6・data/award-calendar.json）=====
@@ -4018,9 +4064,13 @@ async function ppSearch() {
     STATE.awardKind      = req.awardKind;
     STATE.partnerAirline = req.partnerAirline;
 
+    // ★実便（時刻表）を読んでから提案する。曜日（REQ-104）の材料になる。
+    //   読めなくても提案は止めない（曜日を出さないだけ）
+    await ensureFlightsDB();
     const { proposals, stats } = PP.mod.propose(req, {
       rules: RULES_CFG, charts: PP.charts, cities: CITIES, graph: PP.graph,
       coords: PP.airports, airports: PP.airports, airlines: PP.airlines,
+      flights: FLIGHTS_DB?.legs ?? null,
     });
     PP.stats = stats;
 
@@ -4033,6 +4083,7 @@ async function ppSearch() {
     PP.rows = PP.mod.groupByCity(proposals.filter(within), { airports: PP.airports });
     PP.selKey = PP.rows[0] ? `${PP.rows[0].iata ?? '__base__'}|${PP.rows[0].plan ?? '-'}` : null;
     PP.way = 0; PP.showFar = false;
+    PP.wday = null;                    // 曜日の絞り込みは検索のたびに外す
 
     msg.textContent = '';
     ppRender();
@@ -4045,6 +4096,9 @@ async function ppSearch() {
     btn.disabled = false;
   }
 }
+
+// 曜日の絞り込みを外す（0件になったときの逃げ道・REQ-105）
+function ppClearWday() { PP.wday = null; ppRender(); }
 
 // 条件バーを押したら「さがす」へ戻す（出発地・特典・座席を替える）
 function ppEditCondition() {
@@ -4162,7 +4216,15 @@ function ppRender() {
                                   || (b._sd?.days ?? -1) - (a._sd?.days ?? -1)
                                   || (a.detour ?? 0) - (b.detour ?? 0))
     : PP.rows;
-  const ordered = [...baseRow, ...cands];
+  // ★曜日でしぼる（REQ-105）。**未確認（?）の候補は落とさない**——見ていないことを
+  //   理由に消すと、いまのデータでは薄い路線の候補が軒並み消える（§29-4）。
+  //   「もう1都市なし」は候補ではなく比べるための基準なので、しぼり込みの対象にしない
+  const wdayOn = Number.isInteger(PP.wday);
+  const wdayHit = (r) => !wdayOn
+    || (r.ways ?? []).some((w) => PP.mod.flysOn(w.weekdays, PP.wday));
+  const candsW = cands.filter(wdayHit);
+  const wdayDropped = cands.length - candsW.length;
+  const ordered = [...baseRow, ...candsW];
   const near = ordered.filter(r => r.effort !== '大回り');
   const far  = ordered.filter(r => r.effort === '大回り');
   const list = PP.showFar ? [...near, ...far] : near;
@@ -4213,6 +4275,10 @@ function ppRender() {
       why: `${ppCityName(PP.req.returnDep)} 発で帰る`,
       label: '帰りに出発する場所の条件を外してさがす', fn: 'ppClearReturnDep()',
     });
+    if (wdayOn) blockers.push({
+      why: `${WEEK_JA[PP.wday]}曜に出発できる`,
+      label: '曜日の絞り込みを外す', fn: 'ppClearWday()',
+    });
     ul.innerHTML = blockers.length
       ? `<li style="${lead}">次の条件に合う案がありませんでした：`
         + blockers.map((b) => b.why).join(' ／ ')
@@ -4232,9 +4298,12 @@ function ppRender() {
     const same  = r.sameCountry.length ? ` ・ 同じ国にあと${r.sameCountry.length}都市` : '';
     const seat = r._sd
       ? ` ・ <b class="pp-seat${r._sd.partial ? ' partial' : ''}">${ppSeatLabel(r._sd)}</b>` : '';
+    // 行き方で曜日が違うときは行に出さない（1つに代表させると別の行き方の話になる）
+    const rw = ppRowWeekLabel(r);
+    const wd = rw ? ` ・ <span class="pp-wd ${rw.cls}">${rw.text}</span>` : '';
     const sub   = (r.iata === null
       ? `${ppMi(r.miles)} マイル ・ 乗継${r.ways[0].transits}回`
-      : `${icons} 行き方${r.ways.length}通り ・ 就航${r.hub}路線${same}`) + seat;
+      : `${icons} 行き方${r.ways.length}通り ・ 就航${r.hub}路線${same}`) + seat + wd;
     btn.innerHTML = `<span>${r.city}${ppRowAirline(r)}<span class="sub">${sub}</span></span>`
       + `<span class="km">${ppKm(r.detour)}</span><span class="km">${on ? '▾' : '›'}</span>`;
     btn.addEventListener('click', () => {
@@ -4253,9 +4322,12 @@ function ppRender() {
         c.className = 'pp-way' + (w.extraVia === 'home' ? ' home' : '') + (wi === PP.way ? ' on' : '');
         // ANA便だけで組める案は、提携特典ではなくANA国際線特典として扱われる
         const warn = w.actualAward === 'ana' ? ' <span class="pp-warn">ANA特典扱い</span>' : '';
+        const ww = ppWeekLabel(w.weekdays);
         c.innerHTML = `<span>${PP_WAY[k]?.icon ?? '•'}</span>`
           + `<span class="wt">${PP_WAY[k]?.label ?? k}${warn}`
-          + `<span class="wd">${w.homeLeg === 'out' ? '往路 ' + w.route[0] : '復路 ' + w.route[1]}</span></span>`
+          + `<span class="wd">${w.homeLeg === 'out' ? '往路 ' + w.route[0] : '復路 ' + w.route[1]}</span>`
+          + (ww ? `<span class="wd"><span class="pp-wd ${ww.cls}">${ww.text}</span></span>` : '')
+          + `</span>`
           + `<span class="km">${ppKm(w.detourKm ?? 0)}</span>`;
         c.addEventListener('click', () => { PP.way = wi; ppShowItinerary(w); });
         box.appendChild(c);
@@ -4284,6 +4356,13 @@ function ppRender() {
     `規約に適合した ${ppMi(s.passed)} 通りを ${PP.rows.length} 都市に畳み、${orderNote}`
     + (home ? `うち ${home} 都市は「自宅で途中降機」が選べます。`
             : 'この出発地・この特典では「自宅で途中降機」は組めません。')
+    + (([...baseRow, ...PP.rows].some((r) => (r.ways ?? []).some((w) => w.weekdays)))
+        ? `<br><span class="pp-cal-note">「飛べる曜日」は実便（Googleフライト調べの時刻表）から出した`
+          + `<b>出発日ベースの目安</b>です。<b>特典の空席ではありません。</b>`
+          + `乗り継ぎは日をまたぐことがあるため、実際につながるかは旅程の詳細にある`
+          + `「つながる便の組み合わせ」が日付で計算します。`
+          + `1日3本以上ある区間は毎日運航として扱い、見ていない曜日は「飛ばない」と数えていません。</span>`
+        : '')
     + (calApplies ? `<br><span class="pp-cal-note">「取れる日」は ANA特典カレンダー`
         + `（${AWARD_CAL._meta.zone_label} / ${AWARD_CAL._meta.cabin} / ${AWARD_CAL._meta.as_of} 時点）`
         + `で往路と復路の両方に空席がある日を数えたもの。<b>目安であって実在庫ではありません</b>`
@@ -4320,6 +4399,38 @@ function ppRender() {
         ? `いまの表：${AWARD_CAL._meta?.zone_label ?? '—'} / ${AWARD_CAL._meta?.cabin ?? '—'}`
           + `（${AWARD_CAL._meta?.as_of ?? '取得日不明'} 時点${AWARD_CAL._fromCapture ? '・あなたが撮ったもの' : '・アプリ同梱'}）`
         : 'この目的地・クラスの表はまだありません';
+    }
+  }
+
+  // ★曜日でしぼる（REQ-105）。実便を読めていない端末では出さない
+  const wdayBox = document.getElementById('pp-wday');
+  if (wdayBox) {
+    const hasWeek = [...baseRow, ...PP.rows].some((r) => (r.ways ?? []).some((w) => w.weekdays));
+    wdayBox.hidden = !hasWeek;
+    if (hasWeek) {
+      const unsureN = candsW.filter((r) =>
+        (r.ways ?? []).some((w) => w.weekdays?.unsure)).length;
+      wdayBox.innerHTML = '';
+      const lab = document.createElement('label');
+      lab.setAttribute('for', 'pp-wday-sel');
+      lab.textContent = '曜日でしぼる';
+      const sel = document.createElement('select');
+      sel.id = 'pp-wday-sel';
+      sel.innerHTML = ['<option value="">指定なし</option>']
+        .concat(WEEK_JA.map((d, i) => `<option value="${i}">${d}曜に出発できる案</option>`)).join('');
+      sel.value = wdayOn ? String(PP.wday) : '';
+      sel.addEventListener('change', () => {
+        PP.wday = sel.value === '' ? null : Number(sel.value);
+        ppRender();
+      });
+      const hint = document.createElement('span');
+      hint.className = 'hit';
+      hint.textContent = !wdayOn
+        ? (unsureN ? `うち ${unsureN} 都市は曜日が未確認です` : '')
+        : `${candsW.length} 都市が該当`
+          + (unsureN ? `（うち ${unsureN} 都市は未確認を含むので残しています）` : '')
+          + (wdayDropped ? ` ／ ${wdayDropped} 都市を隠しています` : '');
+      wdayBox.append(lab, sel, hint);
     }
   }
 

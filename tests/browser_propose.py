@@ -44,6 +44,107 @@ try:
         foot = pg.inner_text("#pp-foot")
         check("集計文が出る", "都市に畳み" in foot, foot[:90])
 
+        # ===== 曜日を考慮した提案（REQ-104〜106）=====
+        wk = pg.evaluate("""
+            () => {
+              const ways = PP.rows.flatMap(r => r.ways);
+              const withW = ways.filter(w => w.weekdays);
+              return {
+                ways: ways.length,
+                withW: withW.length,
+                shapeOk: withW.every(w => /^[01?]{7}$/.test(w.weekdays.days)),
+                daily: withW.filter(w => w.weekdays.days === '1111111').length,
+                unsure: withW.filter(w => w.weekdays.unsure).length,
+              };
+            }
+        """)
+        check("候補に曜日が付いている（REQ-104）",
+              wk["withW"] == wk["ways"] and wk["ways"] > 0 and wk["shapeOk"], str(wk))
+        check("曜日の帯が画面に出る",
+              pg.eval_on_selector_all("#pp-list .pp-wd", "e => e.length") >= 1,
+              f'{pg.eval_on_selector_all("#pp-list .pp-wd", "e => e.length")}個')
+        check("未確認は「飛ばない」と書かず、未確認と書く",
+              pg.evaluate("""() => {
+                  const t = [...document.querySelectorAll('#pp-list .pp-wd.unsure')]
+                            .map(e => e.textContent);
+                  return t.length === 0 || t.every(x => x.includes('未確認'));
+              }"""), f'未確認の帯 {wk["unsure"]}件')
+
+        # 絞り込み（REQ-105）。**未確認を理由に候補を消さない**
+        check("曜日の絞り込みが出る",
+              not pg.is_hidden("#pp-wday")
+              and pg.eval_on_selector_all("#pp-wday select", "e => e.length") == 1,
+              pg.inner_text("#pp-wday").replace("\n", " ")[:80])
+        before = pg.eval_on_selector_all("#pp-list .pp-city", "e => e.length")
+        drop = pg.evaluate("""
+            () => {
+              // 「その曜日に飛ばないと分かっている案だけの都市」がある曜日を探す
+              for (let d = 0; d < 7; d++) {
+                const hit = PP.rows.filter(r => r.ways.some(w => PP.mod.flysOn(w.weekdays, d)));
+                if (hit.length < PP.rows.length) return { d, hit: hit.length, all: PP.rows.length };
+              }
+              return null;
+            }
+        """)
+        # ★「未確認を消していないか」は、未確認が実際に出る曜日で確かめる。
+        #   月曜は全区間が観測済み（seen の1日目）なので ? が1つも無く、その曜日で検査すると
+        #   前提0件のまま素通りしてしまう
+        unsure_day = pg.evaluate("""
+            () => {
+              for (let d = 0; d < 7; d++) {
+                const n = PP.rows.filter(r =>
+                  r.ways.some(w => w.weekdays && w.weekdays.days[d] === '?')).length;
+                if (n > 0) return { d, n };
+              }
+              return null;
+            }
+        """)
+        WJA = "月火水木金土日"
+        if drop:
+            pg.select_option("#pp-wday-sel", str(drop["d"]))
+            after = pg.eval_on_selector_all("#pp-list .pp-city", "e => e.length")
+            check("曜日でしぼると、飛ばないと分かっている案が隠れる（REQ-105）",
+                  after < before, f'{before}行 → {after}行（{WJA[drop["d"]]}曜）')
+            pg.select_option("#pp-wday-sel", "")
+            check("「指定なし」に戻すと元の件数に戻る",
+                  pg.eval_on_selector_all("#pp-list .pp-city", "e => e.length") == before,
+                  f'{before}行')
+        else:
+            check("曜日でしぼると、飛ばないと分かっている案が隠れる（REQ-105）",
+                  False, "全曜日で差が出ない＝検査の前提が崩れた（データを疑う）")
+
+        if unsure_day:
+            # ★比べるのは「しぼり込む前に画面へ出ていた行」。PP.rows には大回りで
+            #   畳まれている行も入っており、それを母数にすると曜日と関係ない差が出る
+            shown_before = pg.eval_on_selector_all(
+                "#pp-list .pp-city", "es => es.map(e => e.textContent)")
+            pg.select_option("#pp-wday-sel", str(unsure_day["d"]))
+            kept = pg.evaluate("""
+                ([d, before]) => {
+                  const shown = [...document.querySelectorAll('#pp-list .pp-city')]
+                    .map(e => e.textContent);
+                  const unsureRows = PP.rows.filter(r =>
+                    r.ways.some(w => w.weekdays && w.weekdays.days[d] === '?'));
+                  // しぼり込む前に出ていて、その曜日が未確認の行
+                  const need = unsureRows.filter(r => before.some(t => t.includes(r.city)));
+                  return {
+                    need: need.length,
+                    kept: need.filter(r => shown.some(t => t.includes(r.city))).length,
+                  };
+                }
+            """, [unsure_day["d"], shown_before])
+            check("未確認を含む候補は、しぼり込んでも1つも消さない（REQ-105）",
+                  kept["need"] > 0 and kept["kept"] == kept["need"],
+                  f'{WJA[unsure_day["d"]]}曜が未確認の都市 {kept["need"]} → 画面に残った {kept["kept"]}')
+            pg.select_option("#pp-wday-sel", "")
+        else:
+            check("未確認を含む候補は、しぼり込んでも1つも消さない（REQ-105）",
+                  False, "未確認の候補が1つも無い＝検査の前提が崩れた（データを疑う）")
+
+        check("曜日は目安だと書いてある（REQ-106）",
+              "目安" in foot and "特典の空席ではありません" in foot
+              and "つながる便の組み合わせ" in foot, foot.replace("\n", " ")[-120:])
+
         # 🏠（自宅で途中降機）を持つ都市を探して開く
         found = pg.evaluate("""() => {
             const i = PP.rows.findIndex(r => r.ways.some(w => w.extraVia === 'home'));

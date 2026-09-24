@@ -11,6 +11,7 @@
 #   - 2026-09-21 オープンジョー（帰りに出発する場所）を提案でも指定できるようにした（REQ-97〜99）。architecture.md は §27 を末尾に追記しただけで既存節は未変更。実装・テスト・manifest・画面遷移マップを同じ作業内で追従させ、単体107/107・画面79/79（検査14件を追加）・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
 #   - 2026-09-22 実便を持っていない区間の言い方とボタン名の是正（REQ-100・101）、実便の収集対象の拡大（REQ-102）。architecture.md は §28 を末尾に追記しただけで既存節は未変更。単体107/107・実便15/15（検査4件追加）・画面79/79・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
 #   - 2026-09-22 実便まわりの是正（REQ-100〜103）。実便を295区間→751区間へ拡大し、区間ごとの seen（見た曜日）を索引に残して「見ていない」を「飛ばない」と書かないようにした。architecture.md は §28 を末尾に追記しただけで既存節は未変更。実便19/19（検査8件追加）・単体107/107・画面79/79・smoke15/15・combos24/24・dates30/30・seats20/20 PASS
+#   - 2026-09-24 曜日を考慮した提案（REQ-104〜106）。architecture.md は §29 の見出しを実装済みへ直し §29-6（実装記録・使える社だけで多頻度を数える細則）を追記。既存節は未変更。実装（src/proposer.js・index.html）・テスト（weekdays.test.mjs 22件新設／browser_propose.py に曜日の検査8件追加）・manifest を同じ作業内で追従。単体129/129・提案87/87・実便19/19・smoke15/15・combos24/24・dates30/30・seats20/20 PASS。参照欠損0（未設定の spec_ref 122件のみ）・unmapped_drift 0・missing_sources 0・受入FAIL 0
 #
 project: my8flyer
 schema_version: 1
@@ -21,12 +22,12 @@ screen_map:
   markdown: claude-vault/projects/my8flyer/screen-map_2026-09-20_my8flyer.md
   artifact_url: https://claude.ai/code/artifact/ad8fbce6-6d6f-495d-9616-1d7e2f9ce30b
   mode: close
-  updated_at: 2026-09-20
+  updated_at: 2026-09-24
 updated_at: 2026-09-19
 sources:
   design:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/architecture.md
-    sha256: 9649d95e4289a550dc989609a7ee72372d2f8703c187bfe961ca48afe21e8f99
+    sha256: aa1482df75c61f8a5764f63de1833a7b6ec9a92ba24143e256d681bac72210ae
   test_report:
     path: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/claude-vault/projects/my8flyer/test_report_2026-05-20_phase11.md
     sha256: 7d049575b537d667ba7f2aa51a6bb5332b19f9a80a1c5fca2397cd429dd6173f
@@ -901,4 +902,40 @@ requirements:
   tested_at: "2026-09-22"
   verify_mode: auto
   last_verified: 2026-09-22
+  status: green
+
+- id: REQ-104
+  text: 候補ごとに「飛べる曜日」を出す。区間の曜日はその区間でこの旅程に使える社の便の days を OR、旅程の曜日は区間ごとの曜日を AND で束ねる。1日3本以上ある区間は毎日運航として扱う（7日取れた区間のうち3本以上のものは全ての日で運航していたという実測根拠）。ただしその本数は「この旅程で使える社の便」だけで数える（区間の総便数で数えると、乗れない社の便で曜日を保証してしまう。実測：羽田→パリは6便あるがANA特典で乗れるのはNH1便だけ）。見ていない曜日（?）を「飛ばない」と数えず、未確認が残るときは曜日を断定しない。実便を読めていないときは曜日を出さない（推測で埋めない）
+  design_ref: architecture.md#29-3
+  impl_ref: src/proposer.js::legWeekdays,src/proposer.js::itineraryWeekdays,src/proposer.js::propose
+  test_ref: tests/weekdays.test.mjs
+  test_kind: suite
+  tested_at: "2026-09-24"
+  tested_impl_sha256: "8ac279d74923ae017d719239370078e7f3b9a05aa3f0dbcb65b6955a4346e632"
+  verify_mode: auto
+  last_verified: 2026-09-24
+  status: green
+
+- id: REQ-105
+  text: 候補一覧を曜日でしぼれるようにする。しぼり込みは「その曜日に出発できる案」で、未確認（?）を含む候補は落とさず残す（見ていないことを理由に候補を消すと、いまのデータでは薄い路線の候補が軒並み消える）。しぼり込みで0件になったときは、効いている条件として曜日も挙げ、外すボタンを出す。「もう1都市なし（まっすぐ帰る）」は候補ではなく比べるための基準なので、しぼり込みの対象にしない。新しい検索のたびに曜日の指定は外す
+  design_ref: architecture.md#29-3
+  impl_ref: index.html::ppRender,index.html::ppClearWday
+  test_ref: tests/browser_propose.py
+  test_kind: suite
+  tested_at: "2026-09-24"
+  tested_impl_sha256: "f17afc1f9b20a86df76f2c209d31c0d15f951f6672623072bf3599f8ea1b4a67"
+  verify_mode: auto
+  last_verified: 2026-09-24
+  status: green
+
+- id: REQ-106
+  text: 曜日は目安であることを画面に書く。出すのは実便（有償の時刻表）から出した出発日ベースの目安であって特典の空席ではないこと、乗り継ぎは日をまたぐことがあるため実際につながるかは「つながる便の組み合わせ」が日付で計算すること、1日3本以上の区間は毎日運航として扱っていること、見ていない曜日を「飛ばない」と数えていないことを候補一覧の足元に書く。未確認の候補には「未確認」と書き、飛ばないとは書かない
+  design_ref: architecture.md#29-3
+  impl_ref: index.html::ppWeekLabel,index.html::ppRender
+  test_ref: tests/browser_propose.py
+  test_kind: suite
+  tested_at: "2026-09-24"
+  tested_impl_sha256: "f17afc1f9b20a86df76f2c209d31c0d15f951f6672623072bf3599f8ea1b4a67"
+  verify_mode: auto
+  last_verified: 2026-09-24
   status: green

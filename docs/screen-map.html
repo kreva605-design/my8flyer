@@ -295,9 +295,10 @@ flowchart TD
       </div>
       <button class="op" data-op="o4" data-n="4" style="margin-bottom:9px"><span class="cal">📅 国内↔海外の空いているANA便の往路復路の日程を検索</span></button>
       <button class="op" data-op="o5" data-n="5" style="width:auto;margin-bottom:11px"><span class="ghost">◀ 条件を変える</span></button>
+      <button class="op" data-op="o28" data-n="28" style="width:auto;margin-bottom:11px"><span class="chip">曜日でしぼる：火曜に出発できる案</span></button>
       <div class="m-row">
-        <button class="op" data-op="o6" data-n="6"><span class="m-item">もう1都市なし（まっすぐ帰る）<span class="m-tag">ベトナム航空</span><span class="s">62,000 マイル ・ 乗継2回</span></span></button>
-        <button class="op" data-op="o7" data-n="7"><span class="m-item">ハノイ<span class="m-tag">ベトナム航空</span><span class="s">✈️ 行き方1通り ・ 就航27路線</span></span></button>
+        <button class="op" data-op="o6" data-n="6"><span class="m-item">もう1都市なし（まっすぐ帰る）<span class="m-tag">ベトナム航空</span><span class="s">62,000 マイル ・ 乗継2回 ・ <b style="color:#1f6f4a">火土に飛べる</b></span></span></button>
+        <button class="op" data-op="o7" data-n="7"><span class="m-item">ハノイ<span class="m-tag">ベトナム航空</span><span class="s">✈️ 行き方1通り ・ 就航27路線 ・ <b style="color:#8a6d1f">月に飛べる（他の曜日は未確認）</b></span></span></button>
       </div>
     </div>
     <div class="scr-f">index.html:994 <span style="opacity:.6">#pp-s2</span></div>
@@ -508,6 +509,8 @@ flowchart TD
     o26: {name:"経由地の条件を外してさがす／帰りに出発する場所の条件を外してさがす（0件のとき）", from:"S2", to:"S2",
           api:null, write:null,
           note:"ppClearVia / ppClearReturnDep（REQ-99）。0件のときは効いている条件を全部挙げ、条件ごとにこのボタンを出す。"},
+    o28: {name:"曜日でしぼる（セレクト）／曜日の絞り込みを外す", from:"S2", to:"S2", api:null, write:null,
+          note:"ppRender の曜日フィルタ（REQ-105）。実便（data/flights.json）の運航曜日から「その曜日に出発できる案」だけを残す。**未確認（?）の候補は落とさない**——見ていないことを理由に消すと薄い路線の候補が軒並み消えるため。実便を読めていないときは欄ごと出さない。0件になったら「曜日の絞り込みを外す」（ppClearWday）を出す。"},
     o11: {name:"▲ この条件でもう1都市の提案を受ける", from:"S4", to:"S2", api:null, write:null,
           note:"置いてある経由地が「必ず通る街」（mustVia）として検索条件になる（同じ街は畳む・REQ-96）。さがすで選んだ特典の種類と航空会社は STATE.awardKind／partnerAirline から戻す（REQ-95）。復路出発地（オープンジョー）も引き継ぐ。エリア違いなら検索せず理由を出して止める（REQ-98）。"},
     o12: {name:"都市スロット（出発地・目的地・往路3・復路3・帰着地の8つ）", from:"S4", to:"M1",

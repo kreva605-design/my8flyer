@@ -628,11 +628,15 @@ export function propose(req, ctx) {
   // 寄り道先の「大手空港かどうか」「どの国か」を添える。
   // 魅力のあるルートを上に出すために使う（データは data/airports.json）
   const airports = ctx.airports ?? null;
+  // 実便の時刻表（data/flights.json の legs）。渡されたときだけ曜日を計算する。
+  // 読めていない端末では曜日を出さない（推測で埋めない・REQ-104）
+  const flights = ctx.flights ?? null;
   for (const p of keep.values()) {
     const a = p.extraCity && airports ? airports[p.extraCity] : null;
     p.stopoverSize = a?.size ?? null;
     p.stopoverCountry = a?.country ?? null;
     p.hubRoutes = p.extraCity ? hubScore(graph, p.extraCity, allowed) : null;
+    p.weekdays = itineraryWeekdays(p.carriersByLeg, flights);
   }
 
   const proposals = [...keep.values()];
@@ -667,6 +671,108 @@ export function propose(req, ctx) {
 
   stats.shown = proposals.length;
   return { proposals, stats };
+}
+
+// =====================================================================
+// 曜日（REQ-104〜106）— 「その候補は何曜日に飛べるか」
+// =====================================================================
+// ANAの特典検索は「その区間・その日」を正確に指定しないと空席が出ない。
+// だから提案の段階で運航曜日が分かると、利用者の無駄打ちが消える
+//（実測：ハノイ⇄アムステルダムは火・土の週2便で、月曜で検索すると0件）。
+//
+// 守ること（設計 §29）：
+//  - 区間の曜日 ＝ その区間で**この旅程に使える社**の便の days を OR
+//  - 旅程の曜日 ＝ 区間ごとの曜日を AND
+//  - **`?`（見ていない）を「飛ばない」と数えない。** 未確認が残るなら断定しない
+//  - **曜日で候補を消さない。** 印を付けて残すのは呼び手（画面）の仕事
+//  - これは**実便（有償の時刻表）の話であって、特典の空席ではない**
+//
+// ★「1日3本以上なら毎日運航とみなす」は、**その旅程で使える社の便だけ**で数える。
+//   区間の総便数で数えると、たとえば広島→羽田（NH4本＋JL7本）をANA特典で見たときに
+//   「JLが毎日飛んでいるから毎日」と言ってしまう。乗れない便で曜日を保証しない。
+// =====================================================================
+export const WEEK_UNKNOWN = '???????';
+
+// 便名の先頭2文字＝運航会社（画面の実便欄と同じ判定に揃える）
+const carrierOf = (no) => String(no ?? '').slice(0, 2);
+
+// 1区間の運航曜日。rec は data/flights.json の legs[`${from}-${to}`]
+// airlines には「この旅程でその区間に使える社」を渡す（carriersByLeg[i].airlines）
+export function legWeekdays(rec, airlines, opts = {}) {
+  const minDaily = opts.minDaily ?? 3;      // 1日この本数以上なら曜日運休は無いとみなす
+  const none = (reason) => ({ days: WEEK_UNKNOWN, unsure: true, frequent: false, reason });
+  if (!rec || rec.status === 'error') return none(rec ? 'error' : 'no-record');
+  const all = Array.isArray(rec.flights) ? rec.flights : [];
+  // 便を1本も見ていない区間。7日そろって0本なら「飛ばない」と言い切れるが、
+  // 見ていない曜日が残るなら「飛ばない」ではなく「分からない」
+  const seen = typeof rec.seen === 'string' && rec.seen.length === 7 ? rec.seen : null;
+  if (!all.length) {
+    return (seen && !seen.includes('?'))
+      ? { days: '0000000', unsure: false, frequent: false, reason: 'no-flights' }
+      : none('unseen');
+  }
+  const elig = new Set(airlines ?? []);
+  const usable = all.filter((f) => elig.has(carrierOf(f.no)));
+  // 飛んではいるが、この特典では乗れない社だけ（REQ-61 が別途警告する形）
+  if (!usable.length) {
+    return { days: '0000000', unsure: false, frequent: false, reason: 'no-eligible-carrier' };
+  }
+  // 1日あたりの便数は**見た曜日だけ**で数える（見ていない曜日を0本と数えない）
+  let maxPerDay = 0;
+  for (let i = 0; i < 7; i++) {
+    if (seen && seen[i] === '?') continue;
+    const n = usable.filter((f) => String(f.days ?? '')[i] === '1').length;
+    if (n > maxPerDay) maxPerDay = n;
+  }
+  if (maxPerDay >= minDaily) {
+    // 実測根拠：7日取れた区間のうち1日3本以上のものは、すべての日で運航していた（§S-4）
+    return { days: '1111111', unsure: false, frequent: true, reason: 'frequent' };
+  }
+  let days = '';
+  for (let i = 0; i < 7; i++) {
+    const cs = usable.map((f) => String(f.days ?? '')[i] || '?');
+    days += cs.includes('1') ? '1' : cs.includes('?') ? '?' : '0';
+  }
+  return { days, unsure: days.includes('?'), frequent: false, reason: 'observed' };
+}
+
+// 旅程ぜんぶの運航曜日。carriersByLeg（区間ごとの from/to/airlines）と
+// data/flights.json の legs を渡す。flights が無ければ null（画面は曜日を出さない）
+export function itineraryWeekdays(carriersByLeg, flights, opts = {}) {
+  if (!flights || !Array.isArray(carriersByLeg) || !carriersByLeg.length) return null;
+  const legs = carriersByLeg.map((l) => {
+    const w = legWeekdays(flights[`${l.from}-${l.to}`], l.airlines, opts);
+    return { from: l.from, to: l.to, ...w };
+  });
+  let days = '';
+  for (let i = 0; i < 7; i++) {
+    const cs = legs.map((l) => l.days[i]);
+    // 1区間でも飛ばない日は旅程として飛べない。
+    // 「飛ばない」が無く「見ていない」が混ざるなら、断定せず `?` のまま残す
+    days += cs.includes('0') ? '0' : cs.includes('?') ? '?' : '1';
+  }
+  return {
+    days,
+    unsure: days.includes('?'),
+    // 未確認が残っている区間（画面が「どこが未確認か」を言えるように）
+    unsureLegs: legs.filter((l) => l.days.includes('?')).map((l) => `${l.from}-${l.to}`),
+    // 曜日が全滅する原因になった区間。**原因は2通りあるので混ぜない**——
+    // ①飛んではいるが乗れる社がいない（REQ-61 と同じ事実）②7日見て直行便が0本。
+    // 画面の言い方が変わるため、どちらなのかを持たせる
+    blockedLegs: legs.filter((l) => l.days === '0000000').map((l) => `${l.from}-${l.to}`),
+    blockedByCarrier: legs.some((l) => l.reason === 'no-eligible-carrier')
+                   && legs.filter((l) => l.days === '0000000')
+                          .every((l) => l.reason === 'no-eligible-carrier'),
+    legs,
+  };
+}
+
+// 指定した曜日に出発できるか（画面の絞り込み用）。
+// **未確認（`?`）は「できない」と数えない＝見ていないことを理由に候補を消さない**（REQ-105）
+export function flysOn(weekdays, dayIndex) {
+  if (!weekdays || typeof weekdays.days !== 'string') return true;   // 曜日が分からなければ残す
+  const c = weekdays.days[dayIndex];
+  return c === '1' || c === '?';
 }
 
 // 実際に選べる運航会社が1社に絞られる旅程かどうか。
