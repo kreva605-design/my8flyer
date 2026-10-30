@@ -22,3 +22,11 @@ data/snapshots/*.html
 # 取り直せば再生成できる（scripts/my8flyer/fetch_flights.py）。
 data/flights-raw.json
 data/legs.json
+
+# --- 作業メモ・台帳・検証レポート（D4-2・2026-10-31） ---
+# このリポジトリは GitHub Pages で公開され、リポジトリ自体も公開。ローカルには残すが、追跡しない。
+# 許可リスト方式の検査：scripts/my8flyer/check_publish_tree.py（コミット時に自動で走る）
+HANDOFF.md
+build-manifest.yml
+verify-report-*.md
+docs/
